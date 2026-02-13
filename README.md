@@ -13,7 +13,7 @@ The text-based format (`grid.txt` + `palette.txt`) is the canonical representati
 
 ## Why This Exists
 
-I'm a hobby game dev making games in Godot. I wanted an LLM to help me create sprites, but no art tool speaks text. So I built one.
+I'm a hobby game dev making [Veil of Ages](https://github.com/azrazalea/veil-of-ages) in Godot. I wanted an LLM to help me create sprites, but no art tool speaks text. So I built one.
 
 ## Quick Start
 
@@ -106,7 +106,7 @@ gridfab-gui [directory]
 - Configurable grid sizes (8x8, 16x16, 32x32, 64x64, or any WxH)
 - Export at multiple scales (1x, 4x, 8x, 16x) with true transparency
 - Preview rendering with checkerboard background
-- Undo/redo in GUI (50-step history)
+- Undo/redo in GUI (512-step history)
 - 1-2 character palette aliases with case-insensitive collision detection
 
 ### Planned

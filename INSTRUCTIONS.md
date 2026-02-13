@@ -129,7 +129,7 @@ The left panel shows all colors defined in palette.txt. Click a color button to 
 | Shortcut | Action |
 |----------|--------|
 | Ctrl+S | Save grid.txt |
-| Ctrl+Z | Undo (up to 50 steps) |
+| Ctrl+Z | Undo (up to 512 steps) |
 | Ctrl+Y | Redo |
 | Ctrl+Shift+Z | Redo (alternative) |
 
