@@ -52,7 +52,7 @@ jobs:
           script-name: src/gridfab/__main__.py
           mode: standalone
           output-dir: build/cli
-          output-filename: gridfab
+          output-file: gridfab
 
       - name: Build GUI with Nuitka
         uses: Nuitka/Nuitka-Action@main
@@ -63,26 +63,26 @@ jobs:
           enable-plugins: tk-inter
           disable-console: true
           output-dir: build/gui
-          output-filename: gridfab-gui
+          output-file: gridfab-gui
 
       - name: Merge builds and archive (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          Copy-Item -Path build/gui/gridfab-gui.dist/* -Destination build/cli/gridfab.dist/ -Recurse -Force
-          Compress-Archive -Path build/cli/gridfab.dist/* -DestinationPath gridfab-windows.zip
+          Copy-Item -Path build/gui/gui.dist/* -Destination build/cli/__main__.dist/ -Recurse -Force
+          Compress-Archive -Path build/cli/__main__.dist/* -DestinationPath gridfab-windows.zip
 
       - name: Merge builds and archive (macOS)
         if: runner.os == 'macOS'
         run: |
-          cp -R build/gui/gridfab-gui.dist/* build/cli/gridfab.dist/
-          cd build/cli/gridfab.dist && zip -r ../../../gridfab-macos.zip .
+          cp -R build/gui/gui.dist/* build/cli/__main__.dist/
+          cd build/cli/__main__.dist && zip -r ../../../gridfab-macos.zip .
 
       - name: Merge builds and archive (Linux)
         if: runner.os == 'Linux'
         run: |
-          cp -R build/gui/gridfab-gui.dist/* build/cli/gridfab.dist/
-          tar czf gridfab-linux.tar.gz -C build/cli/gridfab.dist .
+          cp -R build/gui/gui.dist/* build/cli/__main__.dist/
+          tar czf gridfab-linux.tar.gz -C build/cli/__main__.dist .
 
       - uses: actions/upload-artifact@v4
         with:
