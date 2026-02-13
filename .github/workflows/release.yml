@@ -94,87 +94,31 @@ jobs:
           name: ${{ matrix.artifact }}-${{ steps.suffix.outputs.value }}
           path: build/cli/__main__.dist/
 
-  release-dry-run:
+  release:
     needs: build
     runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
     steps:
-      - name: Determine version suffix
-        id: suffix
-        run: |
-          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
-            echo "value=${GITHUB_REF#refs/tags/v}" >> "$GITHUB_OUTPUT"
-          else
-            echo "value=$(echo $GITHUB_SHA | cut -c1-7)" >> "$GITHUB_OUTPUT"
-          fi
+      - name: Get version from tag
+        id: version
+        run: echo "value=${GITHUB_REF#refs/tags/v}" >> "$GITHUB_OUTPUT"
 
       - uses: actions/download-artifact@v4
         with:
           path: artifacts
 
-      - name: Debug - list downloaded artifacts
-        run: |
-          SUFFIX="${{ steps.suffix.outputs.value }}"
-          echo "=== Version suffix: $SUFFIX ==="
-          echo ""
-          echo "=== Artifact directory structure ==="
-          find artifacts -type f | head -100
-          echo ""
-          echo "=== Directory sizes ==="
-          du -sh artifacts/*/
-          echo ""
-          echo "=== File counts per artifact ==="
-          for dir in artifacts/*/; do
-            echo "$dir: $(find "$dir" -type f | wc -l) files"
-          done
-
       - name: Create release archives
         run: |
-          SUFFIX="${{ steps.suffix.outputs.value }}"
-          cd artifacts/gridfab-windows-$SUFFIX && zip -r ../../gridfab-windows-$SUFFIX.zip . && cd ../..
-          cd artifacts/gridfab-macos-$SUFFIX && zip -r ../../gridfab-macos-$SUFFIX.zip . && cd ../..
-          tar czf gridfab-linux-$SUFFIX.tar.gz -C artifacts/gridfab-linux-$SUFFIX .
+          V="${{ steps.version.outputs.value }}"
+          cd artifacts/gridfab-windows-$V && zip -r ../../gridfab-windows-$V.zip . && cd ../..
+          cd artifacts/gridfab-macos-$V && zip -r ../../gridfab-macos-$V.zip . && cd ../..
+          tar czf gridfab-linux-$V.tar.gz -C artifacts/gridfab-linux-$V .
 
-      - name: Debug - verify archives
-        run: |
-          SUFFIX="${{ steps.suffix.outputs.value }}"
-          echo "=== Archive sizes ==="
-          ls -lh gridfab-windows-$SUFFIX.zip gridfab-macos-$SUFFIX.zip gridfab-linux-$SUFFIX.tar.gz
-          echo ""
-          echo "=== Windows zip contents (first 20) ==="
-          zipinfo -1 gridfab-windows-$SUFFIX.zip | head -20
-          echo ""
-          echo "=== macOS zip contents (first 20) ==="
-          zipinfo -1 gridfab-macos-$SUFFIX.zip | head -20
-          echo ""
-          echo "=== Linux tar contents (first 20) ==="
-          tar tzf gridfab-linux-$SUFFIX.tar.gz | head -20
-
-# TODO: Restore after dry-run passes
-#  release:
-#    needs: build
-#    runs-on: ubuntu-latest
-#    if: startsWith(github.ref, 'refs/tags/v')
-#    steps:
-#      - name: Get version from tag
-#        id: version
-#        run: echo "value=${GITHUB_REF#refs/tags/v}" >> "$GITHUB_OUTPUT"
-#
-#      - uses: actions/download-artifact@v4
-#        with:
-#          path: artifacts
-#
-#      - name: Create release archives
-#        run: |
-#          V="${{ steps.version.outputs.value }}"
-#          cd artifacts/gridfab-windows-$V && zip -r ../../gridfab-windows-$V.zip . && cd ../..
-#          cd artifacts/gridfab-macos-$V && zip -r ../../gridfab-macos-$V.zip . && cd ../..
-#          tar czf gridfab-linux-$V.tar.gz -C artifacts/gridfab-linux-$V .
-#
-#      - name: Create GitHub Release
-#        uses: softprops/action-gh-release@v2
-#        with:
-#          generate_release_notes: true
-#          files: |
-#            gridfab-windows-${{ steps.version.outputs.value }}.zip
-#            gridfab-macos-${{ steps.version.outputs.value }}.zip
-#            gridfab-linux-${{ steps.version.outputs.value }}.tar.gz
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: |
+            gridfab-windows-${{ steps.version.outputs.value }}.zip
+            gridfab-macos-${{ steps.version.outputs.value }}.zip
+            gridfab-linux-${{ steps.version.outputs.value }}.tar.gz

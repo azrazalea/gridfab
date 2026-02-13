@@ -28,6 +28,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 ### Changed
 - GUI: undo history increased from 50 to 512 steps
 - Adopted Semantic Versioning, starting at 0.1.0
+- CI: Restored real release job (replaces dry-run) — tagged pushes now create GitHub Releases with platform archives
 
 ## [0.1.0] - Unreleased
 
