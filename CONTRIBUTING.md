@@ -44,8 +44,9 @@ Feature suggestions are welcome! When suggesting a feature:
 3. **Make Changes**: Implement your changes, following the project's code style
 4. **Write Tests**: Add tests for your changes if applicable
 5. **Update CHANGELOG.md**: Add entries under `[Unreleased]` using [Keep a Changelog](https://keepachangelog.com/) categories
-6. **Documentation**: Update documentation to reflect your changes
-7. **Submit PR**: Submit a pull request with a clear description of the changes
+6. **Update INSTRUCTIONS.md**: If your change adds, removes, or modifies any user-facing behavior (commands, GUI features, file formats, config options), update INSTRUCTIONS.md to reflect it
+7. **Documentation**: Update any other documentation to reflect your changes
+8. **Submit PR**: Submit a pull request with a clear description of the changes
 
 ## Development Setup
 
@@ -71,6 +72,7 @@ python -m pytest
 - Reference issue numbers in commit messages when applicable
 - Make small, focused commits rather than large, sweeping changes
 - Update CHANGELOG.md with every commit
+- Update INSTRUCTIONS.md when user-facing behavior changes
 
 ### Testing
 

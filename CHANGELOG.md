@@ -11,6 +11,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - CONTRIBUTING.md with development setup and guidelines
 - CODE_OF_CONDUCT.md (Contributor Covenant v2.1) with contact info
 - CI status badge and correct clone URL in README
+- INSTRUCTIONS.md with full user manual, GUI guide, CLI reference, config docs, and suggested LLM prompt
+- README.md, LICENSE.md, CHANGELOG.md, INSTRUCTIONS.md, source code, and tests included in build artifacts
+- Documentation links section in README (INSTRUCTIONS, CHANGELOG, CONTRIBUTING, CODE_OF_CONDUCT, spec)
+- CLAUDE.md: project documentation inventory, build/CI section, rule to update INSTRUCTIONS.md on behavior changes
+- CONTRIBUTING.md: requirement to update INSTRUCTIONS.md and CHANGELOG.md
 
 ### Fixed
 - Double-zipped artifacts in CI (upload-artifact was re-zipping our archives)

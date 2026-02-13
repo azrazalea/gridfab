@@ -83,6 +83,13 @@ jobs:
         run: |
           cp -R build/gui/gui.dist/* build/cli/__main__.dist/
 
+      - name: Include project files and source
+        shell: bash
+        run: |
+          cp README.md LICENSE.md CHANGELOG.md INSTRUCTIONS.md build/cli/__main__.dist/
+          cp -R src build/cli/__main__.dist/src
+          cp -R tests build/cli/__main__.dist/tests
+
       - uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact }}-${{ steps.suffix.outputs.value }}

@@ -25,6 +25,16 @@ examples/             # Example sprites with grid.txt + palette.txt
 tests/                # pytest test suite
 ```
 
+## Project Documentation
+
+- **README.md** — Project overview, quick start, feature summary. Links to all other docs.
+- **INSTRUCTIONS.md** — Full user manual: GUI guide, CLI reference, file format details, gridfab.json config options, and a suggested LLM prompt. This is the primary user-facing documentation and is included in build artifacts.
+- **CHANGELOG.md** — Version history following [Keep a Changelog](https://keepachangelog.com/) format.
+- **CONTRIBUTING.md** — Contributor guidelines, PR process, development setup.
+- **CODE_OF_CONDUCT.md** — Contributor Covenant v2.1.
+- **LICENSE.md** — AGPLv3 full text.
+- **GRIDFAB_PROJECT_SPEC.md** — Full project specification and roadmap.
+
 ## Key Rules
 
 1. **Never break backward compatibility with grid.txt format.** Space-separated values, one row per line, `.` for transparent.
@@ -33,6 +43,16 @@ tests/                # pytest test suite
 4. **Minimal dependencies**: Python 3.10+ stdlib + Pillow. No numpy, no web frameworks, no databases.
 5. **No unnecessary files**: Don't add docstrings/comments/types to code you didn't change.
 6. **Update CHANGELOG.md before every commit.** Add entries under `[Unreleased]` using Keep a Changelog categories: Added, Changed, Deprecated, Removed, Fixed, Security.
+7. **Update INSTRUCTIONS.md when user-facing behavior changes.** Any new or modified CLI commands, GUI features, file format changes, or config options must be reflected in INSTRUCTIONS.md. This includes the suggested LLM prompt section if CLI commands change.
+
+## Build & CI
+
+GitHub Actions workflow (`.github/workflows/release.yml`) runs on every push to main and on PRs:
+- Tests on all 3 platforms (Windows, macOS, Linux)
+- Nuitka compilation to native binaries (CLI + GUI)
+- Artifacts named with commit SHA (or version tag for releases)
+- Build artifacts include: binaries, project docs (README, LICENSE, CHANGELOG, INSTRUCTIONS), source code (`src/`), and tests (`tests/`)
+- Tagged releases (`v*`) create GitHub Releases with platform archives
 
 ## Common Commands
 

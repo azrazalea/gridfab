@@ -173,9 +173,17 @@ gridfab/
   tests/                # Test suite
 ```
 
+## Documentation
+
+- [INSTRUCTIONS.md](INSTRUCTIONS.md) — Full user manual: GUI guide, CLI reference, config options, suggested LLM prompt
+- [CHANGELOG.md](CHANGELOG.md) — Version history
+- [CONTRIBUTING.md](CONTRIBUTING.md) — How to contribute
+- [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) — Contributor Covenant Code of Conduct
+- [GRIDFAB_PROJECT_SPEC.md](GRIDFAB_PROJECT_SPEC.md) — Full project roadmap and specification
+
 ## Contributing
 
-Contributions welcome! See [GRIDFAB_PROJECT_SPEC.md](GRIDFAB_PROJECT_SPEC.md) for the full roadmap.
+Contributions welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines and [GRIDFAB_PROJECT_SPEC.md](GRIDFAB_PROJECT_SPEC.md) for the full roadmap.
 
 ## License
 
