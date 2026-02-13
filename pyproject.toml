@@ -29,7 +29,7 @@ gridfab = "gridfab.cli:main"
 gridfab-gui = "gridfab.gui:main"
 
 [project.optional-dependencies]
-dev = ["pytest", "pyinstaller"]
+dev = ["pytest", "nuitka"]
 
 [build-system]
 requires = ["setuptools>=68.0"]

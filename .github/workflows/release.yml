@@ -1,0 +1,106 @@
+name: Build & Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - os: windows-latest
+            artifact: gridfab-windows
+            archive_name: gridfab-windows.zip
+          - os: macos-latest
+            artifact: gridfab-macos
+            archive_name: gridfab-macos.zip
+          - os: ubuntu-latest
+            artifact: gridfab-linux
+            archive_name: gridfab-linux.tar.gz
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install tkinter (Linux)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y python3-tk
+
+      - name: Install dependencies
+        run: pip install .
+
+      - name: Install test deps and run tests
+        run: |
+          pip install pytest
+          python -m pytest tests/ -v
+
+      - name: Build CLI with Nuitka
+        uses: Nuitka/Nuitka-Action@main
+        with:
+          nuitka-version: main
+          script-name: src/gridfab/__main__.py
+          mode: standalone
+          output-dir: build/cli
+          output-filename: gridfab
+
+      - name: Build GUI with Nuitka
+        uses: Nuitka/Nuitka-Action@main
+        with:
+          nuitka-version: main
+          script-name: src/gridfab/gui.py
+          mode: standalone
+          enable-plugins: tk-inter
+          disable-console: true
+          output-dir: build/gui
+          output-filename: gridfab-gui
+
+      - name: Merge builds and archive (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          Copy-Item -Path build/gui/gridfab-gui.dist/* -Destination build/cli/gridfab.dist/ -Recurse -Force
+          Compress-Archive -Path build/cli/gridfab.dist/* -DestinationPath gridfab-windows.zip
+
+      - name: Merge builds and archive (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          cp -R build/gui/gridfab-gui.dist/* build/cli/gridfab.dist/
+          cd build/cli/gridfab.dist && zip -r ../../../gridfab-macos.zip .
+
+      - name: Merge builds and archive (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          cp -R build/gui/gridfab-gui.dist/* build/cli/gridfab.dist/
+          tar czf gridfab-linux.tar.gz -C build/cli/gridfab.dist .
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: ${{ matrix.archive_name }}
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: |
+            artifacts/gridfab-windows/gridfab-windows.zip
+            artifacts/gridfab-macos/gridfab-macos.zip
+            artifacts/gridfab-linux/gridfab-linux.tar.gz
