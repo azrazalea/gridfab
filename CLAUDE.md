@@ -32,6 +32,7 @@ tests/                # pytest test suite
 3. **Fail loudly** with clear error messages including line numbers and context. LLMs need good errors to self-correct.
 4. **Minimal dependencies**: Python 3.10+ stdlib + Pillow. No numpy, no web frameworks, no databases.
 5. **No unnecessary files**: Don't add docstrings/comments/types to code you didn't change.
+6. **Update CHANGELOG.md before every commit.** Add entries under `[Unreleased]` using Keep a Changelog categories: Added, Changed, Deprecated, Removed, Fixed, Security.
 
 ## Common Commands
 
