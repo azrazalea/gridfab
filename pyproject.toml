@@ -1,0 +1,42 @@
+[project]
+name = "gridfab"
+version = "0.1.0"
+description = "Human-AI collaborative pixel art editor — artwork stored as plain text"
+readme = "README.md"
+license = {text = "AGPL-3.0-or-later"}
+requires-python = ">=3.10"
+dependencies = ["Pillow>=10.0"]
+keywords = ["pixel-art", "sprite", "editor", "gamedev", "ai", "cli", "tkinter"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Environment :: X11 Applications",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: GNU Affero General Public License v3 or later (AGPLv3+)",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Multimedia :: Graphics :: Editors",
+    "Topic :: Games/Entertainment",
+]
+
+[project.scripts]
+gridfab = "gridfab.cli:main"
+
+[project.gui-scripts]
+gridfab-gui = "gridfab.gui:main"
+
+[project.optional-dependencies]
+dev = ["pytest", "pyinstaller"]
+
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
