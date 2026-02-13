@@ -18,6 +18,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - CONTRIBUTING.md: requirement to update INSTRUCTIONS.md and CHANGELOG.md
 
 ### Fixed
+- GUI: Refresh now pushes an undo snapshot, so LLM edits can be reverted with Ctrl+Z
 - Double-zipped artifacts in CI (upload-artifact was re-zipping our archives)
 - Nuitka-Action `output-file` input name (was `output-filename`)
 - Nuitka dist directory paths in merge step (`__main__.dist`/`gui.dist`)
