@@ -135,7 +135,7 @@ The left panel shows all colors defined in palette.txt. Click a color button to 
 
 ### Undo/Redo
 
-The GUI tracks up to 50 undo steps. Each continuous paint stroke (click through release) is one undo step. Refreshing from disk is also an undoable action — if you don't like what an LLM changed, hit Ctrl+Z to revert to your previous state.
+The GUI tracks up to 512 undo steps. Each continuous paint stroke (click through release) is one undo step. Refreshing from disk is also an undoable action — if you don't like what an LLM changed, hit Ctrl+Z to revert to your previous state.
 
 ## CLI Reference
 

@@ -25,6 +25,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - Version suffix (commit SHA or tag version) added to artifact and archive filenames
 
 ### Changed
+- GUI: undo history increased from 50 to 512 steps
 - Adopted Semantic Versioning, starting at 0.1.0
 
 ## [0.1.0] - Unreleased

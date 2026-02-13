@@ -56,7 +56,7 @@ class PixelEditor:
         # Undo/redo stacks
         self.undo_stack: list[list[list[str]]] = []
         self.redo_stack: list[list[list[str]]] = []
-        self.max_undo = 50
+        self.max_undo = 512
         self._stroke_active = False
 
         root.title(f"GridFab — {self.work_dir.resolve().name}")
