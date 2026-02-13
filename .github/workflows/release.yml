@@ -87,8 +87,7 @@ jobs:
         shell: bash
         run: |
           cp README.md LICENSE.md CHANGELOG.md INSTRUCTIONS.md build/cli/__main__.dist/
-          cp -R src build/cli/__main__.dist/src
-          cp -R tests build/cli/__main__.dist/tests
+          tar -c --exclude='__pycache__' -C . src/gridfab tests | tar -x -C build/cli/__main__.dist/
 
       - uses: actions/upload-artifact@v4
         with:

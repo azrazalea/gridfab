@@ -19,6 +19,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ### Fixed
 - GUI: Refresh now pushes an undo snapshot, so LLM edits can be reverted with Ctrl+Z
+- Build artifacts no longer include __pycache__ or .egg-info directories
 - Double-zipped artifacts in CI (upload-artifact was re-zipping our archives)
 - Nuitka-Action `output-file` input name (was `output-filename`)
 - Nuitka dist directory paths in merge step (`__main__.dist`/`gui.dist`)
