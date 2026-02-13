@@ -16,13 +16,10 @@ jobs:
         include:
           - os: windows-latest
             artifact: gridfab-windows
-            archive_name: gridfab-windows.zip
           - os: macos-latest
             artifact: gridfab-macos
-            archive_name: gridfab-macos.zip
           - os: ubuntu-latest
             artifact: gridfab-linux
-            archive_name: gridfab-linux.tar.gz
 
     runs-on: ${{ matrix.os }}
 
@@ -65,44 +62,84 @@ jobs:
           output-dir: build/gui
           output-file: gridfab-gui
 
-      - name: Merge builds and archive (Windows)
+      - name: Merge builds (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
           Copy-Item -Path build/gui/gui.dist/* -Destination build/cli/__main__.dist/ -Recurse -Force
-          Compress-Archive -Path build/cli/__main__.dist/* -DestinationPath gridfab-windows.zip
 
-      - name: Merge builds and archive (macOS)
-        if: runner.os == 'macOS'
+      - name: Merge builds (macOS/Linux)
+        if: runner.os != 'Windows'
         run: |
           cp -R build/gui/gui.dist/* build/cli/__main__.dist/
-          cd build/cli/__main__.dist && zip -r ../../../gridfab-macos.zip .
-
-      - name: Merge builds and archive (Linux)
-        if: runner.os == 'Linux'
-        run: |
-          cp -R build/gui/gui.dist/* build/cli/__main__.dist/
-          tar czf gridfab-linux.tar.gz -C build/cli/__main__.dist .
 
       - uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact }}
-          path: ${{ matrix.archive_name }}
+          path: build/cli/__main__.dist/
 
-  release:
+  release-dry-run:
     needs: build
     runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/v')
     steps:
       - uses: actions/download-artifact@v4
         with:
           path: artifacts
 
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          generate_release_notes: true
-          files: |
-            artifacts/gridfab-windows/gridfab-windows.zip
-            artifacts/gridfab-macos/gridfab-macos.zip
-            artifacts/gridfab-linux/gridfab-linux.tar.gz
+      - name: Debug - list downloaded artifacts
+        run: |
+          echo "=== Artifact directory structure ==="
+          find artifacts -type f | head -100
+          echo ""
+          echo "=== Directory sizes ==="
+          du -sh artifacts/*/
+          echo ""
+          echo "=== File counts per artifact ==="
+          for dir in artifacts/*/; do
+            echo "$dir: $(find "$dir" -type f | wc -l) files"
+          done
+
+      - name: Create release archives
+        run: |
+          cd artifacts/gridfab-windows && zip -r ../../gridfab-windows.zip . && cd ../..
+          cd artifacts/gridfab-macos && zip -r ../../gridfab-macos.zip . && cd ../..
+          tar czf gridfab-linux.tar.gz -C artifacts/gridfab-linux .
+
+      - name: Debug - verify archives
+        run: |
+          echo "=== Archive sizes ==="
+          ls -lh gridfab-windows.zip gridfab-macos.zip gridfab-linux.tar.gz
+          echo ""
+          echo "=== Windows zip contents (first 20) ==="
+          zipinfo -1 gridfab-windows.zip | head -20
+          echo ""
+          echo "=== macOS zip contents (first 20) ==="
+          zipinfo -1 gridfab-macos.zip | head -20
+          echo ""
+          echo "=== Linux tar contents (first 20) ==="
+          tar tzf gridfab-linux.tar.gz | head -20
+
+# TODO: Restore this after dry-run验证 passes
+#  release:
+#    needs: build
+#    runs-on: ubuntu-latest
+#    if: startsWith(github.ref, 'refs/tags/v')
+#    steps:
+#      - uses: actions/download-artifact@v4
+#        with:
+#          path: artifacts
+#
+#      - name: Create release archives
+#        run: |
+#          cd artifacts/gridfab-windows && zip -r ../../gridfab-windows.zip . && cd ../..
+#          cd artifacts/gridfab-macos && zip -r ../../gridfab-macos.zip . && cd ../..
+#          tar czf gridfab-linux.tar.gz -C artifacts/gridfab-linux .
+#
+#      - name: Create GitHub Release
+#        uses: softprops/action-gh-release@v2
+#        with:
+#          generate_release_notes: true
+#          files: |
+#            gridfab-windows.zip
+#            gridfab-macos.zip
+#            gridfab-linux.tar.gz
