@@ -837,7 +837,7 @@ The tool must be distributable as:
 ```toml
 [project]
 name = "gridfab"
-version = "0.1.0"
+version = "0.0.1"
 description = "Human-AI collaborative pixel art editor"
 readme = "README.md"
 license = {text = "MIT"}
