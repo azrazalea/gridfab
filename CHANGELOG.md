@@ -7,6 +7,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 ## [Unreleased]
 
 ### Added
+- CHANGELOG.md following Keep a Changelog format
+- CONTRIBUTING.md with development setup and guidelines
+- CODE_OF_CONDUCT.md (Contributor Covenant v2.1)
 - CI status badge and correct clone URL in README
 
 ### Fixed
