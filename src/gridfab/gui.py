@@ -56,7 +56,7 @@ class PixelEditor:
         # Undo/redo stacks
         self.undo_stack: list[list[list[str]]] = []
         self.redo_stack: list[list[list[str]]] = []
-        self.max_undo = 50
+        self.max_undo = 512
         self._stroke_active = False
 
         root.title(f"GridFab — {self.work_dir.resolve().name}")
@@ -218,6 +218,10 @@ class PixelEditor:
         print("Saved grid.txt")
 
     def refresh(self) -> None:
+        self.undo_stack.append(self.grid.snapshot())
+        if len(self.undo_stack) > self.max_undo:
+            self.undo_stack.pop(0)
+        self.redo_stack.clear()
         self.palette = Palette.load(self.palette_path)
         if self.grid_path.exists():
             self.grid = Grid.load(self.grid_path)

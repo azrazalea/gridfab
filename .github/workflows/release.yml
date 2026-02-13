@@ -16,18 +16,25 @@ jobs:
         include:
           - os: windows-latest
             artifact: gridfab-windows
-            archive_name: gridfab-windows.zip
           - os: macos-latest
             artifact: gridfab-macos
-            archive_name: gridfab-macos.zip
           - os: ubuntu-latest
             artifact: gridfab-linux
-            archive_name: gridfab-linux.tar.gz
 
     runs-on: ${{ matrix.os }}
 
     steps:
       - uses: actions/checkout@v4
+
+      - name: Determine version suffix
+        id: suffix
+        shell: bash
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            echo "value=${GITHUB_REF#refs/tags/v}" >> "$GITHUB_OUTPUT"
+          else
+            echo "value=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+          fi
 
       - uses: actions/setup-python@v5
         with:
@@ -65,44 +72,53 @@ jobs:
           output-dir: build/gui
           output-file: gridfab-gui
 
-      - name: Merge builds and archive (Windows)
+      - name: Merge builds (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
           Copy-Item -Path build/gui/gui.dist/* -Destination build/cli/__main__.dist/ -Recurse -Force
-          Compress-Archive -Path build/cli/__main__.dist/* -DestinationPath gridfab-windows.zip
 
-      - name: Merge builds and archive (macOS)
-        if: runner.os == 'macOS'
+      - name: Merge builds (macOS/Linux)
+        if: runner.os != 'Windows'
         run: |
           cp -R build/gui/gui.dist/* build/cli/__main__.dist/
-          cd build/cli/__main__.dist && zip -r ../../../gridfab-macos.zip .
 
-      - name: Merge builds and archive (Linux)
-        if: runner.os == 'Linux'
+      - name: Include project files and source
+        shell: bash
         run: |
-          cp -R build/gui/gui.dist/* build/cli/__main__.dist/
-          tar czf gridfab-linux.tar.gz -C build/cli/__main__.dist .
+          cp README.md LICENSE.md CHANGELOG.md INSTRUCTIONS.md build/cli/__main__.dist/
+          tar -c --exclude='__pycache__' -C . src/gridfab tests | tar -x -C build/cli/__main__.dist/
 
       - uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.artifact }}
-          path: ${{ matrix.archive_name }}
+          name: ${{ matrix.artifact }}-${{ steps.suffix.outputs.value }}
+          path: build/cli/__main__.dist/
 
   release:
     needs: build
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/v')
     steps:
+      - name: Get version from tag
+        id: version
+        run: echo "value=${GITHUB_REF#refs/tags/v}" >> "$GITHUB_OUTPUT"
+
       - uses: actions/download-artifact@v4
         with:
           path: artifacts
+
+      - name: Create release archives
+        run: |
+          V="${{ steps.version.outputs.value }}"
+          cd artifacts/gridfab-windows-$V && zip -r ../../gridfab-windows-$V.zip . && cd ../..
+          cd artifacts/gridfab-macos-$V && zip -r ../../gridfab-macos-$V.zip . && cd ../..
+          tar czf gridfab-linux-$V.tar.gz -C artifacts/gridfab-linux-$V .
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           generate_release_notes: true
           files: |
-            artifacts/gridfab-windows/gridfab-windows.zip
-            artifacts/gridfab-macos/gridfab-macos.zip
-            artifacts/gridfab-linux/gridfab-linux.tar.gz
+            gridfab-windows-${{ steps.version.outputs.value }}.zip
+            gridfab-macos-${{ steps.version.outputs.value }}.zip
+            gridfab-linux-${{ steps.version.outputs.value }}.tar.gz
