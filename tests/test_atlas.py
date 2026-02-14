@@ -362,3 +362,61 @@ class TestCmdAtlasCli:
         with open(out / "index.json") as f:
             idx = json.load(f)
         assert idx["tile_size"] == [4, 4]
+
+    def test_cli_custom_names(self, tmp_path):
+        _make_sprite(tmp_path, "s1")
+        out = tmp_path / "output"
+        from gridfab.cli import main
+
+        with patch.object(
+            sys,
+            "argv",
+            [
+                "gridfab", "atlas", str(out), str(tmp_path / "s1"),
+                "--atlas-name", "custom_atlas.png",
+                "--index-name", "custom_atlas_index.json",
+            ],
+        ):
+            main()
+        assert (out / "custom_atlas.png").exists()
+        assert (out / "custom_atlas_index.json").exists()
+        assert not (out / "atlas.png").exists()
+        assert not (out / "index.json").exists()
+
+
+# ── TestCustomFilenames ─────────────────────────────────────────────
+
+
+class TestCustomFilenames:
+
+    def test_custom_atlas_name(self, tmp_path):
+        _make_sprite(tmp_path, "s1")
+        out = tmp_path / "output"
+        cmd_atlas(out, [tmp_path / "s1"], atlas_name="my_sheet.png")
+        assert (out / "my_sheet.png").exists()
+        assert not (out / "atlas.png").exists()
+        # index.json should still use default
+        assert (out / "index.json").exists()
+
+    def test_custom_index_name(self, tmp_path):
+        _make_sprite(tmp_path, "s1")
+        _make_sprite(tmp_path, "s2")
+        out = tmp_path / "output"
+        cmd_atlas(out, [tmp_path / "s1"], index_name="sprites.json")
+        assert (out / "sprites.json").exists()
+        assert not (out / "index.json").exists()
+        # atlas.png should still use default
+        assert (out / "atlas.png").exists()
+        # load_existing_index should read back the custom name
+        existing = load_existing_index(out, index_name="sprites.json")
+        assert existing is not None
+        assert "s1" in existing["sprites"]
+        # Rebuild with s2 added — should preserve s1 position
+        cmd_atlas(
+            out, [tmp_path / "s1", tmp_path / "s2"],
+            index_name="sprites.json",
+        )
+        with open(out / "sprites.json") as f:
+            idx = json.load(f)
+        assert "s1" in idx["sprites"]
+        assert "s2" in idx["sprites"]

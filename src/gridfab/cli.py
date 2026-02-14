@@ -140,6 +140,8 @@ def main() -> None:
     p_atlas.add_argument("--tile-size", default=None, help="Base tile size as WxH (default: auto-detect)")
     p_atlas.add_argument("--columns", type=int, default=None, help="Columns in atlas grid")
     p_atlas.add_argument("--reorder", action="store_true", help="Ignore existing index, place from scratch")
+    p_atlas.add_argument("--atlas-name", default="atlas.png", help="Output atlas filename (default: atlas.png)")
+    p_atlas.add_argument("--index-name", default="index.json", help="Output index filename (default: index.json)")
 
     args = parser.parse_args()
 
@@ -215,4 +217,6 @@ def _dispatch(args: argparse.Namespace) -> None:
             tile_size=tile_size,
             columns=args.columns,
             reorder=args.reorder,
+            atlas_name=args.atlas_name,
+            index_name=args.index_name,
         )

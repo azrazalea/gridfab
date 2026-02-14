@@ -293,6 +293,7 @@ Pack multiple sprites into a single spritesheet (atlas.png) with a JSON index (i
 ```
 gridfab atlas <output_dir> [sprites...] [--include GLOB] [--exclude GLOB]
               [--tile-size WxH] [--columns N] [--reorder]
+              [--atlas-name FILE] [--index-name FILE]
 ```
 
 **Arguments:**
@@ -305,6 +306,8 @@ gridfab atlas <output_dir> [sprites...] [--include GLOB] [--exclude GLOB]
 - `--tile-size WxH` — Base tile dimensions in pixels (default: auto-detect from first sprite)
 - `--columns N` — Number of columns in the atlas grid (default: ceil(sqrt(total_tiles)))
 - `--reorder` — Ignore existing index.json and place all sprites from scratch
+- `--atlas-name FILE` — Output atlas filename (default: `atlas.png`)
+- `--index-name FILE` — Output index filename (default: `index.json`)
 
 **Multi-tile sprites:** Sprite grids must be exact multiples of the base tile size. A 64x64 sprite on a 32x32 tile grid spans 2x2 tiles. Non-multiple sprites are skipped with a warning.
 

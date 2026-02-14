@@ -79,9 +79,11 @@ def resolve_sprite_dirs(
     return sorted(matched, key=lambda p: p.name)
 
 
-def load_existing_index(output_dir: Path) -> dict | None:
-    """Load an existing index.json from the output directory, or None."""
-    index_path = output_dir / "index.json"
+def load_existing_index(
+    output_dir: Path, *, index_name: str = "index.json"
+) -> dict | None:
+    """Load an existing index from the output directory, or None."""
+    index_path = output_dir / index_name
     if not index_path.exists():
         return None
     with open(index_path) as f:
@@ -168,6 +170,8 @@ def cmd_atlas(
     tile_size: tuple[int, int] | None = None,
     columns: int | None = None,
     reorder: bool = False,
+    atlas_name: str = "atlas.png",
+    index_name: str = "index.json",
 ) -> None:
     """Build a sprite atlas from multiple sprite directories."""
     # Load all grids to determine sizes
@@ -184,7 +188,7 @@ def cmd_atlas(
         )
 
     # Load existing index
-    existing_index = load_existing_index(output_dir)
+    existing_index = load_existing_index(output_dir, index_name=index_name)
 
     # Determine tile size
     if tile_size is None:
@@ -268,7 +272,7 @@ def cmd_atlas(
 
     # Write output
     output_dir.mkdir(parents=True, exist_ok=True)
-    atlas.save(str(output_dir / "atlas.png"))
+    atlas.save(str(output_dir / atlas_name))
 
     # Build index
     index: dict = {
@@ -285,12 +289,12 @@ def cmd_atlas(
             "tiles_y": ty,
         }
 
-    with open(output_dir / "index.json", "w", newline="\n") as f:
+    with open(output_dir / index_name, "w", newline="\n") as f:
         json.dump(index, f, indent=2)
         f.write("\n")
 
     print(
-        f"Atlas: {output_dir / 'atlas.png'} "
+        f"Atlas: {output_dir / atlas_name} "
         f"({atlas_w}x{atlas_h}, {atlas_cols}x{atlas_rows} tiles)"
     )
-    print(f"Index: {output_dir / 'index.json'} ({len(valid_sprites)} sprite(s))")
+    print(f"Index: {output_dir / index_name} ({len(valid_sprites)} sprite(s))")
