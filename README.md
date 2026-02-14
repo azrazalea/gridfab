@@ -90,10 +90,15 @@ gridfab init [--size WxH] [dir]              # Create new sprite
 gridfab render [dir]                          # Preview with checkerboard bg
 gridfab export [dir]                          # Export PNGs at multiple scales
 gridfab palette [dir]                         # Show palette colors
+gridfab pixel <row> <col> <color>            # Set a single pixel
+gridfab pixels <r,c,color> [...]             # Batch pixel placement
 gridfab row <n> <v0 v1 ...> [--dir DIR]      # Replace a row
 gridfab rows <start> <end> <values...>        # Replace row range
 gridfab fill <row> <c0> <c1> <color>          # Fill horizontal span
 gridfab rect <r0> <c0> <r1> <c1> <color>      # Fill rectangle
+gridfab clear [dir]                           # Reset grid to transparent
+gridfab icon [dir]                            # Export .ico and .icns icons
+gridfab atlas <output> [sprites...] [opts]    # Pack sprites into spritesheet
 ```
 
 ## GUI
@@ -106,7 +111,7 @@ gridfab-gui [directory]
 - Palette sidebar with color buttons
 - Ctrl+Z / Ctrl+Y for undo/redo
 - Ctrl+S to save
-- Save, Render, and Refresh buttons
+- Save, Render, Refresh, Clear, and New buttons
 
 ## Features
 
@@ -115,6 +120,10 @@ gridfab-gui [directory]
 - Preview rendering with checkerboard background
 - Undo/redo in GUI (512-step history)
 - 1-2 character palette aliases with case-insensitive collision detection
+- Pixel-level editing commands (`pixel`, `pixels`, `fill`, `rect`, `row`, `rows`)
+- Icon export (`.ico` and `.icns`) from square grids
+- Atlas/spritesheet packing with multi-tile support, stable ordering, and JSON index
+- Auto-repair for malformed grid.txt files
 
 ### Planned
 
@@ -123,7 +132,6 @@ gridfab-gui [directory]
 - Project management (multi-sprite projects, shared palettes)
 - Game engine export (Godot SpriteFrames, Unity .meta)
 - Layer support
-- Atlas building tools
 
 ## For AI / LLM Users
 
@@ -134,8 +142,10 @@ GridFab is designed for AI-assisted pixel art workflows. The CLI is the API:
 cat grid.txt
 
 # Make structured edits
-gridfab fill 5 0 31 R
+gridfab pixel 5 13 DK
+gridfab pixels 5,13,DK 5,14,WB 6,12,DK
 gridfab rect 10 10 20 20 SK
+gridfab fill 5 0 31 R
 
 # Check palette
 gridfab palette

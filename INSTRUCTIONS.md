@@ -314,8 +314,10 @@ gridfab atlas <output_dir> [sprites...] [--include GLOB] [--exclude GLOB]
 **Stable ordering:** When an existing index.json is present, existing sprites keep their positions and new sprites fill available gaps. Use `--reorder` to reset all positions.
 
 **Output files:**
-- `atlas.png` — The spritesheet image (RGBA, transparent background)
-- `index.json` — Sprite positions and sizes:
+
+- `atlas.png` — The spritesheet image (RGBA, transparent background). Each sprite is rendered at 1x scale (one pixel per grid cell) and placed on a tile grid.
+- `index.json` — Sprite positions and layout metadata:
+
   ```json
   {
     "tile_size": [32, 32],
@@ -326,7 +328,27 @@ gridfab atlas <output_dir> [sprites...] [--include GLOB] [--exclude GLOB]
     }
   }
   ```
-  Pixel coordinates: `x = col * tile_w`, `y = row * tile_h`, `w = tiles_x * tile_w`, `h = tiles_y * tile_h`
+
+**Index fields:**
+
+| Field | Description |
+|-------|-------------|
+| `tile_size` | `[width, height]` — Base tile dimensions in pixels. All sprites are placed on a grid of these tiles. |
+| `columns` | Number of tile columns in the packing grid. Used internally by GridFab to reproduce the same layout on rebuilds. Game engines can ignore this. |
+| `sprites` | Map of sprite name (directory name) to placement info. |
+| `sprites.*.row` | Tile row where this sprite starts (0-indexed). Pixel Y = `row * tile_size[1]`. |
+| `sprites.*.col` | Tile column where this sprite starts (0-indexed). Pixel X = `col * tile_size[0]`. |
+| `sprites.*.tiles_x` | Width of this sprite in tiles. Pixel width = `tiles_x * tile_size[0]`. |
+| `sprites.*.tiles_y` | Height of this sprite in tiles. Pixel height = `tiles_y * tile_size[1]`. |
+
+**Reading sprites from the atlas in a game engine:** To extract a sprite's region from atlas.png, compute pixel coordinates from the index:
+```
+x = col * tile_size[0]
+y = row * tile_size[1]
+w = tiles_x * tile_size[0]
+h = tiles_y * tile_size[1]
+```
+The `columns` field is not needed for extraction — it only controls how GridFab packs sprites during atlas generation.
 
 Examples:
 ```bash

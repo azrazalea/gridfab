@@ -13,6 +13,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 ### Changed
 - Consolidated logo assets into `assets/logo/`; removed duplicate `assets/icon.*` and `assets/logo-256.png`
 - Updated release workflow, README, and social preview script to reference `assets/logo/`
+- README: added `pixel`, `pixels`, `clear`, `icon`, `atlas` to CLI reference; added New/Clear GUI buttons; moved atlas from Planned to Features; added auto-repair and icon export to feature list
+- INSTRUCTIONS.md: expanded atlas index.json documentation with field-by-field reference table and game engine extraction guide
+- Updated gridfab-create skill and project spec to reflect atlas as completed
 
 ## [0.2.0]
 

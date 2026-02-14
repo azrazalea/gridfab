@@ -190,9 +190,10 @@ gridfab export potion
 | `gridfab init [--size WxH] [dir]` | Create new sprite |
 | `gridfab render [dir]` | Generate preview.png (checkerboard bg) |
 | `gridfab export [dir]` | Export PNGs at configured scales |
-| `gridfab icon [dir]` | Export icon.ico (requires square grid) |
+| `gridfab icon [dir]` | Export icon.ico and icon.icns (requires square grid) |
 | `gridfab palette [dir]` | Show current palette colors |
 | `gridfab show [dir]` | Display grid contents |
+| `gridfab atlas <output> [sprites...] [opts]` | Pack sprites into spritesheet (atlas.png + index.json) |
 
 ## Palette Alias Rules
 

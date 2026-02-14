@@ -240,15 +240,19 @@ Allow creating new sprites from the GUI without needing the CLI.
 - Calls the same init logic as `gridfab init`
 - After creation, opens the new sprite in the editor
 
-#### 1.14 Atlas builder integration
+#### 1.14 Atlas builder integration ✅
 
-The standalone `tools/build_custom_atlas.py` script should be promoted to a proper CLI command and optionally accessible from the GUI.
+The standalone `tools/build_custom_atlas.py` script has been promoted to a proper CLI command.
 
-**Implementation:**
-- `gridfab atlas <output> <sprite_dirs...> [--tile-size WxH] [--columns N]` — Pack multiple sprites into a single spritesheet/atlas
+**Implementation (completed):**
+- `gridfab atlas <output_dir> [sprites...] [--include GLOB] [--exclude GLOB] [--tile-size WxH] [--columns N] [--reorder] [--atlas-name FILE] [--index-name FILE]`
 - Reads grid.txt + palette.txt from each sprite directory
-- Outputs a single PNG atlas and optionally a JSON metadata file with tile positions
-- GUI: Tools > Build Atlas menu item that opens a directory picker
+- Supports multi-tile sprites (exact multiples of tile size)
+- Outputs atlas.png and index.json with stable sprite positioning
+- Glob-based sprite discovery with include/exclude patterns
+- Stable ordering: existing sprites keep positions on rebuilds, new sprites fill gaps
+
+**Remaining:** GUI: Tools > Build Atlas menu item that opens a directory picker
 
 ---
 
