@@ -13,6 +13,7 @@ Commands:
     rect <r0> <c0> <r1> <c1> <color>        Fill a rectangle with one color
     clear [dir]                              Reset grid to all transparent
     export [dir]                             Export PNGs at configured scales
+    icon [dir]                               Export .ico file (square grids)
     palette [dir]                            Display current palette
 """
 
@@ -121,6 +122,10 @@ def main() -> None:
     p_export = sub.add_parser("export", help="Export PNGs at multiple scales")
     p_export.add_argument("directory", nargs="?", default=".", help="Sprite directory")
 
+    # icon
+    p_icon = sub.add_parser("icon", help="Export .ico file (requires square grid)")
+    p_icon.add_argument("directory", nargs="?", default=".", help="Sprite directory")
+
     # palette
     p_palette = sub.add_parser("palette", help="Display current palette")
     p_palette.add_argument("directory", nargs="?", default=".", help="Sprite directory")
@@ -142,6 +147,7 @@ def _dispatch(args: argparse.Namespace) -> None:
     from gridfab.commands.edit import cmd_row, cmd_rows, cmd_fill, cmd_rect, cmd_pixel, cmd_pixels, cmd_clear
     from gridfab.commands.render_cmd import cmd_render
     from gridfab.commands.export_cmd import cmd_export, cmd_palette
+    from gridfab.commands.icon_cmd import cmd_icon
 
     cmd = args.command
 
@@ -175,6 +181,9 @@ def _dispatch(args: argparse.Namespace) -> None:
 
     elif cmd == "export":
         cmd_export(Path(args.directory))
+
+    elif cmd == "icon":
+        cmd_icon(Path(args.directory))
 
     elif cmd == "palette":
         cmd_palette(Path(args.directory))

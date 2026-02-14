@@ -7,6 +7,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 ## [Unreleased]
 
 ### Added
+- Native `.ico` export via `gridfab icon` command (multi-size: 16, 32, 48, 256)
 - Claude Code skills: gridfab-contribute (repo contributors), gridfab-release (release process), gridfab-create (end-user pixel art creation)
 - Claude Code skill installation instructions in README and INSTRUCTIONS.md
 - Veil of Ages credit in README "Why This Exists" section

@@ -2,5 +2,6 @@
 
 from gridfab.render.preview import render_preview
 from gridfab.render.export import render_export
+from gridfab.render.ico import render_ico
 
-__all__ = ["render_preview", "render_export"]
+__all__ = ["render_preview", "render_export", "render_ico"]

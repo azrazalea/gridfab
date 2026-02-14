@@ -268,6 +268,16 @@ gridfab rect 5 5 15 15 B
 
 Both `fill` and `rect` accept palette aliases or inline `#RRGGBB` hex colors.
 
+### gridfab icon
+
+Export an `icon.ico` file containing multiple sizes (16, 32, 48, 256). The grid must be square (e.g. 32x32).
+
+```
+gridfab icon [directory]
+```
+
+Output: `icon.ico` in the sprite directory.
+
 ### gridfab clear
 
 Reset all pixels in the grid to transparent, preserving grid dimensions.
@@ -329,6 +339,7 @@ You are helping create pixel art using GridFab. The artwork is stored as plain t
 **Other commands:**
 - `gridfab render` — Generate preview.png
 - `gridfab export` — Export PNGs at configured scales
+- `gridfab icon` — Export icon.ico (requires square grid)
 - `gridfab palette` — Show current palette colors
 
 All coordinates are 0-indexed. All rows must have the same width. After making changes, tell the user to click Refresh in the GUI to see your edits.

@@ -119,6 +119,11 @@ class TestMainDispatch:
         with patch.object(sys, "argv", ["gridfab", "palette", str(sprite_dir)]):
             main()
 
+    def test_icon_dispatches(self, sprite_dir_with_config: Path):
+        with patch.object(sys, "argv", ["gridfab", "icon", str(sprite_dir_with_config)]):
+            main()
+        assert (sprite_dir_with_config / "icon.ico").exists()
+
     def test_init_bad_size_exits(self, tmp_path: Path):
         with patch.object(sys, "argv", ["gridfab", "init", "--size", "notasize", str(tmp_path)]):
             with pytest.raises(SystemExit):

@@ -11,6 +11,7 @@ from gridfab.commands.edit import (
 )
 from gridfab.commands.render_cmd import cmd_render
 from gridfab.commands.export_cmd import cmd_export, cmd_palette
+from gridfab.commands.icon_cmd import cmd_icon
 
 
 class TestCmdInit:
@@ -245,3 +246,24 @@ class TestCmdPalette:
     def test_missing_file(self, tmp_path: Path):
         with pytest.raises(FileNotFoundError):
             cmd_palette(tmp_path)
+
+
+class TestCmdIcon:
+    def test_creates_icon_file(self, sprite_dir_with_config: Path):
+        cmd_icon(sprite_dir_with_config)
+        assert (sprite_dir_with_config / "icon.ico").exists()
+
+    def test_missing_grid(self, tmp_path: Path):
+        with pytest.raises(FileNotFoundError):
+            cmd_icon(tmp_path)
+
+    def test_non_square_grid(self, tmp_path: Path):
+        """A 4x3 rectangular grid should raise ValueError."""
+        (tmp_path / "grid.txt").write_text(
+            ". . . .\n"
+            ". . . .\n"
+            ". . . .\n"
+        )
+        (tmp_path / "palette.txt").write_text("R=#CC3333\n")
+        with pytest.raises(ValueError, match="square"):
+            cmd_icon(tmp_path)
