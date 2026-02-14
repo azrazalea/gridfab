@@ -1,5 +1,7 @@
 """Shared pytest fixtures for GridFab tests."""
 
+import json
+
 import pytest
 from pathlib import Path
 
@@ -52,3 +54,31 @@ def sample_sprite(tmp_path: Path) -> Path:
         "R=#CC3333\n"
     )
     return tmp_path
+
+
+@pytest.fixture
+def sprite_dir(tmp_path: Path) -> Path:
+    """Create a 4x4 sprite directory ready for command tests."""
+    (tmp_path / "grid.txt").write_text(
+        ". . . .\n"
+        ". . . .\n"
+        ". . . .\n"
+        ". . . .\n"
+    )
+    (tmp_path / "palette.txt").write_text(
+        "R=#CC3333\n"
+        "B=#0000FF\n"
+        "G=#00CC00\n"
+    )
+    return tmp_path
+
+
+@pytest.fixture
+def sprite_dir_with_config(sprite_dir: Path) -> Path:
+    """Sprite directory with gridfab.json config (needed for export tests)."""
+    config = {
+        "grid": {"width": 4, "height": 4},
+        "export": {"scales": [1, 2]},
+    }
+    (sprite_dir / "gridfab.json").write_text(json.dumps(config, indent=2) + "\n")
+    return sprite_dir

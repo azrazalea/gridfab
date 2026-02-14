@@ -29,7 +29,7 @@ gridfab = "gridfab.cli:main"
 gridfab-gui = "gridfab.gui:main"
 
 [project.optional-dependencies]
-dev = ["pytest", "nuitka"]
+dev = ["pytest", "pytest-cov", "nuitka"]
 
 [build-system]
 requires = ["setuptools>=68.0"]
@@ -40,3 +40,6 @@ where = ["src"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+]

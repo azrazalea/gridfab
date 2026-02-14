@@ -9,12 +9,17 @@ A Grid is a 2D array of string values where each cell is either:
 from __future__ import annotations
 
 import json
+import re
+import sys
 from pathlib import Path
 
 TRANSPARENT = "."
 
 DEFAULT_WIDTH = 32
 DEFAULT_HEIGHT = 32
+
+# Pattern for valid inline hex colors
+_HEX_COLOR_RE = re.compile(r"^#[0-9a-fA-F]{6}$")
 
 
 def load_config(directory: Path) -> dict:
@@ -55,35 +60,75 @@ class Grid:
 
     @classmethod
     def load(cls, path: Path) -> Grid:
-        """Load a grid from a text file.
+        """Load a grid from a text file, auto-repairing malformed data.
 
         The file format is one row per line, with space-separated values.
         Grid dimensions are inferred from the file contents.
+
+        Structural issues are automatically repaired and loud warnings are
+        printed to stderr so LLMs don't miss them. Repaired issues include:
+        - Blank lines (skipped)
+        - Rows with wrong column count (trimmed or padded)
+        - Invalid cell values (replaced with transparent '.')
         """
         if not path.exists():
             raise FileNotFoundError(f"{path} not found — run 'gridfab init' first")
 
-        rows: list[list[str]] = []
+        raw_rows: list[tuple[int, list[str]]] = []  # (line_num, values)
         with open(path) as f:
             for line_num, raw_line in enumerate(f, 1):
                 line = raw_line.rstrip("\n")
                 if line.strip() == "":
-                    raise ValueError(f"{path}:{line_num}: unexpected blank line")
+                    continue  # skip blank lines silently
                 values = line.split()
-                rows.append(values)
+                raw_rows.append((line_num, values))
 
-        if not rows:
+        if not raw_rows:
             raise ValueError(f"{path}: file is empty")
 
-        width = len(rows[0])
-        for i, row in enumerate(rows):
-            if len(row) != width:
-                raise ValueError(
-                    f"{path}:{i + 1}: expected {width} values "
-                    f"(matching row 1), got {len(row)}"
+        width = len(raw_rows[0][1])
+        repairs: list[str] = []
+
+        # Repair each row
+        repaired_rows: list[list[str]] = []
+        for line_num, values in raw_rows:
+            row_len = len(values)
+
+            # Fix column count
+            if row_len > width:
+                trimmed = values[width:]
+                values = values[:width]
+                repairs.append(
+                    f"  line {line_num}: trimmed {row_len - width} extra "
+                    f"column(s) (had {row_len}, expected {width}): "
+                    f"removed [{' '.join(trimmed)}]"
+                )
+            elif row_len < width:
+                pad_count = width - row_len
+                values = values + [TRANSPARENT] * pad_count
+                repairs.append(
+                    f"  line {line_num}: padded {pad_count} missing "
+                    f"column(s) with '.' (had {row_len}, expected {width})"
                 )
 
-        return cls(width, len(rows), rows)
+            # Fix invalid cell values
+            for col, val in enumerate(values):
+                if not _is_valid_cell(val):
+                    repairs.append(
+                        f"  line {line_num}, col {col}: replaced invalid "
+                        f"value '{val}' with '.'"
+                    )
+                    values[col] = TRANSPARENT
+
+            repaired_rows.append(values)
+
+        grid = cls(width, len(repaired_rows), repaired_rows)
+
+        if repairs:
+            _print_repair_report(path, repairs, grid)
+            grid.save(path)
+
+        return grid
 
     def save(self, path: Path) -> None:
         """Save the grid to a text file."""
@@ -190,3 +235,41 @@ class Grid:
 
     def __repr__(self) -> str:
         return f"Grid({self.width}x{self.height})"
+
+
+def _is_valid_cell(value: str) -> bool:
+    """Check if a cell value has valid format (without checking palette existence).
+
+    Valid values:
+    - '.' (transparent)
+    - 1-2 printable ASCII chars not starting with '#' (potential alias)
+    - '#RRGGBB' inline hex color
+    """
+    if value == TRANSPARENT:
+        return True
+    if value.startswith("#"):
+        return bool(_HEX_COLOR_RE.match(value))
+    if len(value) < 1 or len(value) > 2:
+        return False
+    return all(ch.isprintable() and ord(ch) <= 255 for ch in value)
+
+
+def _print_repair_report(path: Path, repairs: list[str], grid: Grid) -> None:
+    """Print a loud repair report to stderr so LLMs can't miss it."""
+    border = "!" * 60
+    print(f"\n{border}", file=sys.stderr)
+    print(f"!! GRID AUTO-REPAIR: {path}", file=sys.stderr)
+    print(f"!! {len(repairs)} issue(s) fixed automatically", file=sys.stderr)
+    print(border, file=sys.stderr)
+    for repair in repairs:
+        print(f"!!{repair}", file=sys.stderr)
+    print(border, file=sys.stderr)
+    print(
+        f"!! Grid saved as {grid.width}x{grid.height} after repairs.",
+        file=sys.stderr,
+    )
+    print(
+        f"!! Review the changes above. Your edits may have been altered.",
+        file=sys.stderr,
+    )
+    print(f"{border}\n", file=sys.stderr)

@@ -11,6 +11,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - Claude Code skill installation instructions in README and INSTRUCTIONS.md
 - Veil of Ages credit in README "Why This Exists" section
 - Roadmap items: pixel/pixels coordinate commands, graceful malformed-file handling, GUI Init/New button, atlas builder CLI integration
+- Auto-repair for malformed grid.txt files: trims extra columns, pads short rows, replaces invalid cell values with transparent, skips blank lines — with loud warnings to stderr
+- pytest-cov dev dependency and slow test marker
+- Comprehensive grid tests: auto-repair, set_row, fill_row, edge cases, config loading (42 tests, up from 11)
 
 ## [0.1.0]
 

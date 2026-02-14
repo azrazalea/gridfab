@@ -3,7 +3,7 @@
 import pytest
 from pathlib import Path
 
-from gridfab.core.grid import Grid, TRANSPARENT
+from gridfab.core.grid import Grid, TRANSPARENT, _is_valid_cell, load_config, get_grid_dimensions
 
 
 class TestGridBlank:
@@ -95,3 +95,178 @@ class TestGridManipulation:
         assert grid.get(0, 0) == "X"
         grid.restore(snap)
         assert grid.get(0, 0) == "."
+
+
+class TestGridSetRow:
+    def test_replaces_row(self):
+        grid = Grid.blank(4, 4)
+        grid.set_row(1, ["R", "B", "R", "B"])
+        assert grid.data[1] == ["R", "B", "R", "B"]
+
+    def test_wrong_length(self):
+        grid = Grid.blank(4, 4)
+        with pytest.raises(ValueError, match="expected 4 values"):
+            grid.set_row(0, ["R", "B"])
+
+    def test_out_of_bounds(self):
+        grid = Grid.blank(4, 4)
+        with pytest.raises(ValueError, match="row must be"):
+            grid.set_row(5, [".", ".", ".", "."])
+
+
+class TestGridFillRow:
+    def test_fills_span(self):
+        grid = Grid.blank(4, 4)
+        grid.fill_row(0, 1, 2, "R")
+        assert grid.data[0] == [".", "R", "R", "."]
+
+    def test_single_cell(self):
+        grid = Grid.blank(4, 4)
+        grid.fill_row(0, 2, 2, "B")
+        assert grid.data[0] == [".", ".", "B", "."]
+
+    def test_reversed_range(self):
+        grid = Grid.blank(4, 4)
+        with pytest.raises(ValueError, match="col_end.*must be >= col_start"):
+            grid.fill_row(0, 3, 1, "R")
+
+    def test_out_of_bounds(self):
+        grid = Grid.blank(4, 4)
+        with pytest.raises(ValueError, match="col must be"):
+            grid.fill_row(0, 0, 5, "R")
+
+
+class TestGridAutoRepair:
+    def test_skips_blank_lines(self, tmp_path: Path):
+        (tmp_path / "grid.txt").write_text("R R\n\n. .\n")
+        grid = Grid.load(tmp_path / "grid.txt")
+        assert grid.height == 2
+        assert grid.data[0] == ["R", "R"]
+        assert grid.data[1] == [".", "."]
+
+    def test_trims_extra_columns(self, tmp_path: Path, capsys):
+        (tmp_path / "grid.txt").write_text(". . R\n. . R B EXTRA\n. . R\n")
+        grid = Grid.load(tmp_path / "grid.txt")
+        assert grid.width == 3
+        assert grid.data[1] == [".", ".", "R"]
+        captured = capsys.readouterr()
+        assert "trimmed 2 extra column(s)" in captured.err
+
+    def test_pads_short_rows(self, tmp_path: Path, capsys):
+        (tmp_path / "grid.txt").write_text("R R R\nR\nR R R\n")
+        grid = Grid.load(tmp_path / "grid.txt")
+        assert grid.width == 3
+        assert grid.data[1] == ["R", ".", "."]
+        captured = capsys.readouterr()
+        assert "padded 2 missing column(s)" in captured.err
+
+    def test_replaces_invalid_values(self, tmp_path: Path, capsys):
+        (tmp_path / "grid.txt").write_text(". TOOLONG . .\n. . . .\n")
+        grid = Grid.load(tmp_path / "grid.txt")
+        assert grid.data[0][1] == "."
+        captured = capsys.readouterr()
+        assert "replaced invalid value 'TOOLONG'" in captured.err
+
+    def test_replaces_bad_hex(self, tmp_path: Path, capsys):
+        (tmp_path / "grid.txt").write_text("#ZZZZZZ . . .\n. . . .\n")
+        grid = Grid.load(tmp_path / "grid.txt")
+        assert grid.data[0][0] == "."
+        captured = capsys.readouterr()
+        assert "replaced invalid value '#ZZZZZZ'" in captured.err
+
+    def test_keeps_valid_hex(self, tmp_path: Path):
+        (tmp_path / "grid.txt").write_text("#FF0000 . . .\n. . . .\n")
+        grid = Grid.load(tmp_path / "grid.txt")
+        assert grid.data[0][0] == "#FF0000"
+
+    def test_saves_repaired_file(self, tmp_path: Path):
+        (tmp_path / "grid.txt").write_text("R R\nR R R EXTRA\n")
+        Grid.load(tmp_path / "grid.txt")
+        # Reloading should find no issues (file was auto-saved)
+        content = (tmp_path / "grid.txt").read_text()
+        assert content == "R R\nR R\n"
+
+    def test_no_repairs_no_output(self, tmp_path: Path, capsys):
+        (tmp_path / "grid.txt").write_text(". R\nR .\n")
+        Grid.load(tmp_path / "grid.txt")
+        captured = capsys.readouterr()
+        assert captured.err == ""
+
+    def test_repair_report_format(self, tmp_path: Path, capsys):
+        (tmp_path / "grid.txt").write_text("R R R EXTRA\n. .\n")
+        Grid.load(tmp_path / "grid.txt")
+        captured = capsys.readouterr()
+        assert "GRID AUTO-REPAIR" in captured.err
+        assert "issue(s) fixed automatically" in captured.err
+        assert "Review the changes above" in captured.err
+
+    def test_empty_file_still_errors(self, tmp_path: Path):
+        (tmp_path / "grid.txt").write_text("")
+        with pytest.raises(ValueError, match="file is empty"):
+            Grid.load(tmp_path / "grid.txt")
+
+    def test_1x1_grid(self, tmp_path: Path):
+        (tmp_path / "grid.txt").write_text("R\n")
+        grid = Grid.load(tmp_path / "grid.txt")
+        assert grid.width == 1
+        assert grid.height == 1
+        assert grid.data[0] == ["R"]
+
+    def test_non_square_grid(self, tmp_path: Path):
+        (tmp_path / "grid.txt").write_text("R B\nR B\nR B\n")
+        grid = Grid.load(tmp_path / "grid.txt")
+        assert grid.width == 2
+        assert grid.height == 3
+
+
+class TestIsValidCell:
+    def test_transparent(self):
+        assert _is_valid_cell(".") is True
+
+    def test_single_char_alias(self):
+        assert _is_valid_cell("R") is True
+
+    def test_two_char_alias(self):
+        assert _is_valid_cell("SK") is True
+
+    def test_valid_hex(self):
+        assert _is_valid_cell("#FF0000") is True
+
+    def test_too_long_alias(self):
+        assert _is_valid_cell("ABC") is False
+
+    def test_bad_hex(self):
+        assert _is_valid_cell("#ZZZZZZ") is False
+
+    def test_short_hex(self):
+        assert _is_valid_cell("#FFF") is False
+
+    def test_empty_string(self):
+        assert _is_valid_cell("") is False
+
+
+class TestLoadConfig:
+    def test_missing_config(self, tmp_path: Path):
+        assert load_config(tmp_path) == {}
+
+    def test_valid_config(self, tmp_path: Path):
+        import json
+        config = {"grid": {"width": 16, "height": 16}, "export": {"scales": [1, 4]}}
+        (tmp_path / "gridfab.json").write_text(json.dumps(config))
+        result = load_config(tmp_path)
+        assert result["grid"]["width"] == 16
+
+
+class TestGetGridDimensions:
+    def test_defaults_without_config(self, tmp_path: Path):
+        w, h = get_grid_dimensions(tmp_path)
+        assert w == 32
+        assert h == 32
+
+    def test_reads_from_config(self, tmp_path: Path):
+        import json
+        config = {"grid": {"width": 8, "height": 16}}
+        (tmp_path / "gridfab.json").write_text(json.dumps(config))
+        w, h = get_grid_dimensions(tmp_path)
+        assert w == 8
+        assert h == 16
