@@ -1,0 +1,27 @@
+# Combo Logo: Grid + Paintbrush
+# Frame
+OL=#2A2A3A
+FR=#5A5A7A
+# Grid lines
+GL=#CCCCDD
+# Cell background (unpainted)
+WH=#FFFFFF
+# Handle (brown wood)
+HN=#3D2415
+HW=#6B4226
+HL=#8B5A30
+# Bristles (black)
+BK=#111111
+DK=#2A2A2A
+# Ferrule (gold/brass — distinct from grid)
+MT=#B08020
+ML=#D4A840
+# Rainbow colors
+RD=#E04040
+OR=#E08030
+YL=#F0D040
+GN=#40C060
+CY=#40C0D0
+BL=#4080E0
+PP=#A050D0
+PK=#E070A0

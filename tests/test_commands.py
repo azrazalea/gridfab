@@ -249,9 +249,10 @@ class TestCmdPalette:
 
 
 class TestCmdIcon:
-    def test_creates_icon_file(self, sprite_dir_with_config: Path):
+    def test_creates_icon_files(self, sprite_dir_with_config: Path):
         cmd_icon(sprite_dir_with_config)
         assert (sprite_dir_with_config / "icon.ico").exists()
+        assert (sprite_dir_with_config / "icon.icns").exists()
 
     def test_missing_grid(self, tmp_path: Path):
         with pytest.raises(FileNotFoundError):

@@ -7,7 +7,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 ## [Unreleased]
 
 ### Added
-- Native `.ico` export via `gridfab icon` command (multi-size: 16, 32, 48, 256)
+- Native `.ico` and `.icns` export via `gridfab icon` command (multi-size: 16, 32, 48, 256)
 - Project logo and application window icon
 - Logo in README, social preview image, icon in Nuitka builds
 - Claude Code skills: gridfab-contribute (repo contributors), gridfab-release (release process), gridfab-create (end-user pixel art creation)

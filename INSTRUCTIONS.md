@@ -270,13 +270,13 @@ Both `fill` and `rect` accept palette aliases or inline `#RRGGBB` hex colors.
 
 ### gridfab icon
 
-Export an `icon.ico` file containing multiple sizes (16, 32, 48, 256). The grid must be square (e.g. 32x32).
+Export `icon.ico` (Windows) and `icon.icns` (macOS) files containing multiple sizes (16, 32, 48, 256). The grid must be square (e.g. 32x32).
 
 ```
 gridfab icon [directory]
 ```
 
-Output: `icon.ico` in the sprite directory.
+Output: `icon.ico` and `icon.icns` in the sprite directory.
 
 ### gridfab clear
 

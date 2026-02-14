@@ -62,8 +62,7 @@ jobs:
           output-dir: build/cli
           output-file: gridfab
           windows-icon-from-ico: assets/icon.ico
-          macos-app-icon: assets/logo-256.png
-          linux-icon: assets/logo-256.png
+          macos-app-icon: assets/icon.icns
 
       - name: Build GUI with Nuitka
         uses: Nuitka/Nuitka-Action@main
@@ -76,8 +75,7 @@ jobs:
           output-dir: build/gui
           output-file: gridfab-gui
           windows-icon-from-ico: assets/icon.ico
-          macos-app-icon: assets/logo-256.png
-          linux-icon: assets/logo-256.png
+          macos-app-icon: assets/icon.icns
 
       - name: Merge builds (Windows)
         if: runner.os == 'Windows'
