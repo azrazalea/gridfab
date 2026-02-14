@@ -1,6 +1,6 @@
 [project]
 name = "gridfab"
-version = "0.1.0"
+version = "0.2.0"
 description = "Human-AI collaborative pixel art editor — artwork stored as plain text"
 readme = "README.md"
 license = {text = "AGPL-3.0-or-later"}

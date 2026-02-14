@@ -6,27 +6,23 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## [Unreleased]
 
+## [0.2.0]
+
 ### Added
-- Native `.ico` and `.icns` export via `gridfab icon` command (multi-size: 16, 32, 48, 256)
-- Project logo and application window icon
-- Logo in README, social preview image, icon in Nuitka builds
+- `pixel` command: set a single pixel by coordinate (`gridfab pixel <row> <col> <color>`)
+- `pixels` command: batch pixel placement (`gridfab pixels <row,col,color> ...`) with atomic validation
+- `clear` command: reset grid to all transparent without re-initializing (`gridfab clear [dir]`)
+- `icon` command: export `.ico` and `.icns` icon files from square grids (`gridfab icon [dir]`)
+- GUI "New" button: create a new grid with custom dimensions
+- GUI "Clear" button: reset all pixels to transparent with confirmation dialog
+- Project logo and application window icon (GUI title bar and Nuitka builds)
+- Logo in README and social preview image for GitHub
+- Auto-repair for malformed grid.txt files: trims extra columns, pads short rows, replaces invalid cell values with transparent, skips blank lines — with loud warnings to stderr
 - Claude Code skills: gridfab-contribute (repo contributors), gridfab-release (release process), gridfab-create (end-user pixel art creation)
 - Claude Code skill installation instructions in README and INSTRUCTIONS.md
 - Veil of Ages credit in README "Why This Exists" section
-- Roadmap items: pixel/pixels coordinate commands, graceful malformed-file handling, GUI Init/New button, atlas builder CLI integration
-- Auto-repair for malformed grid.txt files: trims extra columns, pads short rows, replaces invalid cell values with transparent, skips blank lines — with loud warnings to stderr
-- pytest-cov dev dependency and slow test marker
-- Comprehensive grid tests: auto-repair, set_row, fill_row, edge cases, config loading (42 tests, up from 11)
-- `pixel` command: set a single pixel by coordinate (`gridfab pixel <row> <col> <color>`)
-- `pixels` command: batch pixel placement (`gridfab pixels <row,col,color> ...`)
-- `clear` command: reset grid to all transparent without re-initializing (`gridfab clear [dir]`)
-- GUI "Clear" button: resets all pixels to transparent with confirmation dialog
-- GUI "New" button: creates a new grid with user-specified dimensions
-- Command tests: 35 tests covering init, row, rows, fill, rect, pixel, pixels, clear
-- GUI pure function tests: checker_color, cell_display_color (7 tests)
 - Examples and skills directories included in release archives
-- Comprehensive test suite: 135 tests across 6 files (test_grid, test_palette, test_commands, test_render, test_cli, test_gui)
-- Extracted `parse_size()` as public function in cli.py for testability
+- Comprehensive test suite: 165 tests across 6 files (test_grid, test_palette, test_commands, test_render, test_cli, test_gui)
 
 ## [0.1.0]
 
