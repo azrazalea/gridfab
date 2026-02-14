@@ -286,6 +286,53 @@ Reset all pixels in the grid to transparent, preserving grid dimensions.
 gridfab clear [directory]
 ```
 
+### gridfab atlas
+
+Pack multiple sprites into a single spritesheet (atlas.png) with a JSON index (index.json). Useful for game engine workflows where you need a packed spritesheet.
+
+```
+gridfab atlas <output_dir> [sprites...] [--include GLOB] [--exclude GLOB]
+              [--tile-size WxH] [--columns N] [--reorder]
+```
+
+**Arguments:**
+- `output_dir` — Where atlas.png and index.json are written (created if needed)
+- `sprites...` — Sprite directories to include (positional)
+
+**Options:**
+- `--include GLOB` — Glob pattern to find sprite directories (repeatable, mutually exclusive with positional args)
+- `--exclude GLOB` — Glob pattern to exclude sprite directories (repeatable, use with --include)
+- `--tile-size WxH` — Base tile dimensions in pixels (default: auto-detect from first sprite)
+- `--columns N` — Number of columns in the atlas grid (default: ceil(sqrt(total_tiles)))
+- `--reorder` — Ignore existing index.json and place all sprites from scratch
+
+**Multi-tile sprites:** Sprite grids must be exact multiples of the base tile size. A 64x64 sprite on a 32x32 tile grid spans 2x2 tiles. Non-multiple sprites are skipped with a warning.
+
+**Stable ordering:** When an existing index.json is present, existing sprites keep their positions and new sprites fill available gaps. Use `--reorder` to reset all positions.
+
+**Output files:**
+- `atlas.png` — The spritesheet image (RGBA, transparent background)
+- `index.json` — Sprite positions and sizes:
+  ```json
+  {
+    "tile_size": [32, 32],
+    "columns": 4,
+    "sprites": {
+      "grass":  {"row": 0, "col": 0, "tiles_x": 1, "tiles_y": 1},
+      "dragon": {"row": 0, "col": 1, "tiles_x": 2, "tiles_y": 2}
+    }
+  }
+  ```
+  Pixel coordinates: `x = col * tile_w`, `y = row * tile_h`, `w = tiles_x * tile_w`, `h = tiles_y * tile_h`
+
+Examples:
+```bash
+gridfab atlas output/ sprites/grass sprites/stone sprites/tree
+gridfab atlas output/ --include "sprites/*" --exclude "sprites/wip_*"
+gridfab atlas output/ sprites/* --tile-size 32x32 --columns 8
+gridfab atlas output/ sprites/* --reorder
+```
+
 ## Using GridFab with an LLM
 
 GridFab is designed for human-AI collaborative pixel art. An LLM can read grid.txt as plain text, reason about spatial layout, and make structured edits via the CLI — all while a human paints in the GUI simultaneously.
@@ -341,6 +388,7 @@ You are helping create pixel art using GridFab. The artwork is stored as plain t
 - `gridfab export` — Export PNGs at configured scales
 - `gridfab icon` — Export icon.ico (requires square grid)
 - `gridfab palette` — Show current palette colors
+- `gridfab atlas <output_dir> [sprites...]` — Pack sprites into a spritesheet (atlas.png + index.json)
 
 All coordinates are 0-indexed. All rows must have the same width. After making changes, tell the user to click Refresh in the GUI to see your edits.
 

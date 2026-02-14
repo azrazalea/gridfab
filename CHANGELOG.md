@@ -6,6 +6,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## [Unreleased]
 
+### Added
+- `atlas` command: pack multiple sprites into a spritesheet (`gridfab atlas <output_dir> [sprites...]`). Supports multi-tile sprites, stable ordering via index.json, glob-based sprite discovery, and configurable tile size/columns.
+
 ### Changed
 - Consolidated logo assets into `assets/logo/`; removed duplicate `assets/icon.*` and `assets/logo-256.png`
 - Updated release workflow, README, and social preview script to reference `assets/logo/`

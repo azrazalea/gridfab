@@ -15,6 +15,7 @@ Commands:
     export [dir]                             Export PNGs at configured scales
     icon [dir]                               Export .ico file (square grids)
     palette [dir]                            Display current palette
+    atlas <out> [sprites...] [options]       Pack sprites into a spritesheet
 """
 
 import argparse
@@ -130,6 +131,16 @@ def main() -> None:
     p_palette = sub.add_parser("palette", help="Display current palette")
     p_palette.add_argument("directory", nargs="?", default=".", help="Sprite directory")
 
+    # atlas
+    p_atlas = sub.add_parser("atlas", help="Pack sprites into a spritesheet")
+    p_atlas.add_argument("output_dir", help="Output directory for atlas.png + index.json")
+    p_atlas.add_argument("sprites", nargs="*", help="Sprite directories")
+    p_atlas.add_argument("--include", action="append", help="Glob pattern to find sprite dirs (repeatable)")
+    p_atlas.add_argument("--exclude", action="append", help="Glob pattern to exclude sprite dirs (repeatable)")
+    p_atlas.add_argument("--tile-size", default=None, help="Base tile size as WxH (default: auto-detect)")
+    p_atlas.add_argument("--columns", type=int, default=None, help="Columns in atlas grid")
+    p_atlas.add_argument("--reorder", action="store_true", help="Ignore existing index, place from scratch")
+
     args = parser.parse_args()
 
     if not args.command:
@@ -187,3 +198,21 @@ def _dispatch(args: argparse.Namespace) -> None:
 
     elif cmd == "palette":
         cmd_palette(Path(args.directory))
+
+    elif cmd == "atlas":
+        from gridfab.commands.atlas_cmd import cmd_atlas, resolve_sprite_dirs
+
+        tile_size = None
+        if args.tile_size:
+            tile_size = _parse_size(args.tile_size)
+
+        sprite_dirs = resolve_sprite_dirs(
+            args.sprites, args.include, args.exclude
+        )
+        cmd_atlas(
+            Path(args.output_dir),
+            sprite_dirs,
+            tile_size=tile_size,
+            columns=args.columns,
+            reorder=args.reorder,
+        )
