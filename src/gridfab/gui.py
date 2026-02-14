@@ -9,6 +9,7 @@ Usage: gridfab-gui [directory]
 import sys
 import subprocess
 import tkinter as tk
+from tkinter import simpledialog, messagebox
 from pathlib import Path
 
 from gridfab.core.grid import Grid, TRANSPARENT, get_grid_dimensions
@@ -99,6 +100,12 @@ class PixelEditor:
         ).pack(pady=2)
         tk.Button(
             palette_frame, text="Refresh", width=6, command=self.refresh, bg="#FFD700",
+        ).pack(pady=2)
+        tk.Button(
+            palette_frame, text="Clear", width=6, command=self.clear_grid, bg="#FFA07A",
+        ).pack(pady=2)
+        tk.Button(
+            palette_frame, text="New", width=6, command=self.new_grid, bg="#DDA0DD",
         ).pack(pady=2)
 
         # Canvas
@@ -227,6 +234,75 @@ class PixelEditor:
             self.grid = Grid.load(self.grid_path)
         self._redraw()
         print("Refreshed from disk")
+
+    def clear_grid(self) -> None:
+        if not messagebox.askyesno("Clear Grid", "Reset all pixels to transparent?"):
+            return
+        self.undo_stack.append(self.grid.snapshot())
+        if len(self.undo_stack) > self.max_undo:
+            self.undo_stack.pop(0)
+        self.redo_stack.clear()
+        for r in range(self.grid.height):
+            for c in range(self.grid.width):
+                self.grid.data[r][c] = TRANSPARENT
+        self._redraw()
+        self.save()
+        print("Grid cleared")
+
+    def new_grid(self) -> None:
+        size_str = simpledialog.askstring(
+            "New Grid", "Enter size as WxH (e.g. 16x16, 32x32):",
+            parent=self.root,
+        )
+        if not size_str:
+            return
+        parts = size_str.lower().split("x")
+        if len(parts) != 2:
+            messagebox.showerror("Invalid Size", "Size must be WxH (e.g. 32x32)")
+            return
+        try:
+            w, h = int(parts[0]), int(parts[1])
+        except ValueError:
+            messagebox.showerror("Invalid Size", "Width and height must be integers")
+            return
+        if w < 1 or h < 1:
+            messagebox.showerror("Invalid Size", "Width and height must be positive")
+            return
+        if not messagebox.askyesno(
+            "New Grid",
+            f"Create new {w}x{h} grid? This will replace the current grid.",
+        ):
+            return
+        self.undo_stack.append(self.grid.snapshot())
+        if len(self.undo_stack) > self.max_undo:
+            self.undo_stack.pop(0)
+        self.redo_stack.clear()
+        self.grid = Grid.blank(w, h)
+        self._rebuild_canvas()
+        self.save()
+        print(f"New {w}x{h} grid created")
+
+    def _rebuild_canvas(self) -> None:
+        """Rebuild the canvas for a new grid size."""
+        canvas_w = self.grid.width * CELL_SIZE
+        canvas_h = self.grid.height * CELL_SIZE
+        self.canvas.config(width=canvas_w, height=canvas_h)
+        self.canvas.delete("all")
+        self.cells = []
+        for r in range(self.grid.height):
+            row_cells: list[int] = []
+            for c in range(self.grid.width):
+                x0 = c * CELL_SIZE
+                y0 = r * CELL_SIZE
+                color = cell_display_color(
+                    self.grid.data[r][c], self.palette, r, c,
+                )
+                rect = self.canvas.create_rectangle(
+                    x0, y0, x0 + CELL_SIZE, y0 + CELL_SIZE,
+                    fill=color, outline="#333333", width=0.5,
+                )
+                row_cells.append(rect)
+            self.cells.append(row_cells)
 
     def render(self) -> None:
         self.save()

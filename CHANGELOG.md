@@ -17,7 +17,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - `pixel` command: set a single pixel by coordinate (`gridfab pixel <row> <col> <color>`)
 - `pixels` command: batch pixel placement (`gridfab pixels <row,col,color> ...`)
 - `clear` command: reset grid to all transparent without re-initializing (`gridfab clear [dir]`)
+- GUI "Clear" button: resets all pixels to transparent with confirmation dialog
+- GUI "New" button: creates a new grid with user-specified dimensions
 - Command tests: 35 tests covering init, row, rows, fill, rect, pixel, pixels, clear
+- GUI pure function tests: checker_color, cell_display_color (7 tests)
 
 ## [0.1.0]
 
