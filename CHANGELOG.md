@@ -21,6 +21,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - GUI "New" button: creates a new grid with user-specified dimensions
 - Command tests: 35 tests covering init, row, rows, fill, rect, pixel, pixels, clear
 - GUI pure function tests: checker_color, cell_display_color (7 tests)
+- Examples and skills directories included in release archives
 
 ## [0.1.0]
 
