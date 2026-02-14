@@ -1,5 +1,8 @@
 # GridFab
 
+![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)
+![Python: 3.10+](https://img.shields.io/badge/Python-3.10+-blue.svg)
+![Status: Pre-Alpha](https://img.shields.io/badge/Status-Pre--Alpha-orange)
 [![Build & Release](https://github.com/azrazalea/gridfab/actions/workflows/release.yml/badge.svg)](https://github.com/azrazalea/gridfab/actions/workflows/release.yml)
 
 <p align="center">
