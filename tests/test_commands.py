@@ -1,5 +1,6 @@
 """Tests for gridfab.commands — CLI command functions."""
 
+import json
 import pytest
 from pathlib import Path
 
@@ -8,6 +9,8 @@ from gridfab.commands.init import cmd_init
 from gridfab.commands.edit import (
     cmd_row, cmd_rows, cmd_fill, cmd_rect, cmd_pixel, cmd_pixels, cmd_clear,
 )
+from gridfab.commands.render_cmd import cmd_render
+from gridfab.commands.export_cmd import cmd_export, cmd_palette
 
 
 class TestCmdInit:
@@ -203,3 +206,42 @@ class TestCmdClear:
     def test_missing_grid(self, tmp_path: Path):
         with pytest.raises(FileNotFoundError):
             cmd_clear(tmp_path)
+
+
+class TestCmdRender:
+    def test_creates_preview(self, sprite_dir: Path):
+        cmd_render(sprite_dir)
+        assert (sprite_dir / "preview.png").exists()
+
+    def test_missing_grid(self, tmp_path: Path):
+        with pytest.raises(FileNotFoundError):
+            cmd_render(tmp_path)
+
+
+class TestCmdExport:
+    def test_creates_output_pngs(self, sprite_dir_with_config: Path):
+        cmd_export(sprite_dir_with_config)
+        assert (sprite_dir_with_config / "output.png").exists()
+        assert (sprite_dir_with_config / "output_2x.png").exists()
+
+    def test_missing_grid(self, tmp_path: Path):
+        with pytest.raises(FileNotFoundError):
+            cmd_export(tmp_path)
+
+
+class TestCmdPalette:
+    def test_displays_entries(self, sprite_dir: Path, capsys):
+        cmd_palette(sprite_dir)
+        captured = capsys.readouterr()
+        assert "R" in captured.out
+        assert "#CC3333" in captured.out
+
+    def test_empty_palette(self, tmp_path: Path, capsys):
+        (tmp_path / "palette.txt").write_text("# empty\n")
+        cmd_palette(tmp_path)
+        captured = capsys.readouterr()
+        assert "empty" in captured.out.lower()
+
+    def test_missing_file(self, tmp_path: Path):
+        with pytest.raises(FileNotFoundError):
+            cmd_palette(tmp_path)

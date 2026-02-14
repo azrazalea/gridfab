@@ -26,24 +26,31 @@ def _die(msg: str) -> None:
     sys.exit(1)
 
 
-def _parse_int(s: str, name: str) -> int:
+def parse_size(size_str: str) -> tuple[int, int]:
+    """Parse a WxH size string like '32x32' or '16x16'. Raises ValueError."""
+    parts = size_str.lower().split("x")
+    if len(parts) != 2:
+        raise ValueError(f"Size must be WxH (e.g. 32x32), got: '{size_str}'")
     try:
-        return int(s)
+        w = int(parts[0])
     except ValueError:
-        _die(f"{name} must be an integer, got: '{s}'")
-        return 0  # unreachable, but satisfies type checker
+        raise ValueError(f"width must be an integer, got: '{parts[0]}'")
+    try:
+        h = int(parts[1])
+    except ValueError:
+        raise ValueError(f"height must be an integer, got: '{parts[1]}'")
+    if w < 1 or h < 1:
+        raise ValueError(f"Size must be positive, got: {w}x{h}")
+    return w, h
 
 
 def _parse_size(size_str: str) -> tuple[int, int]:
-    """Parse a WxH size string like '32x32' or '16x16'."""
-    parts = size_str.lower().split("x")
-    if len(parts) != 2:
-        _die(f"Size must be WxH (e.g. 32x32), got: '{size_str}'")
-    w = _parse_int(parts[0], "width")
-    h = _parse_int(parts[1], "height")
-    if w < 1 or h < 1:
-        _die(f"Size must be positive, got: {w}x{h}")
-    return w, h
+    """Parse a WxH size string, dying on error."""
+    try:
+        return parse_size(size_str)
+    except ValueError as e:
+        _die(str(e))
+        return 0, 0  # unreachable
 
 
 def main() -> None:

@@ -1,5 +1,6 @@
 """Tests for gridfab.core.grid."""
 
+import json
 import pytest
 from pathlib import Path
 
@@ -62,6 +63,22 @@ class TestGridManipulation:
         assert grid.get(1, 0) == "B"
         assert grid.get(1, 1) == "B"
 
+    def test_fill_rect_reversed_rows(self):
+        grid = Grid.blank(4, 4)
+        with pytest.raises(ValueError, match="r1.*must be >= r0"):
+            grid.fill_rect(3, 0, 1, 3, "R")
+
+    def test_fill_rect_reversed_cols(self):
+        grid = Grid.blank(4, 4)
+        with pytest.raises(ValueError, match="c1.*must be >= c0"):
+            grid.fill_rect(0, 3, 3, 1, "R")
+
+    def test_flood_fill_same_value(self):
+        grid = Grid.blank(4, 4)
+        grid.set(0, 0, "R")
+        grid.flood_fill(0, 0, "R")  # no-op, target == value
+        assert grid.get(0, 0) == "R"
+
     def test_flood_fill(self):
         grid = Grid.blank(4, 4)
         grid.set(0, 0, "R")
@@ -95,6 +112,12 @@ class TestGridManipulation:
         assert grid.get(0, 0) == "X"
         grid.restore(snap)
         assert grid.get(0, 0) == "."
+
+
+class TestGridRepr:
+    def test_repr(self):
+        grid = Grid.blank(8, 16)
+        assert repr(grid) == "Grid(8x16)"
 
 
 class TestGridSetRow:

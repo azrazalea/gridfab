@@ -22,6 +22,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - Command tests: 35 tests covering init, row, rows, fill, rect, pixel, pixels, clear
 - GUI pure function tests: checker_color, cell_display_color (7 tests)
 - Examples and skills directories included in release archives
+- Comprehensive test suite: 135 tests across 6 files (test_grid, test_palette, test_commands, test_render, test_cli, test_gui)
+- Extracted `parse_size()` as public function in cli.py for testability
 
 ## [0.1.0]
 

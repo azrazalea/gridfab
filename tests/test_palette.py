@@ -89,3 +89,60 @@ class TestPaletteValidation:
     def test_two_char_alias(self, sample_palette: Path):
         palette = Palette.load(sample_palette / "palette.txt")
         assert "SK" in palette.entries
+
+
+class TestPaletteSave:
+    def test_round_trip(self, tmp_path: Path):
+        palette = Palette({"R": "#CC3333", "B": "#0000FF"})
+        path = tmp_path / "palette.txt"
+        palette.save(path)
+        reloaded = Palette.load(path)
+        assert reloaded.resolve("R") == "#CC3333"
+        assert reloaded.resolve("B") == "#0000FF"
+
+    def test_transparent_alias(self, tmp_path: Path):
+        palette = Palette({"G": None})
+        path = tmp_path / "palette.txt"
+        palette.save(path)
+        reloaded = Palette.load(path)
+        assert reloaded.resolve("G") is None
+
+
+class TestPaletteResolveGrid:
+    def test_resolves_full_grid(self):
+        palette = Palette({"R": "#CC3333", "B": "#0000FF"})
+        raw = [["R", ".", "B"], [".", "R", "."]]
+        resolved = palette.resolve_grid(raw)
+        assert resolved[0] == ["#CC3333", None, "#0000FF"]
+        assert resolved[1] == [None, "#CC3333", None]
+
+    def test_unknown_alias_errors(self):
+        palette = Palette({"R": "#CC3333"})
+        raw = [["R", "NOPE"]]
+        with pytest.raises(ValueError, match="unknown palette alias"):
+            palette.resolve_grid(raw)
+
+
+class TestPaletteRepr:
+    def test_repr(self):
+        palette = Palette({"R": "#CC3333", "B": "#0000FF"})
+        assert repr(palette) == "Palette(2 colors)"
+
+
+class TestPaletteEdgeCases:
+    def test_malformed_line_no_equals(self, tmp_path: Path):
+        (tmp_path / "palette.txt").write_text("BADLINE\n")
+        with pytest.raises(ValueError, match="expected ALIAS=COLOR"):
+            Palette.load(tmp_path / "palette.txt")
+
+    def test_non_printable_alias(self, tmp_path: Path):
+        (tmp_path / "palette.txt").write_text("\x01=#FF0000\n")
+        with pytest.raises(ValueError, match="printable"):
+            Palette.load(tmp_path / "palette.txt")
+
+    def test_hash_alias_via_equals(self, tmp_path: Path):
+        """Alias starting with # using ALIAS=COLOR format (not a comment)."""
+        # Writing "#X=#FF0000" — the line starts with # so it's a comment.
+        # To actually test the _validate_alias #-check, call it directly.
+        with pytest.raises(ValueError, match="cannot start with '#'"):
+            Palette._validate_alias("#X")
