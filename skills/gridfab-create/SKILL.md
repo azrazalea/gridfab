@@ -101,21 +101,24 @@ All coordinates are 0-indexed. All rows must have the same width. Use `--dir <pa
 
 | Command | Description |
 |---------|-------------|
-| `gridfab rows <start> <end> <values...>` | **The power tool.** Replace a range of rows in one call. |
-| `gridfab row <n> <values...>` | Replace a single row (provide all values for full width) |
+| `gridfab pixel <row> <col> <color>` | Set a single pixel by coordinate — simplest, no counting |
+| `gridfab pixels <r,c,color> [...]` | Batch pixel placement — validated atomically |
 | `gridfab rect <r0> <c0> <r1> <c1> <color>` | Fill a rectangle with one color |
 | `gridfab fill <row> <col_start> <col_end> <color>` | Fill a horizontal span with one color |
+| `gridfab rows <start> <end> <values...>` | Replace a range of rows in one call |
+| `gridfab row <n> <values...>` | Replace a single row (provide all values for full width) |
+| `gridfab clear [dir]` | Reset all pixels to transparent |
 
 ### Working Efficiently
 
 Choose the right command for the job:
 
-1. **`rect`** — Large solid regions: backgrounds, big color blocks. Use this first to establish the major shapes.
-2. **`fill`** — Your most reliable pixel-placement tool. Use `fill <row> <col> <col> <color>` to place a single pixel or a horizontal span. One call per pixel is slower but avoids counting errors.
-3. **`rows`** — Batch multiple rows in one call. Powerful but error-prone: every row must have exactly the right number of values. Miscounts are the most common error and will malform the file. **Count carefully.** Best for small grids (8x8, 16x16) where rows are short.
-4. **`row`** — Single-row replacement. Same counting caveat as `rows`.
+1. **`pixel`/`pixels`** — Your go-to for individual pixel placement. `pixel` sets one pixel by coordinate, `pixels` sets many in one call. No counting, no padding — just coordinates and colors.
+2. **`rect`** — Large solid regions: backgrounds, big color blocks. Use this first to establish the major shapes.
+3. **`fill`** — Horizontal spans within one row. Also works for single pixels (`fill <row> <col> <col> <color>`).
+4. **`rows`/`row`** — Full row replacement. Error-prone: every row must have exactly the right number of values. Miscounts will malform the file. **Count carefully.** Best for small grids (8x8, 16x16) where rows are short.
 
-**For large sprites (32x32+)**, prefer `rect` + `fill` over `row`/`rows`. At 32 values per row, miscounting padding dots is very easy and a single miscount makes the file uneditable via CLI until fixed. `fill` with matching start/end columns places individual pixels without needing to count.
+**For large sprites (32x32+)**, prefer `rect` + `pixel`/`pixels` over `row`/`rows`. At 32 values per row, miscounting padding dots is very easy. `pixel` avoids counting entirely.
 
 **Render after every major structural change** (`gridfab render`). Catching a mistake early is much cheaper than discovering it 15 rows later.
 
@@ -124,20 +127,23 @@ Choose the right command for the job:
 ### Examples
 
 ```bash
+# pixel: set a single pixel at row 10, column 13
+gridfab pixel 10 13 DK
+
+# pixels: batch pixel placement (row,col,color triplets)
+gridfab pixels 5,13,DK 5,14,WB 6,12,DK 6,15,WB
+
 # rect: fill a solid block — great for blocking out shapes
 gridfab rect 5 5 15 15 B
-
-# fill: place a single pixel at row 10, column 13
-gridfab fill 10 13 13 DK
 
 # fill: horizontal span within one row
 gridfab fill 5 2 10 R
 
+# clear: start over without re-initializing
+gridfab clear
+
 # rows: write rows 2-4 of an 8-wide grid (3 rows x 8 cols = 24 values)
 gridfab rows 2 4 . . OL OL OL OL . . . OL SK SK SK SK OL . . OL SK HL SK SK OL .
-
-# row: replace a single row of a 4-wide grid
-gridfab row 5 R R SK .
 ```
 
 ### Worked Example: 32x32 Potion Bottle

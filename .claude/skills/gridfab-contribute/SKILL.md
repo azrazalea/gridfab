@@ -16,9 +16,12 @@ python -m pytest
 
 ## Before Every Commit
 
-1. **Run tests**: `python -m pytest tests/ -v`
-2. **Update CHANGELOG.md**: Add entries under `[Unreleased]` using Keep a Changelog categories (Added, Changed, Deprecated, Removed, Fixed, Security)
-3. **Update INSTRUCTIONS.md**: If any user-facing behavior changed (CLI commands, GUI features, file formats, config options), reflect it in INSTRUCTIONS.md — including the suggested LLM prompt section if CLI commands changed
+1. **Run the FULL test suite**: `python -m pytest -v` (not just the files you changed)
+2. **Write tests first** when adding new features (TDD). At minimum, write automated tests before committing — manual tests supplement but don't replace automated ones
+3. **Update CHANGELOG.md**: Add entries under `[Unreleased]` using Keep a Changelog categories (Added, Changed, Deprecated, Removed, Fixed, Security)
+4. **Update INSTRUCTIONS.md**: If any user-facing behavior changed (CLI commands, GUI features, file formats, config options), reflect it in INSTRUCTIONS.md — including the suggested LLM prompt section if CLI commands changed
+5. **Update skills**: If CLI commands changed, update `skills/gridfab-create/SKILL.md` (end-user skill) to match
+6. **Commit incrementally**: One commit per feature/fix, not one big commit at the end
 
 ## Architecture Rules
 
@@ -42,12 +45,29 @@ examples/             # Example sprites
 tests/                # pytest test suite (fixtures in tests/fixtures/)
 ```
 
+## Testing
+
+- Tests go in `tests/` using pytest with `tmp_path` fixtures (no filesystem mocking)
+- Shared fixtures are in `tests/conftest.py` (`sprite_dir`, `sprite_dir_with_config`, `sample_grid`, etc.)
+- Test both happy paths and error cases — check error messages with `pytest.raises(ValueError, match="...")`
+- The test plan is in `.claude/plans/` — consult it for coverage goals and conventions
+- Run coverage with: `python -m pytest --cov=gridfab --cov-report=term-missing`
+
 ## Code Style
 
 - Follow existing patterns in the codebase
 - Don't add docstrings, comments, or type annotations to code you didn't change
 - Keep functions small and focused
 - Fail loudly with clear error messages including line numbers and context — LLMs need good errors to self-correct
+
+## Adding a New CLI Command
+
+1. Add the command function in `src/gridfab/commands/edit.py` (or a new file if it's a new category)
+2. Add argparse subcommand + dispatch in `src/gridfab/cli.py`
+3. Write tests in `tests/test_commands.py`
+4. Update the CLI docstring at the top of `cli.py`
+5. Update INSTRUCTIONS.md (reference section + LLM prompt section)
+6. Update `skills/gridfab-create/SKILL.md` command table and examples
 
 ## Palette Alias Rules
 

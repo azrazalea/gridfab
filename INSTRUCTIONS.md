@@ -5,7 +5,7 @@ GridFab is a pixel art editor where artwork is stored as plain text files. It ha
 - **gridfab** — Command-line interface for LLMs, scripts, and terminal users
 - **gridfab-gui** — Visual editor with a painting canvas and palette sidebar
 
-> **Important:** Always use the GUI or CLI commands to edit grid.txt. Do not edit it by hand. The tools handle validation, bounds checking, and consistent formatting. Manual edits risk malformed files and data loss.
+> **Important:** Always use the GUI or CLI commands to edit grid.txt. Do not edit it by hand. The tools handle validation, bounds checking, and consistent formatting. If the CLI finds a malformed grid.txt, it will auto-repair it (trimming extra columns, padding short rows, replacing invalid values) and print loud warnings — but prevention is better than repair.
 
 ## Getting Started
 
@@ -123,6 +123,8 @@ The left panel shows all colors defined in palette.txt. Click a color button to 
 - **Save** — Write the current grid to grid.txt (Ctrl+S)
 - **Render** — Save and generate preview.png with a checkerboard background
 - **Refresh** — Reload grid.txt and palette.txt from disk. **Click this after an LLM or script makes changes** to see their edits in the GUI.
+- **Clear** — Reset all pixels to transparent (with confirmation). Undoable.
+- **New** — Create a new blank grid with a custom size. Prompts for WxH dimensions. Undoable.
 
 ### Keyboard Shortcuts
 
@@ -186,6 +188,32 @@ Display all colors defined in palette.txt.
 gridfab palette [directory]
 ```
 
+### gridfab pixel
+
+Set a single pixel by coordinate. The simplest and most reliable way to place individual pixels.
+
+```
+gridfab pixel <row> <col> <color> [--dir directory]
+```
+
+Example:
+```
+gridfab pixel 5 13 DK
+```
+
+### gridfab pixels
+
+Set multiple pixels in one call. Each pixel is specified as a comma-separated triplet: `row,col,color`. All pixels are validated before any are written (atomic operation).
+
+```
+gridfab pixels <row,col,color> [row,col,color ...] [--dir directory]
+```
+
+Example:
+```
+gridfab pixels 5,13,DK 5,14,WB 6,12,DK 6,15,WB
+```
+
 ### gridfab row
 
 Replace a single row in the grid. You must provide exactly as many values as the grid is wide.
@@ -240,6 +268,14 @@ gridfab rect 5 5 15 15 B
 
 Both `fill` and `rect` accept palette aliases or inline `#RRGGBB` hex colors.
 
+### gridfab clear
+
+Reset all pixels in the grid to transparent, preserving grid dimensions.
+
+```
+gridfab clear [directory]
+```
+
 ## Using GridFab with an LLM
 
 GridFab is designed for human-AI collaborative pixel art. An LLM can read grid.txt as plain text, reason about spatial layout, and make structured edits via the CLI — all while a human paints in the GUI simultaneously.
@@ -281,11 +317,14 @@ You are helping create pixel art using GridFab. The artwork is stored as plain t
 2. Add colors to palette.txt: one per line as `ALIAS=#RRGGBB` (e.g. `R=#CC3333`)
 3. Build the image using CLI edit commands
 
-**Editing commands:**
+**Editing commands (preferred order):**
+- `gridfab pixel <row> <col> <color>` — Set a single pixel by coordinate (simplest, no counting)
+- `gridfab pixels <r,c,color> [...]` — Set multiple pixels in one call (validated atomically)
+- `gridfab rect <r0> <c0> <r1> <c1> <color>` — Fill rectangle with one color
+- `gridfab fill <row> <col_start> <col_end> <color>` — Fill horizontal span with one color
 - `gridfab row <n> <values...>` — Replace one row (must provide all values for the full width)
 - `gridfab rows <start> <end> <values...>` — Replace range of rows (all values, left-to-right, top-to-bottom)
-- `gridfab fill <row> <col_start> <col_end> <color>` — Fill horizontal span with one color
-- `gridfab rect <r0> <c0> <r1> <c1> <color>` — Fill rectangle with one color
+- `gridfab clear [dir]` — Reset all pixels to transparent
 
 **Other commands:**
 - `gridfab render` — Generate preview.png
@@ -293,6 +332,8 @@ You are helping create pixel art using GridFab. The artwork is stored as plain t
 - `gridfab palette` — Show current palette colors
 
 All coordinates are 0-indexed. All rows must have the same width. After making changes, tell the user to click Refresh in the GUI to see your edits.
+
+**Malformed file handling:** If grid.txt has structural issues (wrong column counts, invalid values, blank lines), the CLI auto-repairs the file and prints loud warnings to stderr. Check stderr output after every command to catch any repairs.
 
 ---
 
