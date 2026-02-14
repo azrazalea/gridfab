@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## [Unreleased]
 
+### Changed
+- Consolidated logo assets into `assets/logo/`; removed duplicate `assets/icon.*` and `assets/logo-256.png`
+- Updated release workflow, README, and social preview script to reference `assets/logo/`
+
 ## [0.2.0]
 
 ### Added

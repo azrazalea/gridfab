@@ -12,7 +12,7 @@ from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-LOGO_PATH = REPO_ROOT / "assets" / "logo-256.png"
+LOGO_PATH = REPO_ROOT / "assets" / "logo" / "output_8x.png"
 OUTPUT_PATH = REPO_ROOT / "assets" / "social-preview.png"
 
 BG_COLOR = (42, 42, 58)  # #2A2A3A — logo outline color

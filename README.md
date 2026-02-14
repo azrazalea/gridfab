@@ -6,7 +6,7 @@
 [![Build & Release](https://github.com/azrazalea/gridfab/actions/workflows/release.yml/badge.svg)](https://github.com/azrazalea/gridfab/actions/workflows/release.yml)
 
 <p align="center">
-  <img src="assets/logo-256.png" alt="GridFab logo" width="256">
+  <img src="assets/logo/output_8x.png" alt="GridFab logo" width="256">
 </p>
 
 **Pixel art editor where AI and humans edit the same sprite in real time — because the art is plain text.**

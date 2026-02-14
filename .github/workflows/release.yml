@@ -61,8 +61,8 @@ jobs:
           mode: standalone
           output-dir: build/cli
           output-file: gridfab
-          windows-icon-from-ico: assets/icon.ico
-          macos-app-icon: assets/icon.icns
+          windows-icon-from-ico: assets/logo/icon.ico
+          macos-app-icon: assets/logo/icon.icns
 
       - name: Build GUI with Nuitka
         uses: Nuitka/Nuitka-Action@main
@@ -74,8 +74,8 @@ jobs:
           disable-console: true
           output-dir: build/gui
           output-file: gridfab-gui
-          windows-icon-from-ico: assets/icon.ico
-          macos-app-icon: assets/icon.icns
+          windows-icon-from-ico: assets/logo/icon.ico
+          macos-app-icon: assets/logo/icon.icns
 
       - name: Merge builds (Windows)
         if: runner.os == 'Windows'
