@@ -137,15 +137,24 @@ The GUI currently has fixed 16px cells. For larger canvases (64×64) this won't 
 - Fit-to-window button/shortcut
 - Status bar showing current zoom level and cursor position (row, col)
 
-#### 1.5 Better color picker
-The palette sidebar is functional but minimal. Improve it.
+#### 1.5 Palette sidebar & editor
+The palette sidebar is functional but minimal. Improve the display and add the ability to create/edit palettes from the GUI.
 
-**Implementation:**
+**Sidebar improvements:**
 - Show the color swatch AND the alias text on each button
 - Highlight the currently selected color more visibly (thick border, not just sunken relief)
 - Keyboard shortcuts: number keys 1-9 for first 9 palette entries, 0 for transparent
 - Tooltip on hover showing the hex value
 - Right-click a palette button to copy its hex value
+
+**Palette editing:**
+- Add color: opens a color picker dialog (tkinter colorchooser), prompts for 1-2 char alias
+- Edit color: click an existing palette entry to change its hex value via color picker
+- Remove color: right-click or delete button to remove an alias
+- Reorder: optional drag-and-drop or up/down buttons
+- Validates alias rules (1-2 chars, no duplicates, no case-insensitive collisions, no `#` prefix)
+- Saves directly to palette.txt using existing Palette.save()
+- Updates the palette sidebar in real-time after edits
 
 #### 1.6 Cursor preview
 Show what color you're about to paint before clicking.
