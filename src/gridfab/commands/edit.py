@@ -74,3 +74,43 @@ def cmd_rect(
     grid.fill_rect(r0, c0, r1, c1, color)
     grid.save(directory / "grid.txt")
     print(f"Rect ({r0},{c0})-({r1},{c1}) filled with {color}.")
+
+
+def cmd_pixel(directory: Path, row: int, col: int, color: str) -> None:
+    """Set a single pixel by coordinate."""
+    grid, palette = _load(directory)
+    palette.resolve(color, "pixel color")
+    grid.set(row, col, color)
+    grid.save(directory / "grid.txt")
+    print(f"Pixel ({row},{col}) set to {color}.")
+
+
+def cmd_pixels(directory: Path, specs: list[str]) -> None:
+    """Set multiple pixels from comma-separated triplets: row,col,color."""
+    grid, palette = _load(directory)
+
+    placements = []
+    for i, spec in enumerate(specs):
+        parts = spec.split(",")
+        if len(parts) != 3:
+            raise ValueError(
+                f"pixel spec #{i + 1} '{spec}': expected row,col,color "
+                f"(3 comma-separated values), got {len(parts)}"
+            )
+        try:
+            row = int(parts[0])
+        except ValueError:
+            raise ValueError(f"pixel spec #{i + 1} '{spec}': row must be integer")
+        try:
+            col = int(parts[1])
+        except ValueError:
+            raise ValueError(f"pixel spec #{i + 1} '{spec}': col must be integer")
+        color = parts[2]
+        palette.resolve(color, f"pixel spec #{i + 1}")
+        placements.append((row, col, color))
+
+    for row, col, color in placements:
+        grid.set(row, col, color)
+
+    grid.save(directory / "grid.txt")
+    print(f"{len(placements)} pixel(s) set.")

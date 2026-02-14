@@ -5,8 +5,10 @@ Usage: gridfab <command> [args...]
 Commands:
     init [--size WxH] [dir]                  Create blank sprite directory
     render [dir]                             Render preview.png (checkerboard bg)
-    row <row> <v0 v1 ...> [dir]             Replace a single row (0-indexed)
-    rows <start> <end> <v0 v1 ...> [dir]    Replace a range of rows (inclusive)
+    pixel <row> <col> <color> [--dir]       Set a single pixel by coordinate
+    pixels <r,c,color> [...] [--dir]        Set multiple pixels in one call
+    row <row> <v0 v1 ...> [--dir]           Replace a single row (0-indexed)
+    rows <start> <end> <v0 v1 ...> [--dir]  Replace a range of rows (inclusive)
     fill <row> <col_start> <col_end> <c>    Fill horizontal span with one color
     rect <r0> <c0> <r1> <c1> <color>        Fill a rectangle with one color
     export [dir]                             Export PNGs at configured scales
@@ -61,6 +63,18 @@ def main() -> None:
     p_show = sub.add_parser("show", help="Alias for render")
     p_show.add_argument("directory", nargs="?", default=".", help="Sprite directory")
 
+    # pixel
+    p_pixel = sub.add_parser("pixel", help="Set a single pixel by coordinate")
+    p_pixel.add_argument("row", type=int, help="Row number (0-indexed)")
+    p_pixel.add_argument("col", type=int, help="Column number (0-indexed)")
+    p_pixel.add_argument("color", help="Color alias or #RRGGBB")
+    p_pixel.add_argument("--dir", default=".", help="Sprite directory")
+
+    # pixels
+    p_pixels = sub.add_parser("pixels", help="Set multiple pixels: row,col,color ...")
+    p_pixels.add_argument("specs", nargs="+", help="Pixel specs as row,col,color")
+    p_pixels.add_argument("--dir", default=".", help="Sprite directory")
+
     # row
     p_row = sub.add_parser("row", help="Replace a single row")
     p_row.add_argument("row_num", type=int, help="Row number (0-indexed)")
@@ -113,7 +127,7 @@ def main() -> None:
 
 def _dispatch(args: argparse.Namespace) -> None:
     from gridfab.commands.init import cmd_init
-    from gridfab.commands.edit import cmd_row, cmd_rows, cmd_fill, cmd_rect
+    from gridfab.commands.edit import cmd_row, cmd_rows, cmd_fill, cmd_rect, cmd_pixel, cmd_pixels
     from gridfab.commands.render_cmd import cmd_render
     from gridfab.commands.export_cmd import cmd_export, cmd_palette
 
@@ -125,6 +139,12 @@ def _dispatch(args: argparse.Namespace) -> None:
 
     elif cmd in ("render", "show"):
         cmd_render(Path(args.directory))
+
+    elif cmd == "pixel":
+        cmd_pixel(Path(args.dir), args.row, args.col, args.color)
+
+    elif cmd == "pixels":
+        cmd_pixels(Path(args.dir), args.specs)
 
     elif cmd == "row":
         cmd_row(Path(args.dir), args.row_num, args.values)
