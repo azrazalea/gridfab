@@ -2,6 +2,10 @@
 
 [![Build & Release](https://github.com/azrazalea/gridfab/actions/workflows/release.yml/badge.svg)](https://github.com/azrazalea/gridfab/actions/workflows/release.yml)
 
+<p align="center">
+  <img src="assets/logo-256.png" alt="GridFab logo" width="256">
+</p>
+
 **Pixel art editor where AI and humans edit the same sprite in real time — because the art is plain text.**
 
 GridFab is an open-source pixel art editor built around a radical idea: the artwork is stored as plain text files that both humans and LLMs can read and edit directly. It has two interfaces operating on the same files simultaneously:

@@ -62,6 +62,21 @@ class PixelEditor:
 
         root.title(f"GridFab — {self.work_dir.resolve().name}")
 
+        # Set window icon
+        icon_path = Path(__file__).parent / "assets" / "icon.ico"
+        if icon_path.exists():
+            try:
+                if sys.platform == "win32":
+                    root.iconbitmap(str(icon_path))
+                else:
+                    from PIL import ImageTk, Image as PILImage
+                    ico = PILImage.open(icon_path)
+                    ico = ico.resize((32, 32), PILImage.NEAREST)
+                    self._icon_photo = ImageTk.PhotoImage(ico)
+                    root.iconphoto(True, self._icon_photo)
+            except Exception:
+                pass  # Icon is cosmetic — fail silently
+
         # Main layout
         main = tk.Frame(root)
         main.pack(fill=tk.BOTH, expand=True)

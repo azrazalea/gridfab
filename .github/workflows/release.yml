@@ -61,6 +61,9 @@ jobs:
           mode: standalone
           output-dir: build/cli
           output-file: gridfab
+          windows-icon-from-ico: assets/icon.ico
+          macos-app-icon: assets/logo-256.png
+          linux-icon: assets/logo-256.png
 
       - name: Build GUI with Nuitka
         uses: Nuitka/Nuitka-Action@main
@@ -72,6 +75,9 @@ jobs:
           disable-console: true
           output-dir: build/gui
           output-file: gridfab-gui
+          windows-icon-from-ico: assets/icon.ico
+          macos-app-icon: assets/logo-256.png
+          linux-icon: assets/logo-256.png
 
       - name: Merge builds (Windows)
         if: runner.os == 'Windows'
@@ -88,6 +94,7 @@ jobs:
         shell: bash
         run: |
           cp README.md LICENSE.md CHANGELOG.md INSTRUCTIONS.md build/cli/__main__.dist/
+          cp -r assets build/cli/__main__.dist/
           tar -c --exclude='__pycache__' -C . src/gridfab tests examples skills | tar -x -C build/cli/__main__.dist/
 
       - uses: actions/upload-artifact@v4
