@@ -76,6 +76,16 @@ def cmd_rect(
     print(f"Rect ({r0},{c0})-({r1},{c1}) filled with {color}.")
 
 
+def cmd_clear(directory: Path) -> None:
+    """Reset all grid cells to transparent, preserving dimensions."""
+    grid, _palette = _load(directory)
+    for r in range(grid.height):
+        for c in range(grid.width):
+            grid.data[r][c] = "."
+    grid.save(directory / "grid.txt")
+    print(f"Grid cleared ({grid.width}x{grid.height}, all transparent).")
+
+
 def cmd_pixel(directory: Path, row: int, col: int, color: str) -> None:
     """Set a single pixel by coordinate."""
     grid, palette = _load(directory)

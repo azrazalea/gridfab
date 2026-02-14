@@ -6,7 +6,7 @@ from pathlib import Path
 from gridfab.core.grid import Grid
 from gridfab.commands.init import cmd_init
 from gridfab.commands.edit import (
-    cmd_row, cmd_rows, cmd_fill, cmd_rect, cmd_pixel, cmd_pixels,
+    cmd_row, cmd_rows, cmd_fill, cmd_rect, cmd_pixel, cmd_pixels, cmd_clear,
 )
 
 
@@ -179,3 +179,27 @@ class TestCmdPixels:
         cmd_pixels(sprite_dir, ["3,3,B"])
         grid = Grid.load(sprite_dir / "grid.txt")
         assert grid.get(3, 3) == "B"
+
+
+class TestCmdClear:
+    def test_clears_all_pixels(self, sprite_dir: Path):
+        cmd_fill(sprite_dir, 0, 0, 3, "R")
+        cmd_clear(sprite_dir)
+        grid = Grid.load(sprite_dir / "grid.txt")
+        assert all(v == "." for row in grid.data for v in row)
+
+    def test_preserves_dimensions(self, sprite_dir: Path):
+        cmd_clear(sprite_dir)
+        grid = Grid.load(sprite_dir / "grid.txt")
+        assert grid.width == 4
+        assert grid.height == 4
+
+    def test_already_blank(self, sprite_dir: Path):
+        """Clearing a blank grid should not error."""
+        cmd_clear(sprite_dir)
+        grid = Grid.load(sprite_dir / "grid.txt")
+        assert all(v == "." for row in grid.data for v in row)
+
+    def test_missing_grid(self, tmp_path: Path):
+        with pytest.raises(FileNotFoundError):
+            cmd_clear(tmp_path)

@@ -11,6 +11,7 @@ Commands:
     rows <start> <end> <v0 v1 ...> [--dir]  Replace a range of rows (inclusive)
     fill <row> <col_start> <col_end> <c>    Fill horizontal span with one color
     rect <r0> <c0> <r1> <c1> <color>        Fill a rectangle with one color
+    clear [dir]                              Reset grid to all transparent
     export [dir]                             Export PNGs at configured scales
     palette [dir]                            Display current palette
 """
@@ -105,6 +106,10 @@ def main() -> None:
     p_rect.add_argument("color", help="Color alias or #RRGGBB")
     p_rect.add_argument("--dir", default=".", help="Sprite directory")
 
+    # clear
+    p_clear = sub.add_parser("clear", help="Reset grid to all transparent")
+    p_clear.add_argument("directory", nargs="?", default=".", help="Sprite directory")
+
     # export
     p_export = sub.add_parser("export", help="Export PNGs at multiple scales")
     p_export.add_argument("directory", nargs="?", default=".", help="Sprite directory")
@@ -127,7 +132,7 @@ def main() -> None:
 
 def _dispatch(args: argparse.Namespace) -> None:
     from gridfab.commands.init import cmd_init
-    from gridfab.commands.edit import cmd_row, cmd_rows, cmd_fill, cmd_rect, cmd_pixel, cmd_pixels
+    from gridfab.commands.edit import cmd_row, cmd_rows, cmd_fill, cmd_rect, cmd_pixel, cmd_pixels, cmd_clear
     from gridfab.commands.render_cmd import cmd_render
     from gridfab.commands.export_cmd import cmd_export, cmd_palette
 
@@ -157,6 +162,9 @@ def _dispatch(args: argparse.Namespace) -> None:
 
     elif cmd == "rect":
         cmd_rect(Path(args.dir), args.r0, args.c0, args.r1, args.c1, args.color)
+
+    elif cmd == "clear":
+        cmd_clear(Path(args.directory))
 
     elif cmd == "export":
         cmd_export(Path(args.directory))

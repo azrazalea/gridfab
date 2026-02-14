@@ -16,7 +16,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - Comprehensive grid tests: auto-repair, set_row, fill_row, edge cases, config loading (42 tests, up from 11)
 - `pixel` command: set a single pixel by coordinate (`gridfab pixel <row> <col> <color>`)
 - `pixels` command: batch pixel placement (`gridfab pixels <row,col,color> ...`)
-- Command tests: 31 tests covering init, row, rows, fill, rect, pixel, pixels
+- `clear` command: reset grid to all transparent without re-initializing (`gridfab clear [dir]`)
+- Command tests: 35 tests covering init, row, rows, fill, rect, pixel, pixels, clear
 
 ## [0.1.0]
 
