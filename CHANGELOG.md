@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## [Unreleased]
 
+### Added
+- Claude Code skills: gridfab-contribute (repo contributors), gridfab-release (release process), gridfab-create (end-user pixel art creation)
+- Claude Code skill installation instructions in README and INSTRUCTIONS.md
+- Veil of Ages credit in README "Why This Exists" section
+- Roadmap items: pixel/pixels coordinate commands, graceful malformed-file handling, GUI Init/New button, atlas builder CLI integration
+
 ## [0.1.0]
 
 ### Added

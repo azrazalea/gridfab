@@ -202,6 +202,45 @@ Flood fill a contiguous region of same-colored pixels.
 - Should work on both palette aliases AND the resolved colors (so filling a region of "R" that's adjacent to "#CC3333" — if they resolve to the same color — should fill both)
 - Actually, keep it simple: fill based on matching the raw grid value (alias), not the resolved color. This is more predictable and LLM-friendly.
 
+#### 1.11 Coordinate-based pixel command
+
+The `row`/`rows` commands require specifying every value in a row, which causes frequent miscounting on large grids. Add a coordinate-based command for placing individual pixels or batches.
+
+**Implementation:**
+- `gridfab pixel <row> <col> <color> [--dir DIR]` — Place a single pixel
+- `gridfab pixels <row>,<col>,<color> <row>,<col>,<color> ... [--dir DIR]` — Place multiple pixels in one call
+- These commands do not require padding with `.` values, eliminating the most common LLM error source
+- Validates coordinates are in bounds, color is a valid alias or `#RRGGBB`
+
+#### 1.12 Graceful malformed-file handling
+
+Currently, all CLI commands validate the entire grid.txt before operating. If one row has the wrong number of values, every command fails — including the `row` command that could fix it. This creates a trap where the only escape is editing grid.txt directly.
+
+**Implementation:**
+- `gridfab row` should be able to replace a row in a malformed file (validate only the target row's new values, not the whole file)
+- Other commands can continue to validate fully
+- Show a warning about the malformed state but still execute
+
+#### 1.13 GUI Init/New button
+
+Allow creating new sprites from the GUI without needing the CLI.
+
+**Implementation:**
+- File > New or a "New" button that opens a dialog
+- Dialog prompts for: directory path, grid size (WxH dropdown or freeform), optional starter palette
+- Calls the same init logic as `gridfab init`
+- After creation, opens the new sprite in the editor
+
+#### 1.14 Atlas builder integration
+
+The standalone `tools/build_custom_atlas.py` script should be promoted to a proper CLI command and optionally accessible from the GUI.
+
+**Implementation:**
+- `gridfab atlas <output> <sprite_dirs...> [--tile-size WxH] [--columns N]` — Pack multiple sprites into a single spritesheet/atlas
+- Reads grid.txt + palette.txt from each sprite directory
+- Outputs a single PNG atlas and optionally a JSON metadata file with tile positions
+- GUI: Tools > Build Atlas menu item that opens a directory picker
+
 ---
 
 ### Phase 2: Animation Support

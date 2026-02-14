@@ -244,9 +244,24 @@ Both `fill` and `rect` accept palette aliases or inline `#RRGGBB` hex colors.
 
 GridFab is designed for human-AI collaborative pixel art. An LLM can read grid.txt as plain text, reason about spatial layout, and make structured edits via the CLI — all while a human paints in the GUI simultaneously.
 
+### Claude Code Skill
+
+If you use [Claude Code](https://claude.ai/claude-code), GridFab includes a skill that gives Claude built-in knowledge of how to create and edit sprites. Install it by copying the skill directory to your user-level skills:
+
+```bash
+cp -r skills/gridfab-create ~/.claude/skills/gridfab-create
+```
+
+On Windows:
+```
+xcopy /E /I skills\gridfab-create %USERPROFILE%\.claude\skills\gridfab-create
+```
+
+Once installed, Claude will automatically use GridFab's CLI when you ask it to create or edit pixel art. No prompt needed — just ask.
+
 ### Suggested LLM Prompt
 
-Copy and paste this prompt (or adapt it) when asking an LLM to help create sprites. You can also point the LLM at this file directly: "Read INSTRUCTIONS.md for how to use GridFab."
+For LLMs without the skill installed, copy and paste this prompt (or adapt it). You can also point the LLM at this file directly: "Read INSTRUCTIONS.md for how to use GridFab."
 
 ---
 

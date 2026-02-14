@@ -1,0 +1,14 @@
+# Potion bottle
+OL=#2A2A3A
+# Cork
+CK=#B8864E
+CL=#D4A574
+# Glass
+GL=#8EAADC
+GD=#5B7FB5
+# Liquid
+LQ=#CC3333
+LD=#991A1A
+LL=#FF6666
+# Highlight
+HL=#FFFFFF

@@ -136,6 +136,17 @@ gridfab palette
 
 Every editing operation is available via CLI. The text format means LLMs can reason about spatial layout, color distribution, and composition without vision capabilities.
 
+### Claude Code Skill
+
+If you use [Claude Code](https://claude.ai/claude-code), install the GridFab skill to give Claude built-in knowledge of how to create and edit sprites:
+
+```bash
+# Copy the skill to your user-level skills directory
+cp -r skills/gridfab-create ~/.claude/skills/gridfab-create
+```
+
+Once installed, Claude will automatically know how to use GridFab's CLI when you ask it to create or edit pixel art.
+
 ## Installation
 
 ### From PyPI
