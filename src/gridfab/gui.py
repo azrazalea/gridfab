@@ -9,7 +9,7 @@ Usage: gridfab-gui [directory]
 import sys
 import subprocess
 import tkinter as tk
-from tkinter import simpledialog, messagebox, filedialog
+from tkinter import simpledialog, messagebox, filedialog, colorchooser
 from pathlib import Path
 
 from gridfab.core.grid import Grid, TRANSPARENT, get_grid_dimensions
@@ -20,9 +20,21 @@ CHECKER_LIGHT = "#DCDCDC"
 CHECKER_DARK = "#B4B4B4"
 
 
+SWATCH_COLS = 3
+
+
 def checker_color(r: int, c: int) -> str:
     """Return checkerboard color for a transparent cell."""
     return CHECKER_LIGHT if (r // 2 + c // 2) % 2 == 0 else CHECKER_DARK
+
+
+def _contrast_color(hex_color: str) -> str:
+    """Return black or white for readable text on the given background."""
+    r = int(hex_color[1:3], 16)
+    g = int(hex_color[3:5], 16)
+    b = int(hex_color[5:7], 16)
+    luminance = 0.299 * r + 0.587 * g + 0.114 * b
+    return "#000000" if luminance > 128 else "#FFFFFF"
 
 
 def cell_display_color(val: str, palette: Palette, r: int, c: int) -> str:
@@ -88,46 +100,27 @@ class PixelEditor:
 
         self.palette_buttons: dict[str, tk.Button] = {}
 
-        # Transparent button
-        btn = tk.Button(
-            palette_frame, text=".", width=3, height=1, relief=tk.SUNKEN,
-            bg="#FFFFFF", command=lambda: self.select_color(TRANSPARENT),
-        )
-        btn.pack(pady=2)
-        self.palette_buttons[TRANSPARENT] = btn
+        # Swatch grid frame
+        self.swatch_frame = tk.Frame(palette_frame)
+        self.swatch_frame.pack(pady=2)
+        self._rebuild_palette_buttons()
 
-        for alias, color in sorted(self.palette.colors.items()):
-            display = color if color else "#FFFFFF"
-            btn = tk.Button(
-                palette_frame, text=alias, width=3, height=1,
-                bg=display,
-                command=lambda a=alias: self.select_color(a),
-            )
-            btn.pack(pady=2)
-            self.palette_buttons[alias] = btn
-
-        # Action buttons
-        tk.Button(
-            palette_frame, text="Save", width=6, command=self.save, bg="#90EE90",
-        ).pack(pady=10)
-        tk.Button(
-            palette_frame, text="Render", width=6, command=self.render, bg="#ADD8E6",
-        ).pack(pady=2)
-        tk.Button(
-            palette_frame, text="Open", width=6, command=self.open_sprite, bg="#B0C4DE",
-        ).pack(pady=2)
-        tk.Button(
-            palette_frame, text="Refresh", width=6, command=self.refresh, bg="#FFD700",
-        ).pack(pady=2)
-        tk.Button(
-            palette_frame, text="Clear", width=6, command=self.clear_grid, bg="#FFA07A",
-        ).pack(pady=2)
-        tk.Button(
-            palette_frame, text="New", width=6, command=self.new_grid, bg="#DDA0DD",
-        ).pack(pady=2)
-        tk.Button(
-            palette_frame, text="Import", width=6, command=self.import_image, bg="#E6E6FA",
-        ).pack(pady=2)
+        # Action buttons frame (2-column grid)
+        action_frame = tk.Frame(palette_frame)
+        action_frame.pack(pady=(10, 0))
+        action_buttons = [
+            ("Save", self.save, "#90EE90"),
+            ("Render", self.render, "#ADD8E6"),
+            ("Open", self.open_sprite, "#B0C4DE"),
+            ("Refresh", self.refresh, "#FFD700"),
+            ("Clear", self.clear_grid, "#FFA07A"),
+            ("New", self.new_grid, "#DDA0DD"),
+            ("Import", self.import_image, "#E6E6FA"),
+        ]
+        for i, (text, cmd, bg) in enumerate(action_buttons):
+            tk.Button(
+                action_frame, text=text, width=6, command=cmd, bg=bg,
+            ).grid(row=i // 2, column=i % 2, padx=2, pady=2)
 
         # Canvas
         canvas_w = self.grid.width * CELL_SIZE
@@ -172,7 +165,10 @@ class PixelEditor:
 
     def select_color(self, alias: str) -> None:
         for a, btn in self.palette_buttons.items():
-            btn.config(relief=tk.SUNKEN if a == alias else tk.RAISED)
+            if a == alias:
+                btn.config(relief=tk.SOLID, borderwidth=3)
+            else:
+                btn.config(relief=tk.RAISED, borderwidth=1)
         self.selected = alias
 
     def cell_at(self, event: tk.Event) -> tuple[int | None, int | None]:
@@ -253,6 +249,8 @@ class PixelEditor:
         self.palette = Palette.load(self.palette_path)
         if self.grid_path.exists():
             self.grid = Grid.load(self.grid_path)
+        self._rebuild_palette_buttons()
+        self.select_color(self.selected)
         self._redraw()
         print("Refreshed from disk")
 
@@ -482,32 +480,135 @@ class PixelEditor:
         self.select_color(TRANSPARENT)
 
     def _rebuild_palette_buttons(self) -> None:
-        """Remove old palette color buttons and create new ones."""
-        for btn in self.palette_buttons.values():
-            btn.destroy()
+        """Remove old swatch buttons and create new ones in a grid layout."""
+        for widget in self.swatch_frame.winfo_children():
+            widget.destroy()
         self.palette_buttons.clear()
 
-        frame = self.palette_frame
-
-        # Transparent button
-        btn = tk.Button(
-            frame, text=".", width=3, height=1, relief=tk.SUNKEN,
-            bg="#FFFFFF", command=lambda: self.select_color(TRANSPARENT),
-        )
-        btn.pack(pady=2, after=frame.winfo_children()[0])
-        self.palette_buttons[TRANSPARENT] = btn
-
-        prev = btn
+        # Build items: transparent first, then sorted palette colors
+        items: list[tuple[str, str]] = [(TRANSPARENT, "#FFFFFF")]
         for alias, color in sorted(self.palette.colors.items()):
-            display = color if color else "#FFFFFF"
+            items.append((alias, color if color else "#FFFFFF"))
+
+        for i, (alias, color) in enumerate(items):
+            fg = _contrast_color(color)
+            text = "." if alias == TRANSPARENT else alias
             btn = tk.Button(
-                frame, text=alias, width=3, height=1,
-                bg=display,
+                self.swatch_frame, text=text, width=4, height=2,
+                bg=color, fg=fg, borderwidth=1,
                 command=lambda a=alias: self.select_color(a),
             )
-            btn.pack(pady=2, after=prev)
+            btn.grid(row=i // SWATCH_COLS, column=i % SWATCH_COLS, padx=1, pady=1)
+            if alias != TRANSPARENT:
+                btn.bind("<Double-Button-1>", lambda e, a=alias: self._edit_color(a))
+            btn.bind("<Button-3>", lambda e, a=alias: self._swatch_context_menu(e, a))
             self.palette_buttons[alias] = btn
-            prev = btn
+
+        # "+" add-color button at the end
+        add_pos = len(items)
+        add_btn = tk.Button(
+            self.swatch_frame, text="+", width=4, height=2,
+            command=self._add_color,
+        )
+        add_btn.grid(
+            row=add_pos // SWATCH_COLS, column=add_pos % SWATCH_COLS,
+            padx=1, pady=1,
+        )
+
+    def _add_color(self) -> None:
+        """Open color picker and add a new color to the palette."""
+        result = colorchooser.askcolor(parent=self.root, title="Choose a color")
+        if result[1] is None:
+            return
+        hex_color = result[1].upper()
+
+        alias = simpledialog.askstring(
+            "Alias", "Enter alias (1-2 characters):", parent=self.root,
+        )
+        if not alias:
+            return
+
+        try:
+            Palette._validate_alias(alias)
+        except ValueError as e:
+            messagebox.showerror("Invalid Alias", str(e))
+            return
+
+        # Check case-insensitive duplicates
+        for existing in self.palette.entries:
+            if existing == TRANSPARENT:
+                continue
+            if existing.lower() == alias.lower():
+                messagebox.showerror(
+                    "Duplicate Alias",
+                    f"Alias '{alias}' conflicts with existing alias '{existing}' "
+                    f"(case-insensitive duplicates not allowed)",
+                )
+                return
+
+        self.palette.entries[alias] = hex_color
+        self.palette.save(self.palette_path)
+        self._rebuild_palette_buttons()
+        self.select_color(alias)
+
+    def _edit_color(self, alias: str) -> None:
+        """Open color picker to change an existing palette color."""
+        if alias == TRANSPARENT:
+            return
+        current = self.palette.entries.get(alias, "#FFFFFF")
+        result = colorchooser.askcolor(
+            initialcolor=current, parent=self.root, title=f"Edit color: {alias}",
+        )
+        if result[1] is None:
+            return
+        self.palette.entries[alias] = result[1].upper()
+        self.palette.save(self.palette_path)
+        self._rebuild_palette_buttons()
+        self.select_color(alias)
+        self._redraw()
+
+    def _swatch_context_menu(self, event: tk.Event, alias: str) -> None:
+        """Show right-click context menu for a swatch button."""
+        menu = tk.Menu(self.root, tearoff=0)
+        if alias == TRANSPARENT:
+            menu.add_command(label="Transparent (no actions)", state=tk.DISABLED)
+        else:
+            hex_color = self.palette.entries.get(alias, "")
+            menu.add_command(
+                label=f"Copy Hex ({hex_color})",
+                command=lambda: self._copy_to_clipboard(hex_color),
+            )
+            menu.add_command(
+                label="Edit Color...",
+                command=lambda: self._edit_color(alias),
+            )
+            menu.add_separator()
+            menu.add_command(
+                label="Remove Color",
+                command=lambda: self._remove_color(alias),
+            )
+        menu.tk_popup(event.x_root, event.y_root)
+
+    def _copy_to_clipboard(self, text: str) -> None:
+        """Copy text to the system clipboard."""
+        self.root.clipboard_clear()
+        self.root.clipboard_append(text)
+
+    def _remove_color(self, alias: str) -> None:
+        """Remove a color from the palette after confirmation."""
+        if not messagebox.askyesno(
+            "Remove Color",
+            f"Remove '{alias}' from the palette?\n\n"
+            f"Cells using this color will show as magenta (unknown).",
+        ):
+            return
+        del self.palette.entries[alias]
+        self.palette.save(self.palette_path)
+        if self.selected == alias:
+            self.selected = TRANSPARENT
+        self._rebuild_palette_buttons()
+        self.select_color(self.selected)
+        self._redraw()
 
     def _rebuild_canvas(self) -> None:
         """Rebuild the canvas for a new grid size."""

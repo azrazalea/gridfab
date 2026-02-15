@@ -116,14 +116,21 @@ Launch with `gridfab-gui [directory]` (defaults to current directory). On Window
 
 ### Palette Sidebar
 
-The left panel shows all colors defined in palette.txt. Click a color button to select it. The `.` button selects transparent (eraser). The currently selected color has a sunken border.
+The left panel shows all colors defined in palette.txt in a 3-column grid. Click a color button to select it for painting. The `.` button selects transparent (eraser). The currently selected color has a solid border.
+
+- **Click** a swatch — select it as the painting color
+- **Double-click** a swatch — open a color picker to change its hex color
+- **Right-click** a swatch — context menu with Copy Hex, Edit Color, and Remove Color
+- **"+" button** — add a new color: opens a color picker, then prompts for a 1-2 character alias
+
+Removing a color deletes it from palette.txt. Any cells using that alias will show as magenta (unknown color) on the canvas.
 
 ### Action Buttons
 
 - **Save** — Write the current grid to grid.txt (Ctrl+S)
 - **Render** — Save and generate preview.png with a checkerboard background
 - **Open** — Open an existing sprite folder by browsing. Switches the editor to the selected directory.
-- **Refresh** — Reload grid.txt and palette.txt from disk. **Click this after an LLM or script makes changes** to see their edits in the GUI.
+- **Refresh** — Reload grid.txt and palette.txt from disk, updating both the canvas and the palette sidebar. **Click this after an LLM or script makes changes** to see their edits in the GUI.
 - **Clear** — Reset all pixels to transparent (with confirmation). Undoable.
 - **New** — If a sprite is loaded, offers a choice: resize the current grid in place, or create a new sprite in a different folder. If no sprite is loaded, goes straight to the new-sprite flow (pick parent folder, name, size).
 - **Import** — Import an image into a new sprite folder. Supports single images and single-tile extraction from tilesheets. The editor switches to the imported sprite after completion.

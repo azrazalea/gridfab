@@ -90,7 +90,7 @@ Check your platform and use the correct name.
 ## Files
 
 - **grid.txt** — The artwork. One row per line, space-separated. `.` = transparent, 1-2 char palette aliases, or `#RRGGBB` inline hex.
-- **palette.txt** — Color definitions: `ALIAS=#RRGGBB` per line. `#` lines are comments. Edit this file directly to add/modify colors.
+- **palette.txt** — Color definitions: `ALIAS=#RRGGBB` per line. `#` lines are comments. Edit this file directly to add/modify colors. (The GUI also supports adding, editing, and removing colors via the palette sidebar.)
 - **gridfab.json** — Optional config with `grid.width`, `grid.height`, `export.scales`.
 
 ## Editing Commands

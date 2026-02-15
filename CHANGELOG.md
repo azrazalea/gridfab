@@ -7,6 +7,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 ## [Unreleased]
 
 ### Added
+- GUI palette editing: add colors with the "+" button (color picker + alias prompt), edit colors by double-clicking a swatch, remove colors via right-click context menu, copy hex values to clipboard
+- GUI multi-column swatch grid: palette swatches now display in a 3-column grid layout instead of a vertical list, with contrast-aware text labels (white text on dark colors, black on light)
+- GUI action buttons now arranged in a 2-column grid layout for a more compact sidebar
+
+### Fixed
+- GUI Refresh button now rebuilds the palette sidebar, so palette changes made by LLMs or external editors appear after clicking Refresh
+
+### Added
 - `import` command: convert images (any format Pillow can read: PNG, BMP, GIF, TIFF, WebP, JPEG, PSD, and more) into grid.txt + palette.txt format. Three modes: single image (`gridfab import image.png sprite/`), single tile from tilesheet (`gridfab import sheet.png --tile-size 16x16 --tile 3,2 tile/`), and whole tilesheet split into individual sprites (`gridfab import sheet.png --tile-size 16x16 output/`). Supports atlas index.json for named sprite extraction with metadata.
 - GUI "Import" button: import an image (single or single tile from tilesheet) into a new sprite folder, with editor auto-switching to the imported sprite
 - GUI "Open" button: open an existing sprite folder by browsing, switching the editor to it
