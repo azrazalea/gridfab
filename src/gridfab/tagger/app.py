@@ -13,6 +13,27 @@ from gridfab.tagger.navigator import TilesetNavigator
 from gridfab.tagger.ai import AIAssistant
 
 
+def _unique_sprite_name(
+    name: str, sprites: dict, row: int, col: int,
+) -> tuple[str, bool]:
+    """Return a unique sprite name, appending _2, _3, etc. if needed.
+
+    Returns (final_name, was_renamed).  Overwrites at the same (row, col)
+    are allowed without renaming.
+    """
+    base_name = name
+    renamed = False
+    counter = 2
+    while name in sprites:
+        existing = sprites[name]
+        if existing["row"] == row and existing["col"] == col:
+            break
+        name = f"{base_name}_{counter}"
+        renamed = True
+        counter += 1
+    return name, renamed
+
+
 class TaggerApp:
     """Interactive tileset tagger with keyboard-driven workflow."""
 
@@ -765,16 +786,7 @@ class TaggerApp:
             if old_name != name and old_name in self.sprites:
                 del self.sprites[old_name]
 
-        # Ensure unique name (skip this name's own position)
-        base_name = name
-        counter = 2
-        while name in self.sprites:
-            existing = self.sprites[name]
-            # If it's the same position, we're overwriting — that's fine
-            if existing["row"] == row and existing["col"] == col:
-                break
-            name = f"{base_name}_{counter}"
-            counter += 1
+        name, renamed = _unique_sprite_name(name, self.sprites, row, col)
 
         # Collect tag names
         tag_names = sorted(self.tag_mgr.tags[k] for k in self.active_tags if k in self.tag_mgr.tags)
@@ -824,7 +836,10 @@ class TaggerApp:
         self._refresh_display()
         self.root.focus_set()
 
-        self.status_var.set(f"Saved '{name}'")
+        if renamed:
+            self.status_var.set(f"Saved '{name}' (renamed — '{base_name}' already exists)")
+        else:
+            self.status_var.set(f"Saved '{name}'")
         self.root.after(2000, self._show_tag_mode_status)  # Revert after 2s
 
     def _skip_tile(self):

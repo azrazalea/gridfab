@@ -8,6 +8,7 @@ from PIL import Image
 from gridfab.tagger.tags import TagManager, DEFAULT_TAGS, RESERVED_KEYS, tiles_to_rects, rects_to_tiles
 from gridfab.tagger.navigator import TilesetNavigator
 from gridfab.tagger.ai import AIAssistant
+from gridfab.tagger.app import _unique_sprite_name
 
 
 # ─── TagManager ───────────────────────────────────────────────────────────────
@@ -305,3 +306,39 @@ class TestAIAssistant:
     def test_unknown_model_defaults_to_haiku(self):
         ai = AIAssistant(model="unknown")
         assert ai.model == AIAssistant.MODEL_MAP["haiku"]
+
+
+class TestUniqueSpriteName:
+    def test_no_conflict(self):
+        sprites = {}
+        name, renamed = _unique_sprite_name("grass", sprites, 0, 0)
+        assert name == "grass"
+        assert renamed is False
+
+    def test_same_position_overwrites(self):
+        sprites = {"grass": {"row": 0, "col": 0}}
+        name, renamed = _unique_sprite_name("grass", sprites, 0, 0)
+        assert name == "grass"
+        assert renamed is False
+
+    def test_different_position_renames(self):
+        sprites = {"grass": {"row": 0, "col": 0}}
+        name, renamed = _unique_sprite_name("grass", sprites, 1, 0)
+        assert name == "grass_2"
+        assert renamed is True
+
+    def test_multiple_collisions(self):
+        sprites = {
+            "grass": {"row": 0, "col": 0},
+            "grass_2": {"row": 0, "col": 1},
+            "grass_3": {"row": 0, "col": 2},
+        }
+        name, renamed = _unique_sprite_name("grass", sprites, 1, 0)
+        assert name == "grass_4"
+        assert renamed is True
+
+    def test_no_conflict_with_unrelated_names(self):
+        sprites = {"stone": {"row": 0, "col": 0}}
+        name, renamed = _unique_sprite_name("grass", sprites, 0, 1)
+        assert name == "grass"
+        assert renamed is False
