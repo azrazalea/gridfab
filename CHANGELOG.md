@@ -7,6 +7,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 ## [Unreleased]
 
 ### Added
+- `import` command: convert images (any format Pillow can read: PNG, BMP, GIF, TIFF, WebP, JPEG, PSD, and more) into grid.txt + palette.txt format. Three modes: single image (`gridfab import image.png sprite/`), single tile from tilesheet (`gridfab import sheet.png --tile-size 16x16 --tile 3,2 tile/`), and whole tilesheet split into individual sprites (`gridfab import sheet.png --tile-size 16x16 output/`). Supports atlas index.json for named sprite extraction with metadata.
+- GUI "Import" button: import an image (single or single tile from tilesheet) into a new sprite folder, with editor auto-switching to the imported sprite
+- GUI "Open" button: open an existing sprite folder by browsing, switching the editor to it
+- GUI "New sprite" flow: the New button now offers a choice between resizing the current grid and creating a new sprite in a different folder
+- GUI `_switch_to_dir()` method: seamlessly switches the editor to any sprite directory, reloading palette, grid, and canvas
 - `tag` command: interactive tileset tagger for labeling tiles in existing spritesheet PNGs (`gridfab tag <tileset.png>`). Keyboard-driven workflow with AI-assisted name/description generation via Claude Code CLI.
 - `gridfab-tagger` standalone entry point (same as `gridfab tag`, available as independent binary in release builds)
 - Tagger `tile_type` field: auto-fills from active tags (single tag = tag name, multiple = "multi"). Required for sprite completeness alongside description and tags.

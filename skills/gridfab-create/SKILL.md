@@ -193,6 +193,7 @@ gridfab export potion
 | `gridfab icon [dir]` | Export icon.ico and icon.icns (requires square grid) |
 | `gridfab palette [dir]` | Show current palette colors |
 | `gridfab show [dir]` | Display grid contents |
+| `gridfab import <image> [output] [opts]` | Import image to grid.txt format (single, tile, or tilesheet) |
 | `gridfab atlas <output> [sprites...] [opts]` | Pack sprites into spritesheet (atlas.png + index.json) |
 
 ## Palette Alias Rules

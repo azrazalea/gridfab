@@ -122,9 +122,11 @@ The left panel shows all colors defined in palette.txt. Click a color button to 
 
 - **Save** — Write the current grid to grid.txt (Ctrl+S)
 - **Render** — Save and generate preview.png with a checkerboard background
+- **Open** — Open an existing sprite folder by browsing. Switches the editor to the selected directory.
 - **Refresh** — Reload grid.txt and palette.txt from disk. **Click this after an LLM or script makes changes** to see their edits in the GUI.
 - **Clear** — Reset all pixels to transparent (with confirmation). Undoable.
-- **New** — Create a new blank grid with a custom size. Prompts for WxH dimensions. Undoable.
+- **New** — If a sprite is loaded, offers a choice: resize the current grid in place, or create a new sprite in a different folder. If no sprite is loaded, goes straight to the new-sprite flow (pick parent folder, name, size).
+- **Import** — Import an image into a new sprite folder. Supports single images and single-tile extraction from tilesheets. The editor switches to the imported sprite after completion.
 
 ### Keyboard Shortcuts
 
@@ -284,6 +286,50 @@ Reset all pixels in the grid to transparent, preserving grid dimensions.
 
 ```
 gridfab clear [directory]
+```
+
+### gridfab import
+
+Import an image into GridFab's text format (grid.txt + palette.txt). Supports single images, single tile extraction from tilesheets, and whole tilesheet splitting.
+
+```
+gridfab import <image> [output_dir] [--tile-size WxH] [--tile COL,ROW]
+              [--index index.json] [--alpha-threshold N]
+```
+
+**Arguments:**
+- `image` — Path to the image file (any format Pillow supports)
+- `output_dir` — Output directory (default: derived from image filename)
+
+**Supported formats:** PNG, BMP, GIF, TIFF, WebP, JPEG, JPEG 2000, ICO, TGA, PCX, PPM/PBM/PGM, DDS, EPS, QOI, PSD, XBM, XPM, and more. Any format readable by [Pillow](https://pillow.readthedocs.io/en/stable/handbook/image-file-formats.html) is accepted. Note that lossy formats (JPEG) may produce color artifacts in pixel art — lossless formats (PNG, BMP, GIF, WebP lossless) are recommended for best results.
+
+**Options:**
+- `--tile-size WxH` — Enables tilesheet mode. Specifies tile dimensions in pixels (e.g. `16x16`, `32x32`)
+- `--tile COL,ROW` — Extract a single tile at this 0-indexed position (requires `--tile-size`)
+- `--index index.json` — Atlas index.json for naming sprites and preserving metadata (requires `--tile-size`)
+- `--alpha-threshold N` — Alpha value below which pixels are treated as transparent (default: 128, range 0-255)
+
+**Mode detection:**
+- No `--tile-size` — Single image import (one PNG becomes one sprite folder)
+- `--tile-size` + `--tile` — Single tile extraction from a tilesheet
+- `--tile-size` only — Whole tilesheet: splits into `tile_COL_ROW/` directories
+- `--tile-size` + `--index` — Whole tilesheet with named sprites from atlas index
+
+**Alias generation:** Colors are assigned 1-2 character aliases automatically: A-Z, then 0-9, then AA-ZZ (712 possible aliases). Tilesheet mode uses a shared palette across all tiles for consistency.
+
+**Examples:**
+```bash
+# Import a single image
+gridfab import hero.png my_hero/
+
+# Extract tile at column 3, row 2 from a 16x16 tilesheet
+gridfab import sheet.png --tile-size 16x16 --tile 3,2 my_tile/
+
+# Split a whole tilesheet into individual sprites
+gridfab import sheet.png --tile-size 16x16 output/
+
+# Split a tilesheet using atlas index for naming
+gridfab import sheet.png --tile-size 16x16 --index index.json output/
 ```
 
 ### gridfab tag
@@ -486,6 +532,7 @@ You are helping create pixel art using GridFab. The artwork is stored as plain t
 - `gridfab export` — Export PNGs at configured scales
 - `gridfab icon` — Export icon.ico (requires square grid)
 - `gridfab palette` — Show current palette colors
+- `gridfab import <image> [output_dir]` — Import image to grid.txt format (single image, tile, or tilesheet)
 - `gridfab tag <tileset.png>` — Interactive tileset tagger with AI-assisted naming
 - `gridfab atlas <output_dir> [sprites...]` — Pack sprites into a spritesheet (atlas.png + index.json)
 

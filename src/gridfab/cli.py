@@ -17,6 +17,7 @@ Commands:
     palette [dir]                            Display current palette
     tag <tileset.png> [options]              Interactive tileset tagger with AI
     atlas <out> [sprites...] [options]       Pack sprites into a spritesheet
+    import <image> [output] [options]         Import image to grid.txt format
 """
 
 import argparse
@@ -158,6 +159,15 @@ def main() -> None:
     p_atlas.add_argument("--atlas-name", default="atlas.png", help="Output atlas filename (default: atlas.png)")
     p_atlas.add_argument("--index-name", default="index.json", help="Output index filename (default: index.json)")
 
+    # import
+    p_import = sub.add_parser("import", help="Import image to grid.txt format")
+    p_import.add_argument("image", help="Path to image file (any format Pillow supports)")
+    p_import.add_argument("output", nargs="?", default=None, help="Output directory")
+    p_import.add_argument("--tile-size", default=None, help="Tile size as WxH (enables tilesheet mode)")
+    p_import.add_argument("--tile", default=None, metavar="COL,ROW", help="Extract single tile at 0-indexed position")
+    p_import.add_argument("--index", default=None, help="Atlas index.json for naming sprites")
+    p_import.add_argument("--alpha-threshold", type=int, default=128, help="Alpha threshold (0-255, default 128)")
+
     args = parser.parse_args()
 
     if not args.command:
@@ -259,4 +269,33 @@ def _dispatch(args: argparse.Namespace) -> None:
             reorder=args.reorder,
             atlas_name=args.atlas_name,
             index_name=args.index_name,
+        )
+
+    elif cmd == "import":
+        from gridfab.commands.import_cmd import cmd_import
+
+        tile_size = None
+        if args.tile_size:
+            tile_size = _parse_size(args.tile_size)
+
+        tile_pos = None
+        if args.tile:
+            parts = args.tile.split(",")
+            if len(parts) != 2:
+                _die(f"--tile must be COL,ROW (e.g. 3,2), got: '{args.tile}'")
+            try:
+                tile_pos = (int(parts[0]), int(parts[1]))
+            except ValueError:
+                _die(f"--tile coordinates must be integers, got: '{args.tile}'")
+
+        index_path = Path(args.index) if args.index else None
+        output_path = Path(args.output) if args.output else None
+
+        cmd_import(
+            Path(args.image),
+            output_path,
+            tile_size=tile_size,
+            tile_pos=tile_pos,
+            index=index_path,
+            alpha_threshold=args.alpha_threshold,
         )

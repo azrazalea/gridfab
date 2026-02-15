@@ -9,7 +9,7 @@ Usage: gridfab-gui [directory]
 import sys
 import subprocess
 import tkinter as tk
-from tkinter import simpledialog, messagebox
+from tkinter import simpledialog, messagebox, filedialog
 from pathlib import Path
 
 from gridfab.core.grid import Grid, TRANSPARENT, get_grid_dimensions
@@ -82,7 +82,7 @@ class PixelEditor:
         main.pack(fill=tk.BOTH, expand=True)
 
         # Palette panel
-        palette_frame = tk.Frame(main, padx=5, pady=5)
+        self.palette_frame = palette_frame = tk.Frame(main, padx=5, pady=5)
         palette_frame.pack(side=tk.LEFT, fill=tk.Y)
         tk.Label(palette_frame, text="Palette", font=("Arial", 10, "bold")).pack()
 
@@ -114,6 +114,9 @@ class PixelEditor:
             palette_frame, text="Render", width=6, command=self.render, bg="#ADD8E6",
         ).pack(pady=2)
         tk.Button(
+            palette_frame, text="Open", width=6, command=self.open_sprite, bg="#B0C4DE",
+        ).pack(pady=2)
+        tk.Button(
             palette_frame, text="Refresh", width=6, command=self.refresh, bg="#FFD700",
         ).pack(pady=2)
         tk.Button(
@@ -121,6 +124,9 @@ class PixelEditor:
         ).pack(pady=2)
         tk.Button(
             palette_frame, text="New", width=6, command=self.new_grid, bg="#DDA0DD",
+        ).pack(pady=2)
+        tk.Button(
+            palette_frame, text="Import", width=6, command=self.import_image, bg="#E6E6FA",
         ).pack(pady=2)
 
         # Canvas
@@ -265,6 +271,25 @@ class PixelEditor:
         print("Grid cleared")
 
     def new_grid(self) -> None:
+        has_sprite = self.grid_path.exists()
+
+        if has_sprite:
+            choice = messagebox.askquestion(
+                "New",
+                "Create a new grid in the current folder?\n\n"
+                "Yes = Resize current grid here\n"
+                "No = Create a new sprite in another folder",
+            )
+            if choice == "yes":
+                self._new_grid_here()
+                return
+            else:
+                self._new_sprite()
+                return
+        else:
+            self._new_sprite()
+
+    def _new_grid_here(self) -> None:
         size_str = simpledialog.askstring(
             "New Grid", "Enter size as WxH (e.g. 16x16, 32x32):",
             parent=self.root,
@@ -296,6 +321,193 @@ class PixelEditor:
         self._rebuild_canvas()
         self.save()
         print(f"New {w}x{h} grid created")
+
+    def _new_sprite(self) -> None:
+        parent = filedialog.askdirectory(
+            title="Choose parent folder for new sprite",
+            parent=self.root,
+        )
+        if not parent:
+            return
+
+        name = simpledialog.askstring(
+            "Sprite Name", "Enter sprite name (becomes folder name):",
+            parent=self.root,
+        )
+        if not name:
+            return
+
+        size_str = simpledialog.askstring(
+            "Grid Size", "Enter size as WxH (e.g. 16x16, 32x32):",
+            parent=self.root,
+        )
+        if not size_str:
+            return
+        parts = size_str.lower().split("x")
+        if len(parts) != 2:
+            messagebox.showerror("Invalid Size", "Size must be WxH (e.g. 32x32)")
+            return
+        try:
+            w, h = int(parts[0]), int(parts[1])
+        except ValueError:
+            messagebox.showerror("Invalid Size", "Width and height must be integers")
+            return
+        if w < 1 or h < 1:
+            messagebox.showerror("Invalid Size", "Width and height must be positive")
+            return
+
+        new_dir = Path(parent) / name
+        try:
+            from gridfab.commands.init import cmd_init
+            cmd_init(new_dir, w, h)
+        except FileExistsError as e:
+            messagebox.showerror("Error", str(e))
+            return
+
+        self._switch_to_dir(new_dir)
+        print(f"Created new sprite: {new_dir}")
+
+    def open_sprite(self) -> None:
+        folder = filedialog.askdirectory(
+            title="Open sprite folder",
+            parent=self.root,
+        )
+        if not folder:
+            return
+
+        folder_path = Path(folder)
+        if not (folder_path / "grid.txt").exists():
+            messagebox.showerror(
+                "Not a Sprite",
+                f"No grid.txt found in {folder_path.name}\n\n"
+                "Select a folder containing grid.txt and palette.txt.",
+            )
+            return
+
+        self._switch_to_dir(folder_path)
+        print(f"Opened sprite: {folder_path}")
+
+    def import_image(self) -> None:
+        image_path = filedialog.askopenfilename(
+            title="Select image to import",
+            filetypes=[
+                ("Image files",
+                 "*.png *.bmp *.dib *.gif *.tiff *.tif *.webp *.jpg *.jpeg *.jpe "
+                 "*.jp2 *.jpx *.j2k *.ico *.icns *.tga *.pcx *.ppm *.pbm *.pgm *.pnm "
+                 "*.sgi *.xbm *.dds *.eps *.qoi *.psd *.cur *.fli *.flc *.xpm "
+                 "*.wmf *.emf *.fits *.msp *.blp *.avif"),
+                ("All files", "*.*"),
+            ],
+            parent=self.root,
+        )
+        if not image_path:
+            return
+
+        name = simpledialog.askstring(
+            "Sprite Name", "Enter sprite name (becomes folder name):",
+            parent=self.root,
+        )
+        if not name:
+            return
+
+        tile_str = simpledialog.askstring(
+            "Tilesheet?",
+            "If this is a tilesheet, enter tile size as WxH.\n"
+            "Leave blank for single image import.",
+            parent=self.root,
+        )
+
+        new_dir = self.work_dir / name
+        try:
+            from gridfab.commands.import_cmd import cmd_import
+            from gridfab.cli import parse_size
+
+            if tile_str and tile_str.strip():
+                tile_size = parse_size(tile_str.strip())
+                tile_coord = simpledialog.askstring(
+                    "Tile Position",
+                    "Enter tile coordinate as COL,ROW (0-indexed):",
+                    parent=self.root,
+                )
+                if not tile_coord:
+                    return
+                parts = tile_coord.split(",")
+                if len(parts) != 2:
+                    messagebox.showerror("Invalid", "Must be COL,ROW (e.g. 3,2)")
+                    return
+                try:
+                    tile_pos = (int(parts[0]), int(parts[1]))
+                except ValueError:
+                    messagebox.showerror("Invalid", "Coordinates must be integers")
+                    return
+                cmd_import(
+                    Path(image_path), new_dir,
+                    tile_size=tile_size, tile_pos=tile_pos,
+                )
+            else:
+                cmd_import(Path(image_path), new_dir)
+
+            self._switch_to_dir(new_dir)
+            messagebox.showinfo("Import Complete", f"Imported to {new_dir.name}")
+        except (ValueError, FileExistsError, FileNotFoundError) as e:
+            messagebox.showerror("Import Error", str(e))
+
+    def _switch_to_dir(self, new_dir: Path) -> None:
+        """Switch the editor to a different sprite directory."""
+        self.work_dir = new_dir
+        self.grid_path = new_dir / "grid.txt"
+        self.palette_path = new_dir / "palette.txt"
+
+        # Reload palette and grid
+        self.palette = Palette.load(self.palette_path)
+        if self.grid_path.exists():
+            self.grid = Grid.load(self.grid_path)
+        else:
+            w, h = get_grid_dimensions(self.work_dir)
+            self.grid = Grid.blank(w, h)
+
+        # Reset undo/redo
+        self.undo_stack.clear()
+        self.redo_stack.clear()
+
+        # Rebuild palette buttons
+        self._rebuild_palette_buttons()
+
+        # Rebuild canvas
+        self._rebuild_canvas()
+
+        # Update title
+        self.root.title(f"GridFab — {self.work_dir.resolve().name}")
+
+        self.select_color(TRANSPARENT)
+
+    def _rebuild_palette_buttons(self) -> None:
+        """Remove old palette color buttons and create new ones."""
+        for btn in self.palette_buttons.values():
+            btn.destroy()
+        self.palette_buttons.clear()
+
+        frame = self.palette_frame
+
+        # Transparent button
+        btn = tk.Button(
+            frame, text=".", width=3, height=1, relief=tk.SUNKEN,
+            bg="#FFFFFF", command=lambda: self.select_color(TRANSPARENT),
+        )
+        btn.pack(pady=2, after=frame.winfo_children()[0])
+        self.palette_buttons[TRANSPARENT] = btn
+
+        prev = btn
+        for alias, color in sorted(self.palette.colors.items()):
+            display = color if color else "#FFFFFF"
+            btn = tk.Button(
+                frame, text=alias, width=3, height=1,
+                bg=display,
+                command=lambda a=alias: self.select_color(a),
+            )
+            btn.pack(pady=2, after=prev)
+            self.palette_buttons[alias] = btn
+            prev = btn
 
     def _rebuild_canvas(self) -> None:
         """Rebuild the canvas for a new grid size."""
