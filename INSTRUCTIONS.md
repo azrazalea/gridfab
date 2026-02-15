@@ -286,6 +286,64 @@ Reset all pixels in the grid to transparent, preserving grid dimensions.
 gridfab clear [directory]
 ```
 
+### gridfab tag
+
+Interactive tileset tagger for labeling tiles in existing spritesheet PNGs. Includes AI-assisted name and description generation via Claude Code CLI.
+
+```
+gridfab tag <tileset.png> [--tile-size N] [--output FILE] [--model haiku|sonnet|opus]
+                          [--bg-color RRGGBB] [--import-index FILE]
+```
+
+**Arguments:**
+- `tileset.png` — Path to the tileset/atlas PNG image
+
+**Options:**
+- `--tile-size N` — Tile size in pixels (default: 32)
+- `--output FILE` / `-o FILE` — Output index.json path (default: `<tileset>_index.json`)
+- `--model MODEL` — Claude model for AI naming: `haiku` (default), `sonnet`, or `opus`
+- `--bg-color RRGGBB` — Background color to treat as empty tiles (hex, e.g. `ffffff` for white)
+- `--import-index FILE` — Import an existing index for review/enrichment
+
+**Keyboard reference (tag mode — main window focused):**
+
+| Key | Action |
+|-----|--------|
+| Letter/number keys | Toggle tags on the current tile |
+| Tab | Generate AI name & description from active tags |
+| Enter | Save sprite & advance to next tile |
+| Space | Skip tile without saving |
+| Backspace | Go back to previous tile |
+| Delete | Mark tile as empty & skip |
+| Arrow keys | Resize multi-tile selection |
+| + or = | Add a new tag shortcut |
+| F1 | Show help |
+| Escape | Save index & quit |
+
+**Edit mode (name/type/description field focused):**
+
+| Key | Action |
+|-----|--------|
+| Tab | Move to next field |
+| Enter | Save & advance (from description) or next field (from name/type) |
+| Escape | Return to tag mode |
+
+**Workflow:**
+1. Press tag keys to describe the current tile (e.g. `w` for wall, `2` for stone)
+2. Press Tab to generate an AI name and description (requires Claude Code CLI)
+3. Review and edit the Name, Type, and Description fields
+4. Press Enter from the Description field to save and advance
+
+**AI assists, not replaces:** You can type a partial name or description, press Escape to return to tag mode, then press Tab to generate — the AI will refine what you wrote rather than starting from scratch. For example, type "dark" in the Name field, Escape, then Tab — the AI sees your draft and incorporates it. This works for both the Name and Description fields.
+
+**Workshopping with the agent:** You can leave feedback directly in the Name or Description fields. For example, if the agent suggests a name you don't like, edit it to something like `"@Agent: this looks more like a chest than a crate"` and re-generate (Escape, Tab). The agent reads whatever is in the fields as context, so it will try to incorporate your feedback. This is useful for iterating on tricky tiles or when you're unsure what something is.
+
+**Type field:** Auto-populated from active tags. One alphabetic tag fills in that tag name; two or more alphabetic tags fill in "multi". Numeric material tags (1-5) don't affect the type. You can always edit the type manually.
+
+**Resume:** The tagger auto-saves to the output index.json after every sprite. Re-run with the same arguments to resume where you left off. Incomplete sprites (missing description, tags, or type) are automatically queued for review.
+
+**Also available as:** `gridfab-tagger` standalone entry point (same functionality, independent binary in release builds).
+
 ### gridfab atlas
 
 Pack multiple sprites into a single spritesheet (atlas.png) with a JSON index (index.json). Useful for game engine workflows where you need a packed spritesheet.
@@ -428,6 +486,7 @@ You are helping create pixel art using GridFab. The artwork is stored as plain t
 - `gridfab export` — Export PNGs at configured scales
 - `gridfab icon` — Export icon.ico (requires square grid)
 - `gridfab palette` — Show current palette colors
+- `gridfab tag <tileset.png>` — Interactive tileset tagger with AI-assisted naming
 - `gridfab atlas <output_dir> [sprites...]` — Pack sprites into a spritesheet (atlas.png + index.json)
 
 All coordinates are 0-indexed. All rows must have the same width. After making changes, tell the user to click Refresh in the GUI to see your edits.

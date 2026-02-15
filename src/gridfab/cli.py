@@ -15,6 +15,7 @@ Commands:
     export [dir]                             Export PNGs at configured scales
     icon [dir]                               Export .ico file (square grids)
     palette [dir]                            Display current palette
+    tag <tileset.png> [options]              Interactive tileset tagger with AI
     atlas <out> [sprites...] [options]       Pack sprites into a spritesheet
 """
 
@@ -131,6 +132,20 @@ def main() -> None:
     p_palette = sub.add_parser("palette", help="Display current palette")
     p_palette.add_argument("directory", nargs="?", default=".", help="Sprite directory")
 
+    # tag
+    p_tag = sub.add_parser("tag", help="Interactive tileset tagger with AI naming")
+    p_tag.add_argument("tileset", help="Path to tileset/atlas PNG image")
+    p_tag.add_argument("--tile-size", type=int, default=32,
+                       help="Tile size in pixels (default: 32)")
+    p_tag.add_argument("--output", "-o", default=None,
+                       help="Output index.json path (default: <tileset>_index.json)")
+    p_tag.add_argument("--model", choices=["haiku", "sonnet", "opus"], default="haiku",
+                       help="Claude model for AI naming (default: haiku)")
+    p_tag.add_argument("--bg-color", default=None, metavar="RRGGBB",
+                       help="Background color to treat as empty (hex, e.g. 'ffffff')")
+    p_tag.add_argument("--import-index", default=None, metavar="INDEX.json",
+                       help="Import existing index for review/enrichment")
+
     # atlas
     p_atlas = sub.add_parser("atlas", help="Pack sprites into a spritesheet")
     p_atlas.add_argument("output_dir", help="Output directory for atlas.png + index.json")
@@ -200,6 +215,31 @@ def _dispatch(args: argparse.Namespace) -> None:
 
     elif cmd == "palette":
         cmd_palette(Path(args.directory))
+
+    elif cmd == "tag":
+        from gridfab.tagger.app import TaggerApp
+
+        # Parse bg color
+        bg_color = None
+        if args.bg_color:
+            h = args.bg_color.lstrip("#")
+            if len(h) != 6:
+                _die(f"Invalid color format '{args.bg_color}', use RRGGBB hex")
+            bg_color = tuple(int(h[i:i+2], 16) for i in (0, 2, 4))
+
+        tileset_path = Path(args.tileset).resolve()
+        if not tileset_path.exists():
+            _die(f"File not found: {args.tileset}")
+
+        app = TaggerApp(
+            tileset_path=str(tileset_path),
+            tile_size=args.tile_size,
+            output_path=args.output,
+            model=args.model,
+            bg_color=bg_color,
+            import_path=args.import_index,
+        )
+        app.run()
 
     elif cmd == "atlas":
         from gridfab.commands.atlas_cmd import cmd_atlas, resolve_sprite_dirs

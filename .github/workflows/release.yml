@@ -77,16 +77,31 @@ jobs:
           windows-icon-from-ico: assets/logo/icon.ico
           macos-app-icon: assets/logo/icon.icns
 
+      - name: Build Tagger with Nuitka
+        uses: Nuitka/Nuitka-Action@main
+        with:
+          nuitka-version: main
+          script-name: src/gridfab/tagger/app.py
+          mode: standalone
+          enable-plugins: tk-inter
+          disable-console: true
+          output-dir: build/tagger
+          output-file: gridfab-tagger
+          windows-icon-from-ico: assets/logo/icon.ico
+          macos-app-icon: assets/logo/icon.icns
+
       - name: Merge builds (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
           Copy-Item -Path build/gui/gui.dist/* -Destination build/cli/__main__.dist/ -Recurse -Force
+          Copy-Item -Path build/tagger/app.dist/* -Destination build/cli/__main__.dist/ -Recurse -Force
 
       - name: Merge builds (macOS/Linux)
         if: runner.os != 'Windows'
         run: |
           cp -R build/gui/gui.dist/* build/cli/__main__.dist/
+          cp -R build/tagger/app.dist/* build/cli/__main__.dist/
 
       - name: Include project files and source
         shell: bash

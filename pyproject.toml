@@ -27,6 +27,7 @@ gridfab = "gridfab.cli:main"
 
 [project.gui-scripts]
 gridfab-gui = "gridfab.gui:main"
+gridfab-tagger = "gridfab.tagger.app:main"
 
 [project.optional-dependencies]
 dev = ["pytest", "pytest-cov", "nuitka"]

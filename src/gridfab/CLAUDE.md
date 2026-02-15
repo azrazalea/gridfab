@@ -14,6 +14,7 @@ The main GridFab Python package, installed via `pip install gridfab`.
 - **`core/`** — Data structures: Grid, Palette. No rendering, no I/O beyond file read/write.
 - **`render/`** — Image generation using Pillow. Preview (checkerboard bg) and export (transparent bg).
 - **`commands/`** — CLI command implementations. Each command function takes a directory Path and arguments.
+- **`tagger/`** — Interactive tileset tagger GUI with AI-assisted naming. Entry points: `gridfab tag` and `gridfab-tagger`.
 
 ## Conventions
 

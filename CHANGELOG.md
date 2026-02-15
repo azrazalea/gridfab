@@ -7,6 +7,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 ## [Unreleased]
 
 ### Added
+- `tag` command: interactive tileset tagger for labeling tiles in existing spritesheet PNGs (`gridfab tag <tileset.png>`). Keyboard-driven workflow with AI-assisted name/description generation via Claude Code CLI.
+- `gridfab-tagger` standalone entry point (same as `gridfab tag`, available as independent binary in release builds)
+- Tagger `tile_type` field: auto-fills from active tags (single tag = tag name, multiple = "multi"). Required for sprite completeness alongside description and tags.
+- Tagger empty tile persistence: user-marked and auto-detected empty tiles are saved to the tagger config file as merged rectangles, so they survive across sessions.
 - `atlas` command: pack multiple sprites into a spritesheet (`gridfab atlas <output_dir> [sprites...]`). Supports multi-tile sprites, stable ordering via index.json, glob-based sprite discovery, and configurable tile size/columns.
 - `atlas --atlas-name` and `--index-name` flags: customize output filenames (default: `atlas.png` and `index.json`)
 - Atlas index semantic fields: each sprite in index.json now includes `description`, `tags`, and `tile_type` for LLM/game engine discoverability. New sprites get empty defaults; existing values are preserved across rebuilds, reorders, and sprite additions.
