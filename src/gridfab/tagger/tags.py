@@ -6,24 +6,21 @@ from pathlib import Path
 # ─── Default Tag Configuration ───────────────────────────────────────────────
 
 DEFAULT_TAGS = {
-    # Structural elements
+    # Structure
     "w": "wall", "f": "floor", "d": "door", "g": "window",
-    "r": "roof", "s": "stairs", "c": "column",
-    # Furniture & objects
-    "t": "table", "b": "bed", "l": "light", "p": "container",
-    "k": "shelf",
-    # Materials
-    "1": "wood", "2": "stone", "3": "metal", "4": "fabric", "5": "glass",
+    "r": "roof", "s": "climbable",
+    # Terrain & nature
+    "t": "terrain", "v": "vegetation", "a": "water",
+    # Entities
+    "c": "character", "j": "creature",
+    # Objects
+    "p": "prop", "e": "equipment", "k": "container",
     # Modifiers
-    "q": "broken", "e": "ornate", "x": "exterior", "i": "interior",
-    # Nature
-    "n": "nature", "v": "vegetation", "a": "water",
-    # Characters & creatures
-    "h": "character", "j": "creature",
-    # UI & icons
-    "u": "ui", "y": "icon",
-    # Items
-    "z": "weapon", "m": "food",
+    "n": "corner", "q": "damaged", "x": "exterior",
+    # Materials
+    "1": "wood", "2": "stone", "3": "metal", "4": "dirt", "5": "fabric",
+    # Other
+    "h": "hazard", "u": "ui", "y": "icon", "m": "path",
 }
 
 # Keys reserved for commands (cannot be used as tag shortcuts)

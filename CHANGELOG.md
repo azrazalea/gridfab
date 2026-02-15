@@ -16,6 +16,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - Atlas index semantic fields: each sprite in index.json now includes `description`, `tags`, and `tile_type` for LLM/game engine discoverability. New sprites get empty defaults; existing values are preserved across rebuilds, reorders, and sprite additions.
 
 ### Changed
+- Reworked tagger default tags: replaced furniture-specific tags (table, bed, shelf, etc.) with broader categories (prop, equipment, terrain, hazard, path, etc.). 26 defaults with 9 keys left open for user customization.
+- Tagger AI feedback mode: append `@:` to the Name or Description field to trigger feedback mode, where the AI generates a fresh result based on your instructions instead of preserving the existing text.
 - Consolidated logo assets into `assets/logo/`; removed duplicate `assets/icon.*` and `assets/logo-256.png`
 - Updated release workflow, README, and social preview script to reference `assets/logo/`
 - README: added `pixel`, `pixels`, `clear`, `icon`, `atlas` to CLI reference; added New/Clear GUI buttons; moved atlas from Planned to Features; added auto-repair and icon export to feature list

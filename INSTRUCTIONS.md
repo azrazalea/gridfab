@@ -336,7 +336,7 @@ gridfab tag <tileset.png> [--tile-size N] [--output FILE] [--model haiku|sonnet|
 
 **AI assists, not replaces:** You can type a partial name or description, press Escape to return to tag mode, then press Tab to generate — the AI will refine what you wrote rather than starting from scratch. For example, type "dark" in the Name field, Escape, then Tab — the AI sees your draft and incorporates it. This works for both the Name and Description fields.
 
-**Workshopping with the agent:** You can leave feedback directly in the Name or Description fields. For example, if the agent suggests a name you don't like, edit it to something like `"@Agent: this looks more like a chest than a crate"` and re-generate (Escape, Tab). The agent reads whatever is in the fields as context, so it will try to incorporate your feedback. This is useful for iterating on tricky tiles or when you're unsure what something is.
+**Workshopping with the agent:** You can append feedback to the Name or Description fields using `@:`. For example, if the agent suggests `"wooden_crate"` as the name but you disagree, edit it to `"wooden_crate @: I think this is a chest not a crate"` and re-generate (Escape, Tab). The `@:` marker anywhere in the field triggers feedback mode — instead of trying to keep your text as-is, the agent will generate a fresh result based on your instructions. This is useful for iterating on tricky tiles or when you're unsure what something is.
 
 **Type field:** Auto-populated from active tags. One alphabetic tag fills in that tag name; two or more alphabetic tags fill in "multi". Numeric material tags (1-5) don't affect the type. You can always edit the type manually.
 

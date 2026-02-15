@@ -76,12 +76,19 @@ class AIAssistant:
             context_section = "\n\nRecently tagged nearby sprites (for naming consistency):\n" + "\n".join(lines)
 
         # Existing name/description hints
+        # Detect feedback marker (@:) and treat as instructions instead of draft text
         name_hint = ""
         if existing_name:
-            name_hint = f"\nThe user has named this sprite: \"{existing_name}\". Keep this name unless it is clearly wrong for the tags. Only make minor adjustments like fixing formatting to snake_case."
+            if "@:" in existing_name:
+                name_hint = f"\nThe user has feedback about the name: \"{existing_name}\". Generate a NEW name based on this feedback."
+            else:
+                name_hint = f"\nThe user has named this sprite: \"{existing_name}\". Keep this name unless it is clearly wrong for the tags. Only make minor adjustments like fixing formatting to snake_case."
         desc_hint = ""
         if existing_desc:
-            desc_hint = f"\nThe user's draft description is: \"{existing_desc}\". Expand, refine, or complete it. Keep the user's intent."
+            if "@:" in existing_desc:
+                desc_hint = f"\nThe user has feedback about the description: \"{existing_desc}\". Generate a NEW description based on this feedback."
+            else:
+                desc_hint = f"\nThe user's draft description is: \"{existing_desc}\". Expand, refine, or complete it. Keep the user's intent."
 
         prompt = f"""You are naming a pixel art sprite for a game tileset index.
 

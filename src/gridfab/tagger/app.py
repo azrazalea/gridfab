@@ -942,8 +942,8 @@ class TaggerApp:
             "TIPS:\n"
             "- Type a partial name/desc, Escape, Tab -- the AI\n"
             "  will refine your draft rather than starting fresh.\n"
-            "- Leave feedback like '@Agent: looks more like a\n"
-            "  chest' in a field, then re-generate to iterate."
+            "- Append '@: feedback' to a field to workshop it,\n"
+            "  e.g. 'wooden_crate @: this is a chest not crate'"
         )
         messagebox.showinfo("Help", help_msg, parent=self.root)
         self.root.focus_set()
