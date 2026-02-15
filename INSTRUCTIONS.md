@@ -323,8 +323,18 @@ gridfab atlas <output_dir> [sprites...] [--include GLOB] [--exclude GLOB]
     "tile_size": [32, 32],
     "columns": 4,
     "sprites": {
-      "grass":  {"row": 0, "col": 0, "tiles_x": 1, "tiles_y": 1},
-      "dragon": {"row": 0, "col": 1, "tiles_x": 2, "tiles_y": 2}
+      "grass": {
+        "row": 0, "col": 0, "tiles_x": 1, "tiles_y": 1,
+        "description": "green grass tile",
+        "tags": ["terrain", "grass", "nature"],
+        "tile_type": "terrain"
+      },
+      "dragon": {
+        "row": 0, "col": 1, "tiles_x": 2, "tiles_y": 2,
+        "description": "",
+        "tags": [],
+        "tile_type": ""
+      }
     }
   }
   ```
@@ -335,11 +345,16 @@ gridfab atlas <output_dir> [sprites...] [--include GLOB] [--exclude GLOB]
 |-------|-------------|
 | `tile_size` | `[width, height]` — Base tile dimensions in pixels. All sprites are placed on a grid of these tiles. |
 | `columns` | Number of tile columns in the packing grid. Used internally by GridFab to reproduce the same layout on rebuilds. Game engines can ignore this. |
-| `sprites` | Map of sprite name (directory name) to placement info. |
+| `sprites` | Map of sprite name (directory name) to placement and semantic info. |
 | `sprites.*.row` | Tile row where this sprite starts (0-indexed). Pixel Y = `row * tile_size[1]`. |
 | `sprites.*.col` | Tile column where this sprite starts (0-indexed). Pixel X = `col * tile_size[0]`. |
 | `sprites.*.tiles_x` | Width of this sprite in tiles. Pixel width = `tiles_x * tile_size[0]`. |
 | `sprites.*.tiles_y` | Height of this sprite in tiles. Pixel height = `tiles_y * tile_size[1]`. |
+| `sprites.*.description` | Human-readable description of the sprite (default: empty). Edit the index to fill this in. |
+| `sprites.*.tags` | List of searchable tags for the sprite (default: empty). Edit the index to fill this in. |
+| `sprites.*.tile_type` | Category/type of the sprite, e.g. "terrain", "prop", "character" (default: empty). Edit the index to fill this in. |
+
+**Semantic fields:** New sprites are created with empty `description`, `tags`, and `tile_type`. These fields are preserved when rebuilding, reordering, or adding sprites — so you can safely fill them in by editing index.json and they won't be lost on the next atlas rebuild. These fields help LLMs and game engines find sprites by meaning rather than just by name.
 
 **Reading sprites from the atlas in a game engine:** To extract a sprite's region from atlas.png, compute pixel coordinates from the index:
 ```

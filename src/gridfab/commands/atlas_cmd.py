@@ -274,19 +274,32 @@ def cmd_atlas(
     output_dir.mkdir(parents=True, exist_ok=True)
     atlas.save(str(output_dir / atlas_name))
 
-    # Build index
+    # Build index — preserve existing semantic fields
+    existing_sprites = (
+        existing_index.get("sprites", {}) if existing_index else {}
+    )
     index: dict = {
         "tile_size": [tw, th],
         "columns": columns,
         "sprites": {},
     }
+    new_semantic_count = 0
     for name, tx, ty, _, _ in valid_sprites:
         row, col = placement_map[name]
+        old = existing_sprites.get(name, {})
+        desc = old.get("description", "")
+        tags = old.get("tags", [])
+        tile_type = old.get("tile_type", "")
+        if not desc and not tags and not tile_type:
+            new_semantic_count += 1
         index["sprites"][name] = {
             "row": row,
             "col": col,
             "tiles_x": tx,
             "tiles_y": ty,
+            "description": desc,
+            "tags": tags,
+            "tile_type": tile_type,
         }
 
     with open(output_dir / index_name, "w", newline="\n") as f:
@@ -298,3 +311,8 @@ def cmd_atlas(
         f"({atlas_w}x{atlas_h}, {atlas_cols}x{atlas_rows} tiles)"
     )
     print(f"Index: {output_dir / index_name} ({len(valid_sprites)} sprite(s))")
+    if new_semantic_count:
+        print(
+            f"Hint: {new_semantic_count} sprite(s) have empty description/tags/tile_type — "
+            f"edit {output_dir / index_name} to fill them in"
+        )

@@ -387,6 +387,155 @@ class TestCmdAtlasCli:
 # ── TestCustomFilenames ─────────────────────────────────────────────
 
 
+class TestSemanticFields:
+    """Tests for description, tags, and tile_type fields in the index."""
+
+    def test_new_sprites_get_empty_semantic_fields(self, tmp_path):
+        _make_sprite(tmp_path, "grass", 4, 4)
+        out = tmp_path / "output"
+        cmd_atlas(out, [tmp_path / "grass"])
+        with open(out / "index.json") as f:
+            idx = json.load(f)
+        sprite = idx["sprites"]["grass"]
+        assert sprite["description"] == ""
+        assert sprite["tags"] == []
+        assert sprite["tile_type"] == ""
+
+    def test_semantic_fields_preserved_on_rebuild(self, tmp_path):
+        _make_sprite(tmp_path, "crate", 4, 4)
+        out = tmp_path / "output"
+        out.mkdir()
+        # Write an existing index WITH semantic fields filled in
+        existing = {
+            "tile_size": [4, 4],
+            "columns": 1,
+            "sprites": {
+                "crate": {
+                    "row": 0, "col": 0, "tiles_x": 1, "tiles_y": 1,
+                    "description": "wooden crate",
+                    "tags": ["crate", "wood", "container"],
+                    "tile_type": "prop",
+                },
+            },
+        }
+        with open(out / "index.json", "w") as f:
+            json.dump(existing, f)
+        # Rebuild atlas
+        cmd_atlas(out, [tmp_path / "crate"])
+        with open(out / "index.json") as f:
+            idx = json.load(f)
+        sprite = idx["sprites"]["crate"]
+        assert sprite["description"] == "wooden crate"
+        assert sprite["tags"] == ["crate", "wood", "container"]
+        assert sprite["tile_type"] == "prop"
+
+    def test_semantic_fields_preserved_when_adding_sprites(self, tmp_path):
+        _make_sprite(tmp_path, "crate", 4, 4)
+        _make_sprite(tmp_path, "gem", 4, 4)
+        out = tmp_path / "output"
+        out.mkdir()
+        # Existing index has crate with filled-in semantic fields
+        existing = {
+            "tile_size": [4, 4],
+            "columns": 4,
+            "sprites": {
+                "crate": {
+                    "row": 0, "col": 0, "tiles_x": 1, "tiles_y": 1,
+                    "description": "wooden crate",
+                    "tags": ["crate", "wood"],
+                    "tile_type": "prop",
+                },
+            },
+        }
+        with open(out / "index.json", "w") as f:
+            json.dump(existing, f)
+        # Add gem sprite
+        cmd_atlas(out, [tmp_path / "crate", tmp_path / "gem"])
+        with open(out / "index.json") as f:
+            idx = json.load(f)
+        # crate keeps its semantic fields
+        crate = idx["sprites"]["crate"]
+        assert crate["description"] == "wooden crate"
+        assert crate["tags"] == ["crate", "wood"]
+        assert crate["tile_type"] == "prop"
+        # gem gets empty defaults
+        gem = idx["sprites"]["gem"]
+        assert gem["description"] == ""
+        assert gem["tags"] == []
+        assert gem["tile_type"] == ""
+
+    def test_semantic_fields_preserved_on_reorder(self, tmp_path):
+        _make_sprite(tmp_path, "a", 4, 4)
+        _make_sprite(tmp_path, "b", 4, 4)
+        out = tmp_path / "output"
+        out.mkdir()
+        existing = {
+            "tile_size": [4, 4],
+            "columns": 4,
+            "sprites": {
+                "a": {
+                    "row": 0, "col": 3, "tiles_x": 1, "tiles_y": 1,
+                    "description": "alpha sprite",
+                    "tags": ["alpha"],
+                    "tile_type": "terrain",
+                },
+                "b": {
+                    "row": 0, "col": 0, "tiles_x": 1, "tiles_y": 1,
+                    "description": "beta sprite",
+                    "tags": ["beta", "special"],
+                    "tile_type": "decoration",
+                },
+            },
+        }
+        with open(out / "index.json", "w") as f:
+            json.dump(existing, f)
+        # Reorder — positions change but semantic fields stay
+        cmd_atlas(out, [tmp_path / "a", tmp_path / "b"], reorder=True)
+        with open(out / "index.json") as f:
+            idx = json.load(f)
+        a = idx["sprites"]["a"]
+        assert a["description"] == "alpha sprite"
+        assert a["tags"] == ["alpha"]
+        assert a["tile_type"] == "terrain"
+        b = idx["sprites"]["b"]
+        assert b["description"] == "beta sprite"
+        assert b["tags"] == ["beta", "special"]
+        assert b["tile_type"] == "decoration"
+
+    def test_partial_semantic_fields_filled_with_defaults(self, tmp_path):
+        """If an existing entry has some but not all semantic fields, fill gaps."""
+        _make_sprite(tmp_path, "rock", 4, 4)
+        out = tmp_path / "output"
+        out.mkdir()
+        existing = {
+            "tile_size": [4, 4],
+            "columns": 1,
+            "sprites": {
+                "rock": {
+                    "row": 0, "col": 0, "tiles_x": 1, "tiles_y": 1,
+                    "description": "a rock",
+                    # tags and tile_type missing
+                },
+            },
+        }
+        with open(out / "index.json", "w") as f:
+            json.dump(existing, f)
+        cmd_atlas(out, [tmp_path / "rock"])
+        with open(out / "index.json") as f:
+            idx = json.load(f)
+        rock = idx["sprites"]["rock"]
+        assert rock["description"] == "a rock"
+        assert rock["tags"] == []
+        assert rock["tile_type"] == ""
+
+    def test_hint_printed_for_empty_semantic_fields(self, tmp_path, capsys):
+        _make_sprite(tmp_path, "s1", 4, 4)
+        out = tmp_path / "output"
+        cmd_atlas(out, [tmp_path / "s1"])
+        captured = capsys.readouterr()
+        assert "description" in captured.out.lower() or "semantic" in captured.out.lower()
+
+
 class TestCustomFilenames:
 
     def test_custom_atlas_name(self, tmp_path):
