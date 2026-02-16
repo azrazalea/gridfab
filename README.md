@@ -99,6 +99,8 @@ gridfab rect <r0> <c0> <r1> <c1> <color>      # Fill rectangle
 gridfab clear [dir]                           # Reset grid to transparent
 gridfab icon [dir]                            # Export .ico and .icns icons
 gridfab atlas <output> [sprites...] [opts]    # Pack sprites into spritesheet
+gridfab import <image> [output] [opts]        # Import image to grid.txt format
+gridfab tag <tileset.png> [opts]              # Interactive tileset tagger
 ```
 
 ## GUI
@@ -108,10 +110,10 @@ gridfab-gui [directory]
 ```
 
 - Left-click to paint, right-click to erase
-- Palette sidebar with color buttons
+- Palette sidebar with color swatches (add, edit, remove colors via color picker)
 - Ctrl+Z / Ctrl+Y for undo/redo
 - Ctrl+S to save
-- Save, Render, Refresh, Clear, and New buttons
+- Save, Render, Refresh, Clear, New, Open, and Import buttons
 
 ## Features
 
@@ -123,6 +125,9 @@ gridfab-gui [directory]
 - Pixel-level editing commands (`pixel`, `pixels`, `fill`, `rect`, `row`, `rows`)
 - Icon export (`.ico` and `.icns`) from square grids
 - Atlas/spritesheet packing with multi-tile support, stable ordering, and JSON index
+- Image import (PNG, BMP, GIF, TIFF, WebP, JPEG, and 20+ formats) to grid.txt
+- Interactive tileset tagger with AI-assisted naming
+- GUI palette editing (add, edit, remove colors with color picker)
 - Auto-repair for malformed grid.txt files
 
 ### Planned

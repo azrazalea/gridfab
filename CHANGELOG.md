@@ -6,36 +6,31 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## [Unreleased]
 
-### Added
-- GUI palette editing: add colors with the "+" button (color picker + alias prompt), edit colors by double-clicking a swatch, remove colors via right-click context menu, copy hex values to clipboard
-- GUI multi-column swatch grid: palette swatches now display in a 3-column grid layout instead of a vertical list, with contrast-aware text labels (white text on dark colors, black on light)
-- GUI action buttons now arranged in a 2-column grid layout for a more compact sidebar
-
-### Fixed
-- GUI Refresh button now rebuilds the palette sidebar, so palette changes made by LLMs or external editors appear after clicking Refresh
+## [0.3.0]
 
 ### Added
-- `import` command: convert images (any format Pillow can read: PNG, BMP, GIF, TIFF, WebP, JPEG, PSD, and more) into grid.txt + palette.txt format. Three modes: single image (`gridfab import image.png sprite/`), single tile from tilesheet (`gridfab import sheet.png --tile-size 16x16 --tile 3,2 tile/`), and whole tilesheet split into individual sprites (`gridfab import sheet.png --tile-size 16x16 output/`). Supports atlas index.json for named sprite extraction with metadata.
-- GUI "Import" button: import an image (single or single tile from tilesheet) into a new sprite folder, with editor auto-switching to the imported sprite
-- GUI "Open" button: open an existing sprite folder by browsing, switching the editor to it
-- GUI "New sprite" flow: the New button now offers a choice between resizing the current grid and creating a new sprite in a different folder
-- GUI `_switch_to_dir()` method: seamlessly switches the editor to any sprite directory, reloading palette, grid, and canvas
+- `import` command: convert images (any format Pillow can read: PNG, BMP, GIF, TIFF, WebP, JPEG, PSD, and more) into grid.txt + palette.txt format. Three modes: single image, single tile from tilesheet, and whole tilesheet split into individual sprites. Supports atlas index.json for named sprite extraction with metadata.
 - `tag` command: interactive tileset tagger for labeling tiles in existing spritesheet PNGs (`gridfab tag <tileset.png>`). Keyboard-driven workflow with AI-assisted name/description generation via Claude Code CLI.
 - `gridfab-tagger` standalone entry point (same as `gridfab tag`, available as independent binary in release builds)
-- Tagger `tile_type` field: auto-fills from active tags (single tag = tag name, multiple = "multi"). Required for sprite completeness alongside description and tags.
-- Tagger empty tile persistence: user-marked and auto-detected empty tiles are saved to the tagger config file as merged rectangles, so they survive across sessions.
-- `atlas` command: pack multiple sprites into a spritesheet (`gridfab atlas <output_dir> [sprites...]`). Supports multi-tile sprites, stable ordering via index.json, glob-based sprite discovery, and configurable tile size/columns.
-- `atlas --atlas-name` and `--index-name` flags: customize output filenames (default: `atlas.png` and `index.json`)
-- Atlas index semantic fields: each sprite in index.json now includes `description`, `tags`, and `tile_type` for LLM/game engine discoverability. New sprites get empty defaults; existing values are preserved across rebuilds, reorders, and sprite additions.
+- Tagger `tile_type` field: auto-fills from active tags (single tag = tag name, multiple = "multi")
+- Tagger empty tile persistence: user-marked and auto-detected empty tiles saved as merged rectangles across sessions
+- Tagger duplicate name detection with status bar notification
+- `atlas` command: pack multiple sprites into a spritesheet with multi-tile support, stable ordering via index.json, glob-based sprite discovery, and configurable tile size/columns
+- `atlas --atlas-name` and `--index-name` flags for custom output filenames
+- Atlas index semantic fields: `description`, `tags`, and `tile_type` per sprite for LLM/game engine discoverability
+- GUI palette editing: add colors via color picker, edit by double-clicking, remove via right-click menu, copy hex to clipboard
+- GUI multi-column swatch grid with contrast-aware text labels
+- GUI "Open" button to browse and open existing sprite folders
+- GUI "Import" button to import images into new sprite folders
+- GUI enhanced "New" button with choice between resize and new sprite
+- GUI action buttons in 2-column grid layout
 
 ### Changed
-- Reworked tagger default tags: replaced furniture-specific tags (table, bed, shelf, etc.) with broader categories (prop, equipment, terrain, hazard, path, etc.). 26 defaults with 9 keys left open for user customization.
-- Tagger AI feedback mode: append `@:` to the Name or Description field to trigger feedback mode, where the AI generates a fresh result based on your instructions instead of preserving the existing text.
-- Consolidated logo assets into `assets/logo/`; removed duplicate `assets/icon.*` and `assets/logo-256.png`
-- Updated release workflow, README, and social preview script to reference `assets/logo/`
-- README: added `pixel`, `pixels`, `clear`, `icon`, `atlas` to CLI reference; added New/Clear GUI buttons; moved atlas from Planned to Features; added auto-repair and icon export to feature list
-- INSTRUCTIONS.md: expanded atlas index.json documentation with field-by-field reference table and game engine extraction guide
-- Updated gridfab-create skill and project spec to reflect atlas as completed
+- Reworked tagger default tags to broader categories (prop, equipment, terrain, hazard, path, etc.)
+- Tagger AI feedback mode: `@:` prefix triggers fresh AI-generated results
+
+### Fixed
+- GUI Refresh button now rebuilds palette sidebar, so external palette changes appear after refresh
 
 ## [0.2.0]
 

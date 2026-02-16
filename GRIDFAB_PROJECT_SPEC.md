@@ -137,7 +137,9 @@ The GUI currently has fixed 16px cells. For larger canvases (64×64) this won't 
 - Fit-to-window button/shortcut
 - Status bar showing current zoom level and cursor position (row, col)
 
-#### 1.5 Palette sidebar & editor
+#### 1.5 Palette sidebar & editor ✅
+First pass complete: add/edit/remove colors via color picker, multi-column swatch grid, contrast-aware text. Deferred: keyboard shortcuts 1-9, tooltips, drag-reorder, rename alias.
+
 The palette sidebar is functional but minimal. Improve the display and add the ability to create/edit palettes from the GUI.
 
 **Sidebar improvements:**
@@ -230,7 +232,8 @@ Currently, all CLI commands validate the entire grid.txt before operating. If on
 - Other commands can continue to validate fully
 - Show a warning about the malformed state but still execute
 
-#### 1.13 GUI Init/New button
+#### 1.13 GUI Init/New button ✅
+New button offers resize vs new sprite choice dialog. Open and Import buttons also added for browsing existing sprites and importing images.
 
 Allow creating new sprites from the GUI without needing the CLI.
 
@@ -253,6 +256,9 @@ The standalone `tools/build_custom_atlas.py` script has been promoted to a prope
 - Stable ordering: existing sprites keep positions on rebuilds, new sprites fill gaps
 
 **Remaining:** GUI: Tools > Build Atlas menu item that opens a directory picker
+
+#### 1.15 Tileset tagger ✅ (bonus — not in original roadmap)
+Interactive tileset tagger for labeling tiles in spritesheet PNGs. Keyboard-driven workflow with AI-assisted name/description generation via Claude Code CLI. Includes `tile_type` auto-fill, empty tile persistence, duplicate name detection, and configurable default tags. Available as `gridfab tag` and standalone `gridfab-tagger` entry point.
 
 ---
 
@@ -621,7 +627,8 @@ gridfab pattern dither 0 0 15 15 R SK
 gridfab pattern gradient horizontal 0 0 31 31 R DR B
 ```
 
-#### 4.7 Import from image
+#### 4.7 Import from image ✅
+Three modes: single image, single tile from tilesheet, whole tilesheet split. Supports PNG, BMP, GIF, TIFF, WebP, JPEG, PSD, and 20+ formats via Pillow. GUI Import button also added.
 
 Convert an existing PNG/image into the text grid format.
 
