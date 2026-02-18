@@ -5,6 +5,7 @@ from gridfab.gui import (
     checker_color, cell_display_color, _contrast_color,
     format_status_text, grid_line_config,
     zoom_step, cell_at_coords, fit_zoom_level,
+    cursor_preview_color,
     CHECKER_LIGHT, CHECKER_DARK, ZOOM_LEVELS,
 )
 from gridfab.core.palette import Palette
@@ -200,3 +201,18 @@ class TestFitZoomLevel:
     def test_result_is_valid_zoom_level(self):
         level = fit_zoom_level(32, 32, 800, 600)
         assert level in ZOOM_LEVELS
+
+
+class TestCursorPreviewColor:
+    def test_alias_resolves_to_hex(self):
+        palette = Palette({"R": "#CC3333"})
+        assert cursor_preview_color("R", palette) == "#CC3333"
+
+    def test_transparent_returns_indicator(self):
+        palette = Palette()
+        color = cursor_preview_color(".", palette)
+        assert color == "#FF6666"
+
+    def test_inline_hex_returned_as_is(self):
+        palette = Palette()
+        assert cursor_preview_color("#AABBCC", palette) == "#AABBCC"

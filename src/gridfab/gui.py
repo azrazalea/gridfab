@@ -108,6 +108,17 @@ def fit_zoom_level(grid_w: int, grid_h: int, viewport_w: int, viewport_h: int) -
     return best
 
 
+def cursor_preview_color(selected: str, palette: Palette) -> str:
+    """Return the border color for the cursor preview rectangle."""
+    if selected == TRANSPARENT:
+        return "#FF6666"
+    if selected in palette.entries and palette.entries[selected]:
+        return palette.entries[selected]
+    if selected.startswith("#") and len(selected) == 7:
+        return selected
+    return "#FF00FF"
+
+
 def cell_display_color(val: str, palette: Palette, r: int, c: int) -> str:
     """Resolve a grid value to a display color string for tkinter."""
     if val == TRANSPARENT:
@@ -140,6 +151,7 @@ class PixelEditor:
         self.cursor_pos: tuple[int, int] | None = None
         self.grid_lines_visible = True
         self.cell_size = DEFAULT_CELL_SIZE
+        self._preview_rect: int | None = None
 
         # Undo/redo stacks
         self.undo_stack: list[list[list[str]]] = []
@@ -275,11 +287,31 @@ class PixelEditor:
             self.cursor_pos = (r, c)
         else:
             self.cursor_pos = None
+        self._draw_preview(r, c)
         self._update_status()
 
     def _on_leave(self, event: tk.Event) -> None:
         self.cursor_pos = None
+        self._clear_preview()
         self._update_status()
+
+    def _draw_preview(self, r: int | None, c: int | None) -> None:
+        self._clear_preview()
+        if r is None or c is None:
+            return
+        cs = self.cell_size
+        x0 = c * cs
+        y0 = r * cs
+        color = cursor_preview_color(self.selected, self.palette)
+        self._preview_rect = self.canvas.create_rectangle(
+            x0 + 1, y0 + 1, x0 + cs - 1, y0 + cs - 1,
+            outline=color, width=2, fill="",
+        )
+
+    def _clear_preview(self) -> None:
+        if self._preview_rect is not None:
+            self.canvas.delete(self._preview_rect)
+            self._preview_rect = None
 
     def _set_modified(self, value: bool = True) -> None:
         if self.modified != value:
@@ -398,6 +430,7 @@ class PixelEditor:
         self._redraw()
 
     def _redraw(self) -> None:
+        self._clear_preview()
         for r in range(self.grid.height):
             for c in range(self.grid.width):
                 color = cell_display_color(

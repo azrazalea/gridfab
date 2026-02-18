@@ -10,6 +10,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - GUI status bar showing cursor position, selected color, grid dimensions, zoom level, tool name, modified indicator, and file path
 - GUI grid lines toggle (`G` key) to show/hide pixel borders
 - GUI zoom (mouse wheel) with 6 levels (4/8/16/24/32/48px) and pan (middle-click drag)
+- GUI cursor preview: colored border on hovered cell showing selected color
 
 ### Fixed
 - Tagger: preserve original sprite name before deduplication so downstream code uses the correct base name
