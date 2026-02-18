@@ -338,6 +338,7 @@ class PixelEditor:
             ("Clear", self.clear_grid, "#FFA07A"),
             ("New", self.new_grid, "#DDA0DD"),
             ("Import", self.import_image, "#E6E6FA"),
+            ("Animate", self._add_frame, "#B0E0E6"),
         ]
         for i, (text, cmd, bg) in enumerate(action_buttons):
             tk.Button(

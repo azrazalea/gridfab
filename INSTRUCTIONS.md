@@ -171,6 +171,7 @@ Removing a color deletes it from palette.txt. Any cells using that alias will sh
 - **Clear** — Reset all pixels to transparent (with confirmation). Undoable.
 - **New** — If a sprite is loaded, offers a choice: resize the current grid in place, or create a new sprite in a different folder. If no sprite is loaded, goes straight to the new-sprite flow (pick parent folder, name, size).
 - **Import** — Import an image into a new sprite folder. Supports single images and single-tile extraction from tilesheets. The editor switches to the imported sprite after completion.
+- **Animate** — Add a frame to the current sprite. On a non-animated sprite (grid.txt only), this converts it to animated mode and reveals the frame strip with all animation controls.
 
 ### Keyboard Shortcuts
 
