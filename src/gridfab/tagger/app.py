@@ -11,6 +11,7 @@ from PIL import Image, ImageTk, ImageDraw
 from gridfab.tagger.tags import TagManager
 from gridfab.tagger.navigator import TilesetNavigator
 from gridfab.tagger.ai import AIAssistant
+from gridfab.commands.import_cmd import image_to_grid_and_palette
 
 
 def _unique_sprite_name(
@@ -46,6 +47,7 @@ class TaggerApp:
                  bg_color: tuple | None = None, import_path: str | None = None):
         self.tileset_path = Path(tileset_path).resolve()
         self.tile_size = tile_size
+        self.bg_color = bg_color  # Background color treated as transparent
 
         # Output path: default to <tileset_stem>_index.json next to tileset
         if output_path:
@@ -315,6 +317,12 @@ class TaggerApp:
         self.tile_canvas = tk.Canvas(tile_frame, width=256, height=256,
                                      bg="#1a1a1a", highlightthickness=0)
         self.tile_canvas.pack(padx=4, pady=4)
+        self.copy_btn = tk.Button(tile_frame, text="Copy grid.txt",
+                                  command=self._copy_tile_text,
+                                  font=("monospace", 9), fg="#ccc", bg="#444",
+                                  activeforeground="#fff", activebackground="#555",
+                                  relief="flat", padx=8, pady=2)
+        self.copy_btn.pack(padx=4, pady=(0, 4))
 
         # Context view
         ctx_frame = tk.LabelFrame(top_frame, text="Context", fg="#aaa",
@@ -392,6 +400,9 @@ class TaggerApp:
         self.desc_entry.bind("<Escape>", self._on_field_escape)
         self.desc_entry.bind("<Tab>", self._on_desc_tab)
         self.desc_entry.bind("<FocusIn>", self._on_field_focus_in)
+
+        # Ctrl+C: copy grid.txt (only when not in an entry field)
+        self.root.bind("<Control-c>", self._on_ctrl_c)
 
         # Click on canvases to return to tag mode
         self.tile_canvas.bind("<Button-1>", lambda e: self._return_to_tag_mode())
@@ -666,6 +677,13 @@ class TaggerApp:
         self.root.focus_set()
         return "break"
 
+    def _on_ctrl_c(self, event):
+        """Ctrl+C: copy grid.txt if not in an entry field (let normal copy work there)."""
+        if event.widget in (self.name_entry, self.type_entry, self.desc_entry):
+            return  # Let normal Ctrl+C text copy work
+        self._copy_tile_text()
+        return "break"
+
     def _on_field_escape(self, event):
         """Escape in any field -> return to tag mode."""
         self._return_to_tag_mode()
@@ -694,6 +712,38 @@ class TaggerApp:
 
     # ── Actions ────────────────────────────────────────────────────────────
 
+    def _tile_as_text(self) -> str | None:
+        """Convert the current tile to grid.txt + palette.txt text."""
+        pos = self._current_tile()
+        if pos is None:
+            return None
+        row, col = pos
+        tile_img = self.nav.get_tile_image(row, col, self.sel_tiles_x, self.sel_tiles_y)
+        # Replace bg_color pixels with transparent so they become '.'
+        if self.bg_color:
+            tile_img = tile_img.copy().convert("RGBA")
+            data = tile_img.load()
+            for y in range(tile_img.height):
+                for x in range(tile_img.width):
+                    r, g, b, a = data[x, y]
+                    if (r, g, b) == self.bg_color[:3]:
+                        data[x, y] = (0, 0, 0, 0)
+        grid_data, palette = image_to_grid_and_palette(tile_img)
+        grid_lines = "\n".join(" ".join(r) for r in grid_data)
+        palette_lines = "\n".join(f"{alias}={color}" for alias, color in sorted(palette.items()))
+        return f"grid.txt:\n{grid_lines}\n\npalette.txt:\n{palette_lines}"
+
+    def _copy_tile_text(self):
+        """Copy the current tile's grid.txt + palette.txt text to clipboard."""
+        text = self._tile_as_text()
+        if text is None:
+            return
+        self.root.clipboard_clear()
+        self.root.clipboard_append(text)
+        self.copy_btn.configure(text="Copied!")
+        self.root.after(1500, lambda: self.copy_btn.configure(text="Copy grid.txt"))
+        self.root.focus_set()
+
     def _generate_ai(self):
         """Call Claude Code to generate name + description from tags."""
         pos = self._current_tile()
@@ -721,6 +771,9 @@ class TaggerApp:
         existing_name = self.name_entry.get().strip() or None
         existing_desc = self.desc_entry.get().strip() or None
 
+        # Grid text for AI context
+        grid_text = self._tile_as_text()
+
         def _run():
             result = self.ai.generate(
                 tag_names, tile_img, context_img,
@@ -728,6 +781,7 @@ class TaggerApp:
                 recent_context=self.recent_saves,
                 existing_name=existing_name,
                 existing_desc=existing_desc,
+                grid_text=grid_text,
             )
             self.root.after(0, lambda: self._on_ai_result(result))
 
@@ -943,6 +997,7 @@ class TaggerApp:
             "  Space -- Skip tile\n"
             "  Backspace -- Go back\n"
             "  Delete -- Mark as empty & skip\n"
+            "  Ctrl+C -- Copy grid.txt+palette.txt to clipboard\n"
             "  Arrow keys -- Resize multi-tile selection\n"
             "  + or = -- Add new tag shortcut\n"
             "  F1 -- This help\n"

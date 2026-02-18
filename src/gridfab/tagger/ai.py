@@ -34,7 +34,8 @@ class AIAssistant:
                  tiles_x: int = 1, tiles_y: int = 1,
                  recent_context: list[dict] | None = None,
                  existing_name: str | None = None,
-                 existing_desc: str | None = None) -> dict:
+                 existing_desc: str | None = None,
+                 grid_text: str | None = None) -> dict:
         """Generate name + description from tags and tile image via Claude Code."""
 
         if not self.available or not tags:
@@ -90,11 +91,19 @@ class AIAssistant:
             else:
                 desc_hint = f"\nThe user's draft description is: \"{existing_desc}\". Expand, refine, or complete it. Keep the user's intent."
 
+        # Grid text section (actual pixel data)
+        grid_section = ""
+        if grid_text:
+            grid_section = f"""
+
+The sprite's grid.txt and palette.txt representation (actual pixel data):
+{grid_text}"""
+
         prompt = f"""You are naming a pixel art sprite for a game tileset index.
 
 User-applied tags: {tags_str}
 Sprite size: {size_str} (each tile is 32x32 pixels, images are upscaled for visibility)
-Location: row {row}, col {col}{name_hint}{desc_hint}{context_section}
+Location: row {row}, col {col}{name_hint}{desc_hint}{context_section}{grid_section}
 
 Read the file current_tile.png to see the sprite.{context_ref}
 
