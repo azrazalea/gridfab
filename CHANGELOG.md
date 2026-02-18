@@ -6,6 +6,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## [Unreleased]
 
+### Added
+- GUI status bar showing cursor position, selected color, grid dimensions, zoom level, tool name, modified indicator, and file path
+
 ### Fixed
 - Tagger: preserve original sprite name before deduplication so downstream code uses the correct base name
 

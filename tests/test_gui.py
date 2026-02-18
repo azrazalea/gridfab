@@ -3,6 +3,7 @@
 import pytest
 from gridfab.gui import (
     checker_color, cell_display_color, _contrast_color,
+    format_status_text,
     CHECKER_LIGHT, CHECKER_DARK,
 )
 from gridfab.core.palette import Palette
@@ -59,3 +60,78 @@ class TestContrastColor:
         assert _contrast_color("#808080") == "#FFFFFF"
         # Slightly brighter → black text
         assert _contrast_color("#818181") == "#000000"
+
+
+class TestFormatStatusText:
+    def test_with_cursor_position(self):
+        text = format_status_text(
+            cursor_pos=(5, 10), selected="R", selected_hex="#CC3333",
+            grid_w=32, grid_h=32, modified=False, tool_name="Brush",
+            zoom_pct=100, file_path="knight",
+        )
+        assert "(5, 10)" in text
+
+    def test_no_cursor_position(self):
+        text = format_status_text(
+            cursor_pos=None, selected="R", selected_hex="#CC3333",
+            grid_w=32, grid_h=32, modified=False, tool_name="Brush",
+            zoom_pct=100, file_path="knight",
+        )
+        assert "(5, 10)" not in text
+
+    def test_selected_color_and_hex(self):
+        text = format_status_text(
+            cursor_pos=None, selected="SK", selected_hex="#FFCCAA",
+            grid_w=16, grid_h=16, modified=False, tool_name="Brush",
+            zoom_pct=100, file_path="knight",
+        )
+        assert "SK" in text
+        assert "#FFCCAA" in text
+
+    def test_transparent_selected(self):
+        text = format_status_text(
+            cursor_pos=None, selected=".", selected_hex=None,
+            grid_w=16, grid_h=16, modified=False, tool_name="Brush",
+            zoom_pct=100, file_path="knight",
+        )
+        assert "Transparent" in text
+
+    def test_dimensions(self):
+        text = format_status_text(
+            cursor_pos=None, selected=".", selected_hex=None,
+            grid_w=64, grid_h=48, modified=False, tool_name="Brush",
+            zoom_pct=100, file_path="knight",
+        )
+        assert "64x48" in text
+
+    def test_modified_flag(self):
+        text = format_status_text(
+            cursor_pos=None, selected=".", selected_hex=None,
+            grid_w=16, grid_h=16, modified=True, tool_name="Brush",
+            zoom_pct=100, file_path="knight",
+        )
+        assert "[Modified]" in text
+
+    def test_not_modified(self):
+        text = format_status_text(
+            cursor_pos=None, selected=".", selected_hex=None,
+            grid_w=16, grid_h=16, modified=False, tool_name="Brush",
+            zoom_pct=100, file_path="knight",
+        )
+        assert "[Modified]" not in text
+
+    def test_tool_name(self):
+        text = format_status_text(
+            cursor_pos=None, selected=".", selected_hex=None,
+            grid_w=16, grid_h=16, modified=False, tool_name="Fill",
+            zoom_pct=100, file_path="knight",
+        )
+        assert "Fill" in text
+
+    def test_zoom_percentage(self):
+        text = format_status_text(
+            cursor_pos=None, selected=".", selected_hex=None,
+            grid_w=16, grid_h=16, modified=False, tool_name="Brush",
+            zoom_pct=200, file_path="knight",
+        )
+        assert "200%" in text

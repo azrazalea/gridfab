@@ -37,6 +37,37 @@ def _contrast_color(hex_color: str) -> str:
     return "#000000" if luminance > 128 else "#FFFFFF"
 
 
+def format_status_text(
+    cursor_pos: tuple[int, int] | None,
+    selected: str,
+    selected_hex: str | None,
+    grid_w: int,
+    grid_h: int,
+    modified: bool,
+    tool_name: str,
+    zoom_pct: int,
+    file_path: str,
+) -> str:
+    """Build the status bar text from current editor state (pure function)."""
+    parts: list[str] = []
+    if cursor_pos is not None:
+        parts.append(f"({cursor_pos[0]}, {cursor_pos[1]})")
+    if selected == TRANSPARENT:
+        parts.append("Transparent")
+    else:
+        color_str = selected
+        if selected_hex:
+            color_str += f" {selected_hex}"
+        parts.append(color_str)
+    parts.append(f"{grid_w}x{grid_h}")
+    parts.append(f"{zoom_pct}%")
+    parts.append(tool_name)
+    if modified:
+        parts.append("[Modified]")
+    parts.append(file_path)
+    return "  |  ".join(parts)
+
+
 def cell_display_color(val: str, palette: Palette, r: int, c: int) -> str:
     """Resolve a grid value to a display color string for tkinter."""
     if val == TRANSPARENT:
@@ -65,6 +96,8 @@ class PixelEditor:
 
         self.selected = TRANSPARENT
         self.painting = False
+        self.modified = False
+        self.cursor_pos: tuple[int, int] | None = None
 
         # Undo/redo stacks
         self.undo_stack: list[list[list[str]]] = []
@@ -72,7 +105,7 @@ class PixelEditor:
         self.max_undo = 512
         self._stroke_active = False
 
-        root.title(f"GridFab — {self.work_dir.resolve().name}")
+        self._update_title()
 
         # Set window icon
         icon_path = Path(__file__).parent / "assets" / "icon.ico"
@@ -88,6 +121,14 @@ class PixelEditor:
                     root.iconphoto(True, self._icon_photo)
             except Exception:
                 pass  # Icon is cosmetic — fail silently
+
+        # Status bar (pack first so it stays at bottom)
+        self.status_var = tk.StringVar()
+        self.status_bar = tk.Label(
+            root, textvariable=self.status_var, anchor=tk.W,
+            relief=tk.SUNKEN, padx=5, font=("Consolas", 9),
+        )
+        self.status_bar.pack(side=tk.BOTTOM, fill=tk.X)
 
         # Main layout
         main = tk.Frame(root)
@@ -155,6 +196,10 @@ class PixelEditor:
         self.canvas.bind("<B3-Motion>", self.on_right_drag)
         self.canvas.bind("<ButtonRelease-3>", self.on_release)
 
+        # Canvas tracking
+        self.canvas.bind("<Motion>", self._on_motion)
+        self.canvas.bind("<Leave>", self._on_leave)
+
         # Keyboard bindings
         root.bind("<Control-s>", lambda e: self.save())
         root.bind("<Control-z>", lambda e: self.undo())
@@ -162,6 +207,7 @@ class PixelEditor:
         root.bind("<Control-Shift-Z>", lambda e: self.redo())
 
         self.select_color(TRANSPARENT)
+        self._update_status()
 
     def select_color(self, alias: str) -> None:
         for a, btn in self.palette_buttons.items():
@@ -170,6 +216,49 @@ class PixelEditor:
             else:
                 btn.config(relief=tk.RAISED, borderwidth=1)
         self.selected = alias
+        self._update_status()
+
+    def _on_motion(self, event: tk.Event) -> None:
+        r, c = self.cell_at(event)
+        if r is not None:
+            self.cursor_pos = (r, c)
+        else:
+            self.cursor_pos = None
+        self._update_status()
+
+    def _on_leave(self, event: tk.Event) -> None:
+        self.cursor_pos = None
+        self._update_status()
+
+    def _set_modified(self, value: bool = True) -> None:
+        if self.modified != value:
+            self.modified = value
+            self._update_title()
+
+    def _update_title(self) -> None:
+        name = self.work_dir.resolve().name
+        prefix = "*" if self.modified else ""
+        self.root.title(f"{prefix}GridFab — {name}")
+
+    def _update_status(self) -> None:
+        selected_hex = None
+        if self.selected != TRANSPARENT:
+            if self.selected in self.palette.entries and self.palette.entries[self.selected]:
+                selected_hex = self.palette.entries[self.selected]
+            elif self.selected.startswith("#"):
+                selected_hex = self.selected
+        text = format_status_text(
+            cursor_pos=self.cursor_pos,
+            selected=self.selected,
+            selected_hex=selected_hex,
+            grid_w=self.grid.width,
+            grid_h=self.grid.height,
+            modified=self.modified,
+            tool_name="Brush",
+            zoom_pct=100,
+            file_path=self.work_dir.resolve().name,
+        )
+        self.status_var.set(text)
 
     def cell_at(self, event: tk.Event) -> tuple[int | None, int | None]:
         c = event.x // CELL_SIZE
@@ -193,6 +282,7 @@ class PixelEditor:
         self.grid.data[r][c] = value
         color = cell_display_color(value, self.palette, r, c)
         self.canvas.itemconfig(self.cells[r][c], fill=color)
+        self._set_modified()
 
     def on_click(self, event: tk.Event) -> None:
         r, c = self.cell_at(event)
@@ -239,6 +329,7 @@ class PixelEditor:
 
     def save(self) -> None:
         self.grid.save(self.grid_path)
+        self._set_modified(False)
         print("Saved grid.txt")
 
     def refresh(self) -> None:
@@ -464,9 +555,10 @@ class PixelEditor:
             w, h = get_grid_dimensions(self.work_dir)
             self.grid = Grid.blank(w, h)
 
-        # Reset undo/redo
+        # Reset undo/redo and modified state
         self.undo_stack.clear()
         self.redo_stack.clear()
+        self.modified = False
 
         # Rebuild palette buttons
         self._rebuild_palette_buttons()
@@ -474,9 +566,8 @@ class PixelEditor:
         # Rebuild canvas
         self._rebuild_canvas()
 
-        # Update title
-        self.root.title(f"GridFab — {self.work_dir.resolve().name}")
-
+        # Update title and status
+        self._update_title()
         self.select_color(TRANSPARENT)
 
     def _rebuild_palette_buttons(self) -> None:

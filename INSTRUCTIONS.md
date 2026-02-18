@@ -107,6 +107,19 @@ Optional configuration file. Created automatically by `gridfab init`.
 
 Launch with `gridfab-gui [directory]` (defaults to current directory). On Windows, double-click `gridfab-gui.exe`.
 
+### Status Bar
+
+The bottom of the window shows a status bar with:
+- **Cursor position** — `(row, col)` of the hovered cell
+- **Selected color** — alias and hex value (or "Transparent")
+- **Grid dimensions** — `WxH` in pixels
+- **Zoom level** — current zoom percentage
+- **Tool** — active tool name (Brush, Eyedropper, Fill)
+- **Modified indicator** — `[Modified]` when there are unsaved changes
+- **File path** — name of the current sprite directory
+
+The window title also shows `*` when the grid has been modified since the last save.
+
 ### Painting
 
 - **Left-click** — Paint with the selected color
