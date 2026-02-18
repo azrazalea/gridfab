@@ -156,6 +156,7 @@ Removing a color deletes it from palette.txt. Any cells using that alias will sh
 | Ctrl+Z | Undo (up to 512 steps) |
 | Ctrl+Y | Redo |
 | Ctrl+Shift+Z | Redo (alternative) |
+| G | Toggle grid lines |
 
 ### Undo/Redo
 

@@ -68,6 +68,13 @@ def format_status_text(
     return "  |  ".join(parts)
 
 
+def grid_line_config(visible: bool) -> dict:
+    """Return canvas rectangle outline/width settings for grid lines."""
+    if visible:
+        return {"outline": "#333333", "width": 0.5}
+    return {"outline": "", "width": 0}
+
+
 def cell_display_color(val: str, palette: Palette, r: int, c: int) -> str:
     """Resolve a grid value to a display color string for tkinter."""
     if val == TRANSPARENT:
@@ -98,6 +105,7 @@ class PixelEditor:
         self.painting = False
         self.modified = False
         self.cursor_pos: tuple[int, int] | None = None
+        self.grid_lines_visible = True
 
         # Undo/redo stacks
         self.undo_stack: list[list[list[str]]] = []
@@ -173,6 +181,7 @@ class PixelEditor:
 
         # Draw cells
         self.cells: list[list[int]] = []
+        line_cfg = grid_line_config(self.grid_lines_visible)
         for r in range(self.grid.height):
             row_cells: list[int] = []
             for c in range(self.grid.width):
@@ -183,7 +192,7 @@ class PixelEditor:
                 )
                 rect = self.canvas.create_rectangle(
                     x0, y0, x0 + CELL_SIZE, y0 + CELL_SIZE,
-                    fill=color, outline="#333333", width=0.5,
+                    fill=color, **line_cfg,
                 )
                 row_cells.append(rect)
             self.cells.append(row_cells)
@@ -205,6 +214,7 @@ class PixelEditor:
         root.bind("<Control-z>", lambda e: self.undo())
         root.bind("<Control-y>", lambda e: self.redo())
         root.bind("<Control-Shift-Z>", lambda e: self.redo())
+        root.bind("g", lambda e: self._toggle_grid_lines())
 
         self.select_color(TRANSPARENT)
         self._update_status()
@@ -259,6 +269,13 @@ class PixelEditor:
             file_path=self.work_dir.resolve().name,
         )
         self.status_var.set(text)
+
+    def _toggle_grid_lines(self) -> None:
+        self.grid_lines_visible = not self.grid_lines_visible
+        cfg = grid_line_config(self.grid_lines_visible)
+        for row in self.cells:
+            for rect in row:
+                self.canvas.itemconfig(rect, **cfg)
 
     def cell_at(self, event: tk.Event) -> tuple[int | None, int | None]:
         c = event.x // CELL_SIZE
@@ -708,6 +725,7 @@ class PixelEditor:
         self.canvas.config(width=canvas_w, height=canvas_h)
         self.canvas.delete("all")
         self.cells = []
+        line_cfg = grid_line_config(self.grid_lines_visible)
         for r in range(self.grid.height):
             row_cells: list[int] = []
             for c in range(self.grid.width):
@@ -718,7 +736,7 @@ class PixelEditor:
                 )
                 rect = self.canvas.create_rectangle(
                     x0, y0, x0 + CELL_SIZE, y0 + CELL_SIZE,
-                    fill=color, outline="#333333", width=0.5,
+                    fill=color, **line_cfg,
                 )
                 row_cells.append(rect)
             self.cells.append(row_cells)

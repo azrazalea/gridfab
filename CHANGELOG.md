@@ -8,6 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ### Added
 - GUI status bar showing cursor position, selected color, grid dimensions, zoom level, tool name, modified indicator, and file path
+- GUI grid lines toggle (`G` key) to show/hide pixel borders
 
 ### Fixed
 - Tagger: preserve original sprite name before deduplication so downstream code uses the correct base name

@@ -3,7 +3,7 @@
 import pytest
 from gridfab.gui import (
     checker_color, cell_display_color, _contrast_color,
-    format_status_text,
+    format_status_text, grid_line_config,
     CHECKER_LIGHT, CHECKER_DARK,
 )
 from gridfab.core.palette import Palette
@@ -135,3 +135,15 @@ class TestFormatStatusText:
             zoom_pct=200, file_path="knight",
         )
         assert "200%" in text
+
+
+class TestGridLineConfig:
+    def test_visible_returns_outline(self):
+        cfg = grid_line_config(True)
+        assert cfg["outline"] == "#333333"
+        assert cfg["width"] > 0
+
+    def test_hidden_returns_empty_outline(self):
+        cfg = grid_line_config(False)
+        assert cfg["outline"] == ""
+        assert cfg["width"] == 0
