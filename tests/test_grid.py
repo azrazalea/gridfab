@@ -90,6 +90,33 @@ class TestGridManipulation:
         assert grid.get(1, 0) == "B"
         assert grid.get(1, 1) == "."  # not connected
 
+    def test_flood_fill_entire_grid(self):
+        grid = Grid.blank(4, 4)
+        grid.flood_fill(0, 0, "R")
+        for r in range(4):
+            for c in range(4):
+                assert grid.get(r, c) == "R"
+
+    def test_flood_fill_single_pixel(self):
+        grid = Grid.blank(4, 4)
+        grid.fill_rect(0, 0, 3, 3, "R")
+        grid.set(2, 2, "B")
+        grid.flood_fill(2, 2, "G")
+        assert grid.get(2, 2) == "G"
+        # Surrounding R pixels unchanged
+        assert grid.get(2, 1) == "R"
+        assert grid.get(1, 2) == "R"
+
+    def test_flood_fill_no_diagonal_leak(self):
+        grid = Grid.blank(3, 3)
+        grid.set(0, 0, "R")
+        grid.set(1, 1, "R")
+        grid.set(2, 2, "R")
+        grid.flood_fill(0, 0, "B")
+        assert grid.get(0, 0) == "B"
+        assert grid.get(1, 1) == "R"  # diagonal — not filled
+        assert grid.get(2, 2) == "R"  # diagonal — not filled
+
     def test_flip_horizontal(self):
         grid = Grid.blank(4, 1)
         grid.data[0] = ["R", ".", ".", "."]

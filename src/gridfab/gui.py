@@ -281,6 +281,7 @@ class PixelEditor:
         root.bind("<Control-Shift-Z>", lambda e: self.redo())
         root.bind("g", lambda e: self._toggle_grid_lines())
         root.bind("i", lambda e: self._set_tool(TOOL_EYEDROPPER))
+        root.bind("f", lambda e: self._set_tool(TOOL_FILL))
 
         self.select_color(TRANSPARENT)
         self._update_status()

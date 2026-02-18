@@ -165,6 +165,7 @@ Removing a color deletes it from palette.txt. Any cells using that alias will sh
 | G | Toggle grid lines |
 | I | Eyedropper tool (pick color from canvas) |
 | Alt+Click | Eyedropper (from any tool) |
+| F | Fill tool (flood-fill region) |
 
 ### Undo/Redo
 
