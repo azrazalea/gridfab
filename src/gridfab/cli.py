@@ -25,6 +25,10 @@ Commands:
     anim add <name> --frames 1,2,3 [opts]   Define a named animation
     anim list [dir]                          List all animations
     anim delete <name> [dir]                 Delete a named animation
+    anim sheet <name> [--scale N] [dir]      Export animation spritesheet
+    anim sheets [--scale N] [dir]            Export all animation spritesheets
+    anim gif <name> [--scale N] [dir]        Export animated GIF
+    anim preview <name> [--scale N] [dir]    Alias for gif
 """
 
 import argparse
@@ -226,6 +230,30 @@ def main() -> None:
     p_anim_del.add_argument("name", help="Animation name to delete")
     p_anim_del.add_argument("directory", nargs="?", default=".", help="Sprite directory")
 
+    p_anim_sheet = anim_sub.add_parser("sheet", help="Export animation spritesheet")
+    p_anim_sheet.add_argument("name", help="Animation name")
+    p_anim_sheet.add_argument("--scale", type=int, default=1, help="Scale factor (default: 1)")
+    p_anim_sheet.add_argument("--layout", choices=["horizontal", "vertical", "grid"],
+                              default="horizontal", help="Layout (default: horizontal)")
+    p_anim_sheet.add_argument("--columns", type=int, default=None, help="Columns for grid layout")
+    p_anim_sheet.add_argument("directory", nargs="?", default=".", help="Sprite directory")
+
+    p_anim_sheets = anim_sub.add_parser("sheets", help="Export all animation spritesheets")
+    p_anim_sheets.add_argument("--scale", type=int, default=1, help="Scale factor (default: 1)")
+    p_anim_sheets.add_argument("--layout", choices=["horizontal", "vertical", "grid"],
+                               default="horizontal", help="Layout (default: horizontal)")
+    p_anim_sheets.add_argument("directory", nargs="?", default=".", help="Sprite directory")
+
+    p_anim_gif = anim_sub.add_parser("gif", help="Export animated GIF")
+    p_anim_gif.add_argument("name", help="Animation name")
+    p_anim_gif.add_argument("--scale", type=int, default=1, help="Scale factor (default: 1)")
+    p_anim_gif.add_argument("directory", nargs="?", default=".", help="Sprite directory")
+
+    p_anim_preview = anim_sub.add_parser("preview", help="Export animated GIF (alias for gif)")
+    p_anim_preview.add_argument("name", help="Animation name")
+    p_anim_preview.add_argument("--scale", type=int, default=1, help="Scale factor (default: 1)")
+    p_anim_preview.add_argument("directory", nargs="?", default=".", help="Sprite directory")
+
     args = parser.parse_args()
 
     if not args.command:
@@ -353,11 +381,14 @@ def _dispatch(args: argparse.Namespace) -> None:
             cmd_frame_list(Path(args.directory))
 
     elif cmd == "anim":
-        from gridfab.commands.anim_cmd import cmd_anim_add, cmd_anim_list, cmd_anim_delete
+        from gridfab.commands.anim_cmd import (
+            cmd_anim_add, cmd_anim_list, cmd_anim_delete,
+            cmd_anim_sheet, cmd_anim_sheets, cmd_anim_gif,
+        )
 
         acmd = args.anim_command
         if not acmd:
-            print("Usage: gridfab anim {add|list|delete}")
+            print("Usage: gridfab anim {add|list|delete|sheet|sheets|gif|preview}")
             sys.exit(1)
 
         if acmd == "add":
@@ -370,6 +401,18 @@ def _dispatch(args: argparse.Namespace) -> None:
             cmd_anim_list(Path(args.directory))
         elif acmd == "delete":
             cmd_anim_delete(Path(args.directory), args.name)
+        elif acmd == "sheet":
+            cmd_anim_sheet(
+                Path(args.directory), args.name,
+                scale=args.scale, layout=args.layout, columns=args.columns,
+            )
+        elif acmd == "sheets":
+            cmd_anim_sheets(
+                Path(args.directory),
+                scale=args.scale, layout=args.layout,
+            )
+        elif acmd in ("gif", "preview"):
+            cmd_anim_gif(Path(args.directory), args.name, scale=args.scale)
 
     elif cmd == "import":
         from gridfab.commands.import_cmd import cmd_import

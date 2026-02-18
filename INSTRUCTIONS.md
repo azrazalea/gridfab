@@ -408,6 +408,42 @@ Remove an animation definition by name. Does not delete the frame files.
 gridfab anim delete <name> [directory]
 ```
 
+#### gridfab anim sheet
+
+Export a spritesheet PNG and JSON metadata for a named animation.
+
+```
+gridfab anim sheet <name> [--scale N] [--layout horizontal|vertical|grid] [--columns N] [directory]
+```
+
+- `--scale N` — Pixel scale factor (default: 1)
+- `--layout` — Frame layout: `horizontal` (default), `vertical`, or `grid`
+- `--columns N` — Columns for grid layout (default: auto)
+
+Output: `<name>_sheet.png` and `<name>_sheet.json` with frame positions and timing metadata compatible with game engines.
+
+#### gridfab anim sheets
+
+Export spritesheets for all defined animations.
+
+```
+gridfab anim sheets [--scale N] [--layout horizontal|vertical|grid] [directory]
+```
+
+#### gridfab anim gif
+
+Export an animated GIF for a named animation.
+
+```
+gridfab anim gif <name> [--scale N] [directory]
+```
+
+Output: `<name>.gif`
+
+#### gridfab anim preview
+
+Alias for `gridfab anim gif`.
+
 ### gridfab import
 
 Import an image into GridFab's text format (grid.txt + palette.txt). Supports single images, single tile extraction from tilesheets, and whole tilesheet splitting.
@@ -655,6 +691,9 @@ You are helping create pixel art using GridFab. The artwork is stored as plain t
 - `gridfab anim add <name> --frames 1,2,3 [--fps 8] [--loop|--no-loop]` — Define a named animation
 - `gridfab anim list` — List all animations
 - `gridfab anim delete <name>` — Remove an animation
+- `gridfab anim sheet <name> [--scale N]` — Export animation spritesheet (PNG + JSON)
+- `gridfab anim sheets` — Export all animation spritesheets
+- `gridfab anim gif <name> [--scale N]` — Export animated GIF
 
 **Other commands:**
 - `gridfab render` — Generate preview.png

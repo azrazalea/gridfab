@@ -16,6 +16,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - `anim add` command: define named animations with frame lists, FPS, and loop settings stored in `animation.json`
 - `anim list` command: display all defined animations
 - `anim delete` command: remove animations by name
+- `anim sheet` command: export animation spritesheet PNG + JSON metadata (horizontal/vertical/grid layouts)
+- `anim sheets` command: export spritesheets for all defined animations
+- `anim gif` command: export animated GIF for a named animation
+- `anim preview` command: alias for `anim gif`
 - GUI status bar showing cursor position, selected color, grid dimensions, zoom level, tool name, modified indicator, and file path
 - GUI grid lines toggle (`G` key) to show/hide pixel borders
 - GUI zoom (mouse wheel) with 6 levels (4/8/16/24/32/48px) and pan (middle-click drag)

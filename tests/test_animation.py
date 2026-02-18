@@ -26,7 +26,11 @@ from gridfab.commands.anim_cmd import (
     cmd_anim_add,
     cmd_anim_list,
     cmd_anim_delete,
+    cmd_anim_sheet,
+    cmd_anim_gif,
 )
+from gridfab.render.spritesheet import render_spritesheet
+from gridfab.render.gif import render_gif
 
 
 # --- discover_frames ---
@@ -387,3 +391,123 @@ def test_anim_delete_missing_errors(animated_3_frames):
     """Deleting non-existent animation raises ValueError."""
     with pytest.raises(ValueError, match="not found"):
         cmd_anim_delete(animated_3_frames, "walk")
+
+
+# ===================================================================
+# Commit 5: Spritesheet and GIF Export
+# ===================================================================
+
+# --- render_spritesheet ---
+
+def test_spritesheet_horizontal():
+    """Horizontal spritesheet has correct dimensions."""
+    # 3 frames, 4x4, scale 1
+    frames_colors = [
+        [["#FF0000"] * 4] * 4,
+        [["#00FF00"] * 4] * 4,
+        [["#0000FF"] * 4] * 4,
+    ]
+    img, meta = render_spritesheet(frames_colors, 4, 4, scale=1, layout="horizontal")
+    assert img.size == (12, 4)  # 3 frames * 4 wide
+    assert len(meta["animations"]["default"]["frames"]) == 3
+
+
+def test_spritesheet_vertical():
+    """Vertical spritesheet has correct dimensions."""
+    frames_colors = [
+        [["#FF0000"] * 4] * 4,
+        [["#00FF00"] * 4] * 4,
+    ]
+    img, meta = render_spritesheet(frames_colors, 4, 4, scale=1, layout="vertical")
+    assert img.size == (4, 8)  # 2 frames * 4 tall
+
+
+def test_spritesheet_grid_layout():
+    """Grid spritesheet with columns has correct dimensions."""
+    frames_colors = [
+        [["#FF0000"] * 4] * 4,
+        [["#00FF00"] * 4] * 4,
+        [["#0000FF"] * 4] * 4,
+        [[None] * 4] * 4,
+    ]
+    img, meta = render_spritesheet(frames_colors, 4, 4, scale=1, layout="grid", columns=2)
+    assert img.size == (8, 8)  # 2 cols * 4, 2 rows * 4
+
+
+def test_spritesheet_scale():
+    """Spritesheet respects scale factor."""
+    frames_colors = [
+        [["#FF0000"] * 4] * 4,
+        [["#00FF00"] * 4] * 4,
+    ]
+    img, meta = render_spritesheet(frames_colors, 4, 4, scale=2, layout="horizontal")
+    assert img.size == (16, 8)  # 2 frames * 4*2 wide, 4*2 tall
+
+
+def test_spritesheet_metadata_structure():
+    """Spritesheet metadata has expected structure."""
+    frames_colors = [
+        [["#FF0000"] * 2] * 2,
+        [["#00FF00"] * 2] * 2,
+    ]
+    _, meta = render_spritesheet(frames_colors, 2, 2, scale=4, layout="horizontal", anim_name="walk", fps=12, loop=False)
+    assert meta["frame_size"] == {"w": 8, "h": 8}
+    walk = meta["animations"]["walk"]
+    assert walk["loop"] is False
+    assert len(walk["frames"]) == 2
+    assert walk["frames"][0]["x"] == 0
+    assert walk["frames"][1]["x"] == 8
+    assert walk["frames"][0]["duration"] == 83  # 1000/12
+
+
+# --- render_gif ---
+
+def test_gif_frame_count():
+    """GIF has correct number of frames."""
+    frames_colors = [
+        [["#FF0000"] * 4] * 4,
+        [["#00FF00"] * 4] * 4,
+        [["#0000FF"] * 4] * 4,
+    ]
+    images, duration = render_gif(frames_colors, 4, 4, scale=1, fps=8)
+    assert len(images) == 3
+    assert duration == 125  # 1000/8
+
+
+def test_gif_dimensions():
+    """GIF frames have correct dimensions."""
+    frames_colors = [
+        [["#FF0000"] * 4] * 4,
+        [["#00FF00"] * 4] * 4,
+    ]
+    images, _ = render_gif(frames_colors, 4, 4, scale=2, fps=8)
+    assert images[0].size == (8, 8)
+
+
+# --- cmd_anim_sheet / cmd_anim_gif ---
+
+def test_cmd_anim_sheet_creates_files(animated_3_frames):
+    """anim sheet creates PNG and JSON files."""
+    cmd_anim_add(animated_3_frames, "walk", [1, 2, 3], fps=8)
+    cmd_anim_sheet(animated_3_frames, "walk", scale=1)
+    assert (animated_3_frames / "walk_sheet.png").exists()
+    assert (animated_3_frames / "walk_sheet.json").exists()
+
+
+def test_cmd_anim_gif_creates_file(animated_3_frames):
+    """anim gif creates GIF file."""
+    cmd_anim_add(animated_3_frames, "walk", [1, 2, 3], fps=8)
+    cmd_anim_gif(animated_3_frames, "walk", scale=1)
+    assert (animated_3_frames / "walk.gif").exists()
+
+
+def test_cmd_anim_sheet_missing_anim_errors(animated_3_frames):
+    """anim sheet with non-existent animation raises ValueError."""
+    with pytest.raises(ValueError, match="not found"):
+        cmd_anim_sheet(animated_3_frames, "walk", scale=1)
+
+
+def test_cmd_anim_gif_missing_anim_errors(animated_3_frames):
+    """anim gif with non-existent animation raises ValueError."""
+    with pytest.raises(ValueError, match="not found"):
+        cmd_anim_gif(animated_3_frames, "walk", scale=1)
