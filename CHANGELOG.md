@@ -18,6 +18,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ### Fixed
 - Tagger: preserve original sprite name before deduplication so downstream code uses the correct base name
+- GUI keyboard shortcuts `[`, `]`, `.` not working on Windows (keybinding format fix)
+- GUI render/export subprocess errors now reported instead of failing silently
 
 ## [0.3.0]
 

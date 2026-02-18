@@ -303,9 +303,9 @@ class PixelEditor:
         root.bind("e", lambda e: self._export())
         root.bind("h", lambda e: self._flip_horizontal())
         root.bind("v", lambda e: self._flip_vertical())
-        root.bind("bracketleft", lambda e: self._zoom(-1))
-        root.bind("bracketright", lambda e: self._zoom(1))
-        root.bind("period", lambda e: self.select_color(TRANSPARENT))
+        root.bind("<bracketleft>", lambda e: self._zoom(-1))
+        root.bind("<bracketright>", lambda e: self._zoom(1))
+        root.bind("<period>", lambda e: self.select_color(TRANSPARENT))
         for k in "1234567890":
             root.bind(k, lambda e, key=k: self._select_palette_by_key(key))
 
@@ -342,10 +342,14 @@ class PixelEditor:
 
     def _export(self) -> None:
         self.save()
-        subprocess.run(
+        result = subprocess.run(
             [sys.executable, "-m", "gridfab", "export", str(self.work_dir)],
+            capture_output=True, text=True,
         )
-        print("Exported PNGs")
+        if result.returncode == 0:
+            print("Exported PNGs")
+        else:
+            print(f"Export failed: {result.stderr.strip()}")
 
     def _flip_horizontal(self) -> None:
         self.undo_stack.append(self.grid.snapshot())
@@ -952,10 +956,14 @@ class PixelEditor:
 
     def render(self) -> None:
         self.save()
-        subprocess.run(
+        result = subprocess.run(
             [sys.executable, "-m", "gridfab", "render", str(self.work_dir)],
+            capture_output=True, text=True,
         )
-        print("Rendered preview.png")
+        if result.returncode == 0:
+            print("Rendered preview.png")
+        else:
+            print(f"Render failed: {result.stderr.strip()}")
 
 
 def main() -> None:
