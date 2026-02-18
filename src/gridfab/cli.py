@@ -76,8 +76,10 @@ def main() -> None:
     # render / show
     p_render = sub.add_parser("render", help="Render preview.png")
     p_render.add_argument("directory", nargs="?", default=".", help="Sprite directory")
+    p_render.add_argument("--frame", type=int, default=None, help="Frame number (for animated sprites)")
     p_show = sub.add_parser("show", help="Alias for render")
     p_show.add_argument("directory", nargs="?", default=".", help="Sprite directory")
+    p_show.add_argument("--frame", type=int, default=None, help="Frame number (for animated sprites)")
 
     # pixel
     p_pixel = sub.add_parser("pixel", help="Set a single pixel by coordinate")
@@ -85,17 +87,20 @@ def main() -> None:
     p_pixel.add_argument("col", type=int, help="Column number (0-indexed)")
     p_pixel.add_argument("color", help="Color alias or #RRGGBB")
     p_pixel.add_argument("--dir", default=".", help="Sprite directory")
+    p_pixel.add_argument("--frame", type=int, default=None, help="Frame number (for animated sprites)")
 
     # pixels
     p_pixels = sub.add_parser("pixels", help="Set multiple pixels: row,col,color ...")
     p_pixels.add_argument("specs", nargs="+", help="Pixel specs as row,col,color")
     p_pixels.add_argument("--dir", default=".", help="Sprite directory")
+    p_pixels.add_argument("--frame", type=int, default=None, help="Frame number (for animated sprites)")
 
     # row
     p_row = sub.add_parser("row", help="Replace a single row")
     p_row.add_argument("row_num", type=int, help="Row number (0-indexed)")
     p_row.add_argument("values", nargs="+", help="Space-separated cell values")
     p_row.add_argument("--dir", default=".", help="Sprite directory")
+    p_row.add_argument("--frame", type=int, default=None, help="Frame number (for animated sprites)")
 
     # rows
     p_rows = sub.add_parser("rows", help="Replace a range of rows")
@@ -103,6 +108,7 @@ def main() -> None:
     p_rows.add_argument("end", type=int, help="End row (inclusive)")
     p_rows.add_argument("values", nargs="+", help="Space-separated cell values")
     p_rows.add_argument("--dir", default=".", help="Sprite directory")
+    p_rows.add_argument("--frame", type=int, default=None, help="Frame number (for animated sprites)")
 
     # fill
     p_fill = sub.add_parser("fill", help="Fill a horizontal span")
@@ -111,6 +117,7 @@ def main() -> None:
     p_fill.add_argument("col_end", type=int, help="End column (inclusive)")
     p_fill.add_argument("color", help="Color alias or #RRGGBB")
     p_fill.add_argument("--dir", default=".", help="Sprite directory")
+    p_fill.add_argument("--frame", type=int, default=None, help="Frame number (for animated sprites)")
 
     # rect
     p_rect = sub.add_parser("rect", help="Fill a rectangle")
@@ -120,14 +127,17 @@ def main() -> None:
     p_rect.add_argument("c1", type=int, help="End column")
     p_rect.add_argument("color", help="Color alias or #RRGGBB")
     p_rect.add_argument("--dir", default=".", help="Sprite directory")
+    p_rect.add_argument("--frame", type=int, default=None, help="Frame number (for animated sprites)")
 
     # clear
     p_clear = sub.add_parser("clear", help="Reset grid to all transparent")
     p_clear.add_argument("directory", nargs="?", default=".", help="Sprite directory")
+    p_clear.add_argument("--frame", type=int, default=None, help="Frame number (for animated sprites)")
 
     # export
     p_export = sub.add_parser("export", help="Export PNGs at multiple scales")
     p_export.add_argument("directory", nargs="?", default=".", help="Sprite directory")
+    p_export.add_argument("--frame", type=int, default=None, help="Frame number (for animated sprites)")
 
     # icon
     p_icon = sub.add_parser("icon", help="Export .ico file (requires square grid)")
@@ -219,31 +229,31 @@ def _dispatch(args: argparse.Namespace) -> None:
         cmd_init(Path(args.directory), w, h)
 
     elif cmd in ("render", "show"):
-        cmd_render(Path(args.directory))
+        cmd_render(Path(args.directory), frame=args.frame)
 
     elif cmd == "pixel":
-        cmd_pixel(Path(args.dir), args.row, args.col, args.color)
+        cmd_pixel(Path(args.dir), args.row, args.col, args.color, frame=args.frame)
 
     elif cmd == "pixels":
-        cmd_pixels(Path(args.dir), args.specs)
+        cmd_pixels(Path(args.dir), args.specs, frame=args.frame)
 
     elif cmd == "row":
-        cmd_row(Path(args.dir), args.row_num, args.values)
+        cmd_row(Path(args.dir), args.row_num, args.values, frame=args.frame)
 
     elif cmd == "rows":
-        cmd_rows(Path(args.dir), args.start, args.end, args.values)
+        cmd_rows(Path(args.dir), args.start, args.end, args.values, frame=args.frame)
 
     elif cmd == "fill":
-        cmd_fill(Path(args.dir), args.row, args.col_start, args.col_end, args.color)
+        cmd_fill(Path(args.dir), args.row, args.col_start, args.col_end, args.color, frame=args.frame)
 
     elif cmd == "rect":
-        cmd_rect(Path(args.dir), args.r0, args.c0, args.r1, args.c1, args.color)
+        cmd_rect(Path(args.dir), args.r0, args.c0, args.r1, args.c1, args.color, frame=args.frame)
 
     elif cmd == "clear":
-        cmd_clear(Path(args.directory))
+        cmd_clear(Path(args.directory), frame=args.frame)
 
     elif cmd == "export":
-        cmd_export(Path(args.directory))
+        cmd_export(Path(args.directory), frame=args.frame)
 
     elif cmd == "icon":
         cmd_icon(Path(args.directory))

@@ -5,10 +5,14 @@ import pytest
 from pathlib import Path
 
 from gridfab.core.grid import Grid
+from gridfab.core.animation import (
+    discover_frames, frame_path, save_state, load_state,
+)
 from gridfab.commands.init import cmd_init
 from gridfab.commands.edit import (
     cmd_row, cmd_rows, cmd_fill, cmd_rect, cmd_pixel, cmd_pixels, cmd_clear,
 )
+from gridfab.commands.frame_cmd import cmd_frame_add
 from gridfab.commands.render_cmd import cmd_render
 from gridfab.commands.export_cmd import cmd_export, cmd_palette
 from gridfab.commands.icon_cmd import cmd_icon
@@ -268,3 +272,78 @@ class TestCmdIcon:
         (tmp_path / "palette.txt").write_text("R=#CC3333\n")
         with pytest.raises(ValueError, match="square"):
             cmd_icon(tmp_path)
+
+
+# ===================================================================
+# Frame-aware edit commands (--frame integration)
+# ===================================================================
+
+@pytest.fixture
+def animated_sprite(tmp_path):
+    """Create a 4x4 animated sprite with 2 frames."""
+    (tmp_path / "palette.txt").write_text("R=#CC3333\nB=#0000FF\nG=#00CC00\n")
+    (tmp_path / "grid.txt").write_text(
+        ". . . .\n. . . .\n. . . .\n. . . .\n"
+    )
+    cmd_frame_add(tmp_path)  # creates frame_001 + frame_002
+    return tmp_path
+
+
+class TestFrameAwarePixel:
+    def test_pixel_with_explicit_frame(self, animated_sprite):
+        """pixel with frame=1 edits frame_001.txt."""
+        cmd_pixel(animated_sprite, 0, 0, "R", frame=1)
+        grid = Grid.load(frame_path(animated_sprite, 1))
+        assert grid.get(0, 0) == "R"
+        # frame 2 should be unchanged
+        grid2 = Grid.load(frame_path(animated_sprite, 2))
+        assert grid2.get(0, 0) == "."
+
+    def test_pixel_without_frame_uses_active(self, animated_sprite):
+        """pixel without --frame in animated dir uses active frame from state."""
+        # active is frame 2 (set by frame add)
+        cmd_pixel(animated_sprite, 1, 1, "B")
+        grid2 = Grid.load(frame_path(animated_sprite, 2))
+        assert grid2.get(1, 1) == "B"
+
+    def test_pixel_non_animated_uses_grid_txt(self, sprite_dir):
+        """pixel on non-animated dir still uses grid.txt."""
+        cmd_pixel(sprite_dir, 0, 0, "R")
+        grid = Grid.load(sprite_dir / "grid.txt")
+        assert grid.get(0, 0) == "R"
+
+
+class TestFrameAwareRow:
+    def test_row_with_frame(self, animated_sprite):
+        cmd_row(animated_sprite, 0, ["R", "B", "R", "B"], frame=1)
+        grid = Grid.load(frame_path(animated_sprite, 1))
+        assert grid.data[0] == ["R", "B", "R", "B"]
+
+
+class TestFrameAwareFill:
+    def test_fill_with_frame(self, animated_sprite):
+        cmd_fill(animated_sprite, 0, 0, 3, "G", frame=1)
+        grid = Grid.load(frame_path(animated_sprite, 1))
+        assert grid.data[0] == ["G", "G", "G", "G"]
+
+
+class TestFrameAwareClear:
+    def test_clear_with_frame(self, animated_sprite):
+        cmd_pixel(animated_sprite, 0, 0, "R", frame=1)
+        cmd_clear(animated_sprite, frame=1)
+        grid = Grid.load(frame_path(animated_sprite, 1))
+        assert all(v == "." for row in grid.data for v in row)
+
+
+class TestFrameAwareRender:
+    def test_render_with_frame(self, animated_sprite):
+        cmd_render(animated_sprite, frame=1)
+        assert (animated_sprite / "preview.png").exists()
+
+
+class TestFrameAwareExport:
+    def test_export_with_frame(self, animated_sprite):
+        config = {"grid": {"width": 4, "height": 4}, "export": {"scales": [1]}}
+        (animated_sprite / "gridfab.json").write_text(json.dumps(config))
+        cmd_export(animated_sprite, frame=1)
+        assert (animated_sprite / "output.png").exists()

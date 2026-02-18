@@ -4,12 +4,14 @@ from pathlib import Path
 
 from gridfab.core.grid import Grid
 from gridfab.core.palette import Palette
+from gridfab.core.animation import resolve_grid_path
 from gridfab.render.preview import render_preview, PREVIEW_SCALE
 
 
-def cmd_render(directory: Path) -> None:
+def cmd_render(directory: Path, frame: int | None = None) -> None:
     """Render a preview image with checkerboard transparency background."""
-    grid = Grid.load(directory / "grid.txt")
+    grid_path = resolve_grid_path(directory, frame)
+    grid = Grid.load(grid_path)
     palette = Palette.load(directory / "palette.txt")
     colors = palette.resolve_grid(grid.data)
 
@@ -17,5 +19,4 @@ def cmd_render(directory: Path) -> None:
     output = directory / "preview.png"
     img.save(str(output))
 
-    size = max(grid.width, grid.height) * PREVIEW_SCALE
     print(f"Rendered {output} ({grid.width * PREVIEW_SCALE}x{grid.height * PREVIEW_SCALE})")

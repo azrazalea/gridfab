@@ -184,6 +184,8 @@ The GUI tracks up to 512 undo steps. Each continuous paint stroke (click through
 
 All commands operate on a sprite directory (defaults to `.` — the current directory). All coordinates are 0-indexed.
 
+**Animated sprite support:** Edit commands (`pixel`, `pixels`, `row`, `rows`, `fill`, `rect`, `clear`) and output commands (`render`, `export`) accept `--frame N` to target a specific frame. Without `--frame`, animated sprites use the active frame (set via `frame select`). Non-animated sprites (grid.txt only) work unchanged.
+
 ### gridfab init
 
 Create a new sprite directory with blank grid.txt, starter palette.txt, and gridfab.json.
