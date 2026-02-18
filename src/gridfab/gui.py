@@ -21,6 +21,10 @@ CHECKER_LIGHT = "#DCDCDC"
 CHECKER_DARK = "#B4B4B4"
 
 
+TOOL_BRUSH = "Brush"
+TOOL_EYEDROPPER = "Eyedropper"
+TOOL_FILL = "Fill"
+
 SWATCH_COLS = 3
 
 
@@ -119,6 +123,13 @@ def cursor_preview_color(selected: str, palette: Palette) -> str:
     return "#FF00FF"
 
 
+def eyedropper_pick(grid, r: int | None, c: int | None) -> str | None:
+    """Return the raw grid value at (r, c), or None if out of bounds."""
+    if r is None or c is None:
+        return None
+    return grid.data[r][c]
+
+
 def cell_display_color(val: str, palette: Palette, r: int, c: int) -> str:
     """Resolve a grid value to a display color string for tkinter."""
     if val == TRANSPARENT:
@@ -152,6 +163,7 @@ class PixelEditor:
         self.grid_lines_visible = True
         self.cell_size = DEFAULT_CELL_SIZE
         self._preview_rect: int | None = None
+        self.tool = TOOL_BRUSH
 
         # Undo/redo stacks
         self.undo_stack: list[list[list[str]]] = []
@@ -268,6 +280,7 @@ class PixelEditor:
         root.bind("<Control-y>", lambda e: self.redo())
         root.bind("<Control-Shift-Z>", lambda e: self.redo())
         root.bind("g", lambda e: self._toggle_grid_lines())
+        root.bind("i", lambda e: self._set_tool(TOOL_EYEDROPPER))
 
         self.select_color(TRANSPARENT)
         self._update_status()
@@ -279,6 +292,16 @@ class PixelEditor:
             else:
                 btn.config(relief=tk.RAISED, borderwidth=1)
         self.selected = alias
+        self._update_status()
+
+    def _set_tool(self, tool: str) -> None:
+        self.tool = tool
+        cursors = {
+            TOOL_BRUSH: "",
+            TOOL_EYEDROPPER: "crosshair",
+            TOOL_FILL: "plus",
+        }
+        self.canvas.config(cursor=cursors.get(tool, ""))
         self._update_status()
 
     def _on_motion(self, event: tk.Event) -> None:
@@ -338,7 +361,7 @@ class PixelEditor:
             grid_w=self.grid.width,
             grid_h=self.grid.height,
             modified=self.modified,
-            tool_name="Brush",
+            tool_name=self.tool,
             zoom_pct=zoom_pct,
             file_path=self.work_dir.resolve().name,
         )
@@ -395,12 +418,41 @@ class PixelEditor:
         self._set_modified()
 
     def on_click(self, event: tk.Event) -> None:
+        # Alt+click = eyedropper from any tool
+        if event.state & 0x20000:  # Alt modifier
+            self._eyedropper_at(event)
+            return
+        r, c = self.cell_at(event)
+        if self.tool == TOOL_EYEDROPPER:
+            self._eyedropper_at(event)
+        elif self.tool == TOOL_FILL:
+            self._fill_at(r, c)
+        else:
+            self.paint(r, c, self.selected)
+
+    def on_drag(self, event: tk.Event) -> None:
+        if self.tool != TOOL_BRUSH:
+            return
         r, c = self.cell_at(event)
         self.paint(r, c, self.selected)
 
-    def on_drag(self, event: tk.Event) -> None:
+    def _eyedropper_at(self, event: tk.Event) -> None:
         r, c = self.cell_at(event)
-        self.paint(r, c, self.selected)
+        value = eyedropper_pick(self.grid, r, c)
+        if value is not None:
+            self.select_color(value)
+            self._set_tool(TOOL_BRUSH)
+
+    def _fill_at(self, r: int | None, c: int | None) -> None:
+        if r is None or c is None:
+            return
+        self.undo_stack.append(self.grid.snapshot())
+        if len(self.undo_stack) > self.max_undo:
+            self.undo_stack.pop(0)
+        self.redo_stack.clear()
+        self.grid.flood_fill(r, c, self.selected)
+        self._redraw()
+        self._set_modified()
 
     def on_right_click(self, event: tk.Event) -> None:
         r, c = self.cell_at(event)

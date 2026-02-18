@@ -11,6 +11,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - GUI grid lines toggle (`G` key) to show/hide pixel borders
 - GUI zoom (mouse wheel) with 6 levels (4/8/16/24/32/48px) and pan (middle-click drag)
 - GUI cursor preview: colored border on hovered cell showing selected color
+- GUI tool mode system with Brush, Eyedropper (`I` key), and Fill tools
+- GUI eyedropper tool: pick color from canvas, auto-returns to brush; Alt+click from any tool
 
 ### Fixed
 - Tagger: preserve original sprite name before deduplication so downstream code uses the correct base name

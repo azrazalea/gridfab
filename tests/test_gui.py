@@ -5,10 +5,12 @@ from gridfab.gui import (
     checker_color, cell_display_color, _contrast_color,
     format_status_text, grid_line_config,
     zoom_step, cell_at_coords, fit_zoom_level,
-    cursor_preview_color,
+    cursor_preview_color, eyedropper_pick,
     CHECKER_LIGHT, CHECKER_DARK, ZOOM_LEVELS,
+    TOOL_BRUSH, TOOL_EYEDROPPER, TOOL_FILL,
 )
 from gridfab.core.palette import Palette
+from gridfab.core.grid import Grid, TRANSPARENT
 
 
 class TestCheckerColor:
@@ -216,3 +218,30 @@ class TestCursorPreviewColor:
     def test_inline_hex_returned_as_is(self):
         palette = Palette()
         assert cursor_preview_color("#AABBCC", palette) == "#AABBCC"
+
+
+class TestToolConstants:
+    def test_tools_are_distinct(self):
+        assert TOOL_BRUSH != TOOL_EYEDROPPER
+        assert TOOL_BRUSH != TOOL_FILL
+        assert TOOL_EYEDROPPER != TOOL_FILL
+
+
+class TestEyedropperPick:
+    def test_picks_alias(self):
+        grid = Grid.blank(4, 4)
+        grid.set(1, 2, "R")
+        assert eyedropper_pick(grid, 1, 2) == "R"
+
+    def test_picks_transparent(self):
+        grid = Grid.blank(4, 4)
+        assert eyedropper_pick(grid, 0, 0) == TRANSPARENT
+
+    def test_picks_inline_hex(self):
+        grid = Grid.blank(4, 4)
+        grid.set(0, 0, "#AABB11")
+        assert eyedropper_pick(grid, 0, 0) == "#AABB11"
+
+    def test_returns_none_for_invalid_coords(self):
+        grid = Grid.blank(4, 4)
+        assert eyedropper_pick(grid, None, None) is None
