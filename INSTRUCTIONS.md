@@ -103,6 +103,24 @@ Optional configuration file. Created automatically by `gridfab init`.
 | `grid.height` | integer | 32 | Grid height in pixels (used when creating new grids) |
 | `export.scales` | list of integers | [1, 4, 8, 16] | Scale factors for PNG export |
 
+### Animation Files (animated sprites only)
+
+Animated sprites use `frame_NNN.txt` files (e.g. `frame_001.txt`, `frame_002.txt`) instead of a single `grid.txt`. All frames share the same `palette.txt` and `gridfab.json`. Additional metadata files:
+
+- **`animation.json`** — Named animations with frame lists, FPS, and loop settings:
+  ```json
+  {
+    "walk": {"frames": [1, 2, 3, 4], "fps": 8, "loop": true},
+    "idle": {"frames": [1], "fps": 1, "loop": true}
+  }
+  ```
+- **`.gridfab_state`** — Active frame state (created automatically):
+  ```json
+  {"active_frame": 1}
+  ```
+
+A directory with only `grid.txt` is a valid non-animated sprite. Animation mode activates when `frame_NNN.txt` files exist. Use `gridfab frame add` to convert a sprite to animated mode.
+
 ## GUI Editor
 
 Launch with `gridfab-gui [directory]` (defaults to current directory). On Windows, double-click `gridfab-gui.exe`.
@@ -186,6 +204,21 @@ Removing a color deletes it from palette.txt. Any cells using that alias will sh
 ### Undo/Redo
 
 The GUI tracks up to 512 undo steps. Each continuous paint stroke (click through release) is one undo step. Refreshing from disk is also an undoable action — if you don't like what an LLM changed, hit Ctrl+Z to revert to your previous state.
+
+### Animation (GUI)
+
+When editing an animated sprite (one with `frame_NNN.txt` files), the GUI shows a **frame strip** between the canvas and status bar:
+
+- **Frame buttons** — Click to switch between frames. Active frame is highlighted.
+- **+ / Dup / Del** — Add a blank frame, duplicate the active frame, or delete it.
+- **Cp / Ps** — Copy the active frame to memory, paste as a new frame (also Ctrl+C/V).
+- **Move buttons** (◀ / ▶) — Swap the active frame with its neighbor to reorder.
+- **Play / Stop** — Toggle animation playback (also Space bar). Painting is disabled during playback.
+- **FPS spinner** — Set playback speed (1-60 FPS).
+- **Animation dropdown** — Select a named animation to play, or "(All Frames)" to play all.
+- **Onion skinning** — Press `O` to show the previous frame as a translucent overlay. `Shift+O` cycles opacity (25% / 50% / 75%).
+
+The undo/redo history is cleared when switching frames. Frame changes auto-save the current frame if modified.
 
 ## CLI Reference
 

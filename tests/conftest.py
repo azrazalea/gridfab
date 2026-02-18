@@ -82,3 +82,22 @@ def sprite_dir_with_config(sprite_dir: Path) -> Path:
     }
     (sprite_dir / "gridfab.json").write_text(json.dumps(config, indent=2) + "\n")
     return sprite_dir
+
+
+@pytest.fixture
+def animated_sprite_dir(tmp_path: Path) -> Path:
+    """Animated 4x4 sprite with 3 frames and a 'walk' animation."""
+    from gridfab.commands.frame_cmd import cmd_frame_add
+    from gridfab.commands.anim_cmd import cmd_anim_add
+
+    (tmp_path / "palette.txt").write_text("R=#CC3333\nB=#0000FF\nG=#00CC00\n")
+    (tmp_path / "grid.txt").write_text(
+        "R . . .\n"
+        ". . . .\n"
+        ". . . .\n"
+        ". . . .\n"
+    )
+    cmd_frame_add(tmp_path)  # converts to frame_001 + frame_002
+    cmd_frame_add(tmp_path)  # frame_003
+    cmd_anim_add(tmp_path, "walk", [1, 2, 3], fps=8, loop=True)
+    return tmp_path

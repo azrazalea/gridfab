@@ -597,3 +597,146 @@ def test_swap_and_move_frame_left(animated_3_frames):
     # Animation refs updated
     final_anims = load_animations(animated_3_frames)
     assert final_anims["walk"]["frames"] == [2, 1, 3]
+
+
+# ===================================================================
+# Commit 10: Integration tests
+# ===================================================================
+
+from gridfab.core.grid import Grid
+from gridfab.commands.edit import cmd_pixel, cmd_fill, cmd_clear, cmd_rect
+from gridfab.commands.render_cmd import cmd_render
+from gridfab.commands.export_cmd import cmd_export
+
+
+def test_full_animation_workflow(tmp_path):
+    """End-to-end: init → frame add → pixel edits → anim → sheet → gif."""
+    # Set up a sprite with palette
+    (tmp_path / "palette.txt").write_text("R=#CC3333\nB=#0000FF\n")
+    (tmp_path / "grid.txt").write_text(". . . .\n. . . .\n. . . .\n. . . .\n")
+
+    # Add frames (converts to animated mode)
+    cmd_frame_add(tmp_path)
+    cmd_frame_add(tmp_path)
+    cmd_frame_add(tmp_path, blank=True)
+    assert discover_frames(tmp_path) == [1, 2, 3, 4]
+    assert not (tmp_path / "grid.txt").exists()
+
+    # Edit specific frames
+    cmd_pixel(tmp_path, 0, 0, "R", frame=1)
+    cmd_pixel(tmp_path, 0, 1, "B", frame=2)
+    cmd_pixel(tmp_path, 1, 0, "R", frame=3)
+
+    # Verify edits landed on correct frames
+    g1 = Grid.load(frame_path(tmp_path, 1))
+    assert g1.data[0][0] == "R"
+    assert g1.data[0][1] == "."
+
+    g2 = Grid.load(frame_path(tmp_path, 2))
+    assert g2.data[0][1] == "B"
+
+    g3 = Grid.load(frame_path(tmp_path, 3))
+    assert g3.data[1][0] == "R"
+
+    # Define animation and export
+    cmd_anim_add(tmp_path, "walk", [1, 2, 3], fps=8, loop=True)
+    cmd_anim_sheet(tmp_path, "walk", scale=1)
+    cmd_anim_gif(tmp_path, "walk", scale=1)
+
+    assert (tmp_path / "walk_sheet.png").exists()
+    assert (tmp_path / "walk_sheet.json").exists()
+    assert (tmp_path / "walk.gif").exists()
+
+    # Frame list
+    frames = discover_frames(tmp_path)
+    assert frames == [1, 2, 3, 4]
+
+    # Delete frame 4 (shouldn't affect walk animation)
+    cmd_frame_delete(tmp_path, 4)
+    assert discover_frames(tmp_path) == [1, 2, 3]
+    anims = load_animations(tmp_path)
+    assert anims["walk"]["frames"] == [1, 2, 3]
+
+
+def test_backward_compat_non_animated_unchanged(tmp_path):
+    """Non-animated sprite works exactly as before with all commands."""
+    (tmp_path / "palette.txt").write_text("R=#CC3333\nB=#0000FF\n")
+    (tmp_path / "grid.txt").write_text(". . . .\n. . . .\n. . . .\n. . . .\n")
+
+    # Pixel edit
+    cmd_pixel(tmp_path, 0, 0, "R")
+    g = Grid.load(tmp_path / "grid.txt")
+    assert g.data[0][0] == "R"
+
+    # Fill (row 1, col 0 to 1)
+    cmd_fill(tmp_path, 1, 0, 1, "B")
+    g = Grid.load(tmp_path / "grid.txt")
+    assert g.data[1][0] == "B"
+    assert g.data[1][1] == "B"
+
+    # Render
+    cmd_render(tmp_path)
+    assert (tmp_path / "preview.png").exists()
+
+    # Export
+    cmd_export(tmp_path)
+    assert (tmp_path / "output.png").exists()
+
+    # Clear
+    cmd_clear(tmp_path)
+    g = Grid.load(tmp_path / "grid.txt")
+    assert g.data[0][0] == "."
+    assert g.data[1][0] == "."
+
+    # No frame files created
+    assert not is_animated(tmp_path)
+    assert (tmp_path / "grid.txt").exists()
+
+
+def test_frame_select_then_edit_targets_correct_frame(tmp_path):
+    """frame select + edit without --frame targets selected frame."""
+    (tmp_path / "palette.txt").write_text("R=#CC3333\n")
+    (tmp_path / "grid.txt").write_text(". . . .\n. . . .\n. . . .\n. . . .\n")
+    cmd_frame_add(tmp_path)  # 1, 2
+    cmd_frame_add(tmp_path)  # 1, 2, 3
+
+    cmd_frame_select(tmp_path, 2)
+    cmd_pixel(tmp_path, 0, 0, "R")  # Should edit frame 2 (active)
+
+    g2 = Grid.load(frame_path(tmp_path, 2))
+    assert g2.data[0][0] == "R"
+
+    # Frame 1 and 3 untouched
+    g1 = Grid.load(frame_path(tmp_path, 1))
+    assert g1.data[0][0] == "."
+    g3 = Grid.load(frame_path(tmp_path, 3))
+    assert g3.data[0][0] == "."
+
+
+def test_delete_frame_updates_animation_refs_integration(tmp_path):
+    """Deleting a frame renumbers and updates animation references correctly."""
+    (tmp_path / "palette.txt").write_text("R=#CC3333\n")
+    (tmp_path / "grid.txt").write_text(". . . .\n. . . .\n. . . .\n. . . .\n")
+    cmd_frame_add(tmp_path)
+    cmd_frame_add(tmp_path)
+    cmd_frame_add(tmp_path)
+    # 4 frames: 1, 2, 3, 4
+    cmd_anim_add(tmp_path, "walk", [1, 2, 3, 4], fps=8, loop=True)
+
+    # Delete frame 2 — frames renumber: 1, 2(was 3), 3(was 4)
+    cmd_frame_delete(tmp_path, 2)
+    assert discover_frames(tmp_path) == [1, 2, 3]
+    anims = load_animations(tmp_path)
+    # Frame 2 removed, frames 3→2 and 4→3
+    assert anims["walk"]["frames"] == [1, 2, 3]
+
+
+def test_animated_sprite_dir_fixture(animated_sprite_dir):
+    """animated_sprite_dir fixture has expected structure."""
+    assert discover_frames(animated_sprite_dir) == [1, 2, 3]
+    assert is_animated(animated_sprite_dir)
+    anims = load_animations(animated_sprite_dir)
+    assert "walk" in anims
+    assert anims["walk"]["frames"] == [1, 2, 3]
+    assert anims["walk"]["fps"] == 8
+    assert anims["walk"]["loop"] is True
