@@ -253,7 +253,7 @@ class PixelEditor:
             highlightthickness=0,
             scrollregion=(0, 0, canvas_w, canvas_h),
         )
-        self.canvas.pack(side=tk.LEFT, padx=5, pady=5)
+        self.canvas.pack(side=tk.LEFT, padx=5, pady=5, fill=tk.BOTH, expand=True)
 
         # Draw cells
         self.cells: list[list[int]] = []
@@ -635,7 +635,7 @@ class PixelEditor:
             self.undo_stack.pop(0)
         self.redo_stack.clear()
         self.grid = Grid.blank(w, h)
-        self._rebuild_canvas()
+        self._rebuild_canvas(resize_viewport=True)
         self.save()
         print(f"New {w}x{h} grid created")
 
@@ -792,7 +792,7 @@ class PixelEditor:
         self._rebuild_palette_buttons()
 
         # Rebuild canvas
-        self._rebuild_canvas()
+        self._rebuild_canvas(resize_viewport=True)
 
         # Update title and status
         self._update_title()
@@ -929,12 +929,13 @@ class PixelEditor:
         self.select_color(self.selected)
         self._redraw()
 
-    def _rebuild_canvas(self) -> None:
+    def _rebuild_canvas(self, resize_viewport: bool = False) -> None:
         """Rebuild the canvas for a new grid size."""
         cs = self.cell_size
         canvas_w = self.grid.width * cs
         canvas_h = self.grid.height * cs
-        self.canvas.config(width=min(canvas_w, 800), height=min(canvas_h, 600))
+        if resize_viewport:
+            self.canvas.config(width=min(canvas_w, 800), height=min(canvas_h, 600))
         self.canvas.config(scrollregion=(0, 0, canvas_w, canvas_h))
         self.canvas.delete("all")
         self.cells = []

@@ -20,6 +20,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - Tagger: preserve original sprite name before deduplication so downstream code uses the correct base name
 - GUI keyboard shortcuts `[`, `]`, `.` not working on Windows (keybinding format fix)
 - GUI render/export subprocess errors now reported instead of failing silently
+- GUI window no longer jumps around when zooming; canvas fills available space on window resize
 
 ## [0.3.0]
 
