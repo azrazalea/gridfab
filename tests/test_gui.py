@@ -4,7 +4,8 @@ import pytest
 from gridfab.gui import (
     checker_color, cell_display_color, _contrast_color,
     format_status_text, grid_line_config,
-    CHECKER_LIGHT, CHECKER_DARK,
+    zoom_step, cell_at_coords, fit_zoom_level,
+    CHECKER_LIGHT, CHECKER_DARK, ZOOM_LEVELS,
 )
 from gridfab.core.palette import Palette
 
@@ -147,3 +148,55 @@ class TestGridLineConfig:
         cfg = grid_line_config(False)
         assert cfg["outline"] == ""
         assert cfg["width"] == 0
+
+
+class TestZoomStep:
+    def test_zoom_in_from_default(self):
+        assert zoom_step(16, 1) == 24
+
+    def test_zoom_out_from_default(self):
+        assert zoom_step(16, -1) == 8
+
+    def test_zoom_in_at_max(self):
+        assert zoom_step(ZOOM_LEVELS[-1], 1) == ZOOM_LEVELS[-1]
+
+    def test_zoom_out_at_min(self):
+        assert zoom_step(ZOOM_LEVELS[0], -1) == ZOOM_LEVELS[0]
+
+    def test_zoom_in_steps_through_levels(self):
+        level = ZOOM_LEVELS[0]
+        for expected in ZOOM_LEVELS[1:]:
+            level = zoom_step(level, 1)
+            assert level == expected
+
+
+class TestCellAtCoords:
+    def test_top_left_corner(self):
+        r, c = cell_at_coords(0, 0, 16, 4, 4)
+        assert (r, c) == (0, 0)
+
+    def test_within_bounds(self):
+        r, c = cell_at_coords(33, 17, 16, 4, 4)
+        assert (r, c) == (1, 2)
+
+    def test_out_of_bounds(self):
+        r, c = cell_at_coords(100, 100, 16, 4, 4)
+        assert (r, c) == (None, None)
+
+    def test_negative_coords(self):
+        r, c = cell_at_coords(-5, 10, 16, 4, 4)
+        assert (r, c) == (None, None)
+
+
+class TestFitZoomLevel:
+    def test_small_grid_fits_large(self):
+        level = fit_zoom_level(8, 8, 800, 600)
+        assert level >= 16
+
+    def test_large_grid_zooms_out(self):
+        level = fit_zoom_level(256, 256, 800, 600)
+        assert level < 16
+
+    def test_result_is_valid_zoom_level(self):
+        level = fit_zoom_level(32, 32, 800, 600)
+        assert level in ZOOM_LEVELS

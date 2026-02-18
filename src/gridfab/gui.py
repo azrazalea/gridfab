@@ -15,7 +15,8 @@ from pathlib import Path
 from gridfab.core.grid import Grid, TRANSPARENT, get_grid_dimensions
 from gridfab.core.palette import Palette
 
-CELL_SIZE = 16
+ZOOM_LEVELS = [4, 8, 16, 24, 32, 48]
+DEFAULT_CELL_SIZE = 16
 CHECKER_LIGHT = "#DCDCDC"
 CHECKER_DARK = "#B4B4B4"
 
@@ -75,6 +76,38 @@ def grid_line_config(visible: bool) -> dict:
     return {"outline": "", "width": 0}
 
 
+def zoom_step(current: int, direction: int) -> int:
+    """Return the next zoom level in the given direction (+1 or -1)."""
+    try:
+        idx = ZOOM_LEVELS.index(current)
+    except ValueError:
+        idx = ZOOM_LEVELS.index(DEFAULT_CELL_SIZE)
+    new_idx = max(0, min(len(ZOOM_LEVELS) - 1, idx + direction))
+    return ZOOM_LEVELS[new_idx]
+
+
+def cell_at_coords(
+    x: int, y: int, cell_size: int, w: int, h: int,
+) -> tuple[int | None, int | None]:
+    """Convert pixel coordinates to grid (row, col), or (None, None) if out of bounds."""
+    if x < 0 or y < 0:
+        return None, None
+    c = x // cell_size
+    r = y // cell_size
+    if 0 <= r < h and 0 <= c < w:
+        return r, c
+    return None, None
+
+
+def fit_zoom_level(grid_w: int, grid_h: int, viewport_w: int, viewport_h: int) -> int:
+    """Find the largest zoom level that fits the grid in the viewport."""
+    best = ZOOM_LEVELS[0]
+    for level in ZOOM_LEVELS:
+        if grid_w * level <= viewport_w and grid_h * level <= viewport_h:
+            best = level
+    return best
+
+
 def cell_display_color(val: str, palette: Palette, r: int, c: int) -> str:
     """Resolve a grid value to a display color string for tkinter."""
     if val == TRANSPARENT:
@@ -106,6 +139,7 @@ class PixelEditor:
         self.modified = False
         self.cursor_pos: tuple[int, int] | None = None
         self.grid_lines_visible = True
+        self.cell_size = DEFAULT_CELL_SIZE
 
         # Undo/redo stacks
         self.undo_stack: list[list[list[str]]] = []
@@ -172,10 +206,12 @@ class PixelEditor:
             ).grid(row=i // 2, column=i % 2, padx=2, pady=2)
 
         # Canvas
-        canvas_w = self.grid.width * CELL_SIZE
-        canvas_h = self.grid.height * CELL_SIZE
+        canvas_w = self.grid.width * self.cell_size
+        canvas_h = self.grid.height * self.cell_size
         self.canvas = tk.Canvas(
-            main, width=canvas_w, height=canvas_h, highlightthickness=0,
+            main, width=min(canvas_w, 800), height=min(canvas_h, 600),
+            highlightthickness=0,
+            scrollregion=(0, 0, canvas_w, canvas_h),
         )
         self.canvas.pack(side=tk.LEFT, padx=5, pady=5)
 
@@ -185,13 +221,13 @@ class PixelEditor:
         for r in range(self.grid.height):
             row_cells: list[int] = []
             for c in range(self.grid.width):
-                x0 = c * CELL_SIZE
-                y0 = r * CELL_SIZE
+                x0 = c * self.cell_size
+                y0 = r * self.cell_size
                 color = cell_display_color(
                     self.grid.data[r][c], self.palette, r, c,
                 )
                 rect = self.canvas.create_rectangle(
-                    x0, y0, x0 + CELL_SIZE, y0 + CELL_SIZE,
+                    x0, y0, x0 + self.cell_size, y0 + self.cell_size,
                     fill=color, **line_cfg,
                 )
                 row_cells.append(rect)
@@ -208,6 +244,11 @@ class PixelEditor:
         # Canvas tracking
         self.canvas.bind("<Motion>", self._on_motion)
         self.canvas.bind("<Leave>", self._on_leave)
+
+        # Zoom and pan
+        self.canvas.bind("<MouseWheel>", self._on_mousewheel)
+        self.canvas.bind("<Button-2>", self._on_pan_start)
+        self.canvas.bind("<B2-Motion>", self._on_pan_drag)
 
         # Keyboard bindings
         root.bind("<Control-s>", lambda e: self.save())
@@ -257,6 +298,7 @@ class PixelEditor:
                 selected_hex = self.palette.entries[self.selected]
             elif self.selected.startswith("#"):
                 selected_hex = self.selected
+        zoom_pct = round(self.cell_size / DEFAULT_CELL_SIZE * 100)
         text = format_status_text(
             cursor_pos=self.cursor_pos,
             selected=self.selected,
@@ -265,7 +307,7 @@ class PixelEditor:
             grid_h=self.grid.height,
             modified=self.modified,
             tool_name="Brush",
-            zoom_pct=100,
+            zoom_pct=zoom_pct,
             file_path=self.work_dir.resolve().name,
         )
         self.status_var.set(text)
@@ -277,12 +319,31 @@ class PixelEditor:
             for rect in row:
                 self.canvas.itemconfig(rect, **cfg)
 
+    def _on_mousewheel(self, event: tk.Event) -> None:
+        direction = 1 if event.delta > 0 else -1
+        new_size = zoom_step(self.cell_size, direction)
+        if new_size != self.cell_size:
+            self.cell_size = new_size
+            self._rebuild_canvas()
+            self._update_status()
+
+    def _on_pan_start(self, event: tk.Event) -> None:
+        self.canvas.scan_mark(event.x, event.y)
+
+    def _on_pan_drag(self, event: tk.Event) -> None:
+        self.canvas.scan_dragto(event.x, event.y, gain=1)
+
+    def _zoom(self, direction: int) -> None:
+        new_size = zoom_step(self.cell_size, direction)
+        if new_size != self.cell_size:
+            self.cell_size = new_size
+            self._rebuild_canvas()
+            self._update_status()
+
     def cell_at(self, event: tk.Event) -> tuple[int | None, int | None]:
-        c = event.x // CELL_SIZE
-        r = event.y // CELL_SIZE
-        if 0 <= r < self.grid.height and 0 <= c < self.grid.width:
-            return r, c
-        return None, None
+        x = int(self.canvas.canvasx(event.x))
+        y = int(self.canvas.canvasy(event.y))
+        return cell_at_coords(x, y, self.cell_size, self.grid.width, self.grid.height)
 
     def _begin_stroke(self) -> None:
         if not self._stroke_active:
@@ -720,22 +781,24 @@ class PixelEditor:
 
     def _rebuild_canvas(self) -> None:
         """Rebuild the canvas for a new grid size."""
-        canvas_w = self.grid.width * CELL_SIZE
-        canvas_h = self.grid.height * CELL_SIZE
-        self.canvas.config(width=canvas_w, height=canvas_h)
+        cs = self.cell_size
+        canvas_w = self.grid.width * cs
+        canvas_h = self.grid.height * cs
+        self.canvas.config(width=min(canvas_w, 800), height=min(canvas_h, 600))
+        self.canvas.config(scrollregion=(0, 0, canvas_w, canvas_h))
         self.canvas.delete("all")
         self.cells = []
         line_cfg = grid_line_config(self.grid_lines_visible)
         for r in range(self.grid.height):
             row_cells: list[int] = []
             for c in range(self.grid.width):
-                x0 = c * CELL_SIZE
-                y0 = r * CELL_SIZE
+                x0 = c * cs
+                y0 = r * cs
                 color = cell_display_color(
                     self.grid.data[r][c], self.palette, r, c,
                 )
                 rect = self.canvas.create_rectangle(
-                    x0, y0, x0 + CELL_SIZE, y0 + CELL_SIZE,
+                    x0, y0, x0 + cs, y0 + cs,
                     fill=color, **line_cfg,
                 )
                 row_cells.append(rect)

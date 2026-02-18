@@ -120,6 +120,12 @@ The bottom of the window shows a status bar with:
 
 The window title also shows `*` when the grid has been modified since the last save.
 
+### Zoom and Pan
+
+- **Mouse wheel** — Zoom in/out through 6 levels (4px, 8px, 16px, 24px, 32px, 48px per cell)
+- **Middle-click drag** — Pan the canvas when zoomed in
+- The status bar shows the current zoom percentage (100% = 16px default)
+
 ### Painting
 
 - **Left-click** — Paint with the selected color
