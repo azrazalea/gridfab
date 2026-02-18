@@ -511,3 +511,89 @@ def test_cmd_anim_gif_missing_anim_errors(animated_3_frames):
     """anim gif with non-existent animation raises ValueError."""
     with pytest.raises(ValueError, match="not found"):
         cmd_anim_gif(animated_3_frames, "walk", scale=1)
+
+
+# ===================================================================
+# Commit 9: Frame swap and reorder
+# ===================================================================
+
+from gridfab.core.animation import swap_frame_files, update_animations_after_swap
+
+
+def test_swap_frame_files(animated_3_frames):
+    """Swapping two frames exchanges their file contents."""
+    from gridfab.core.grid import Grid
+    # Write distinct content to frames 1 and 2
+    g1 = Grid.load(frame_path(animated_3_frames, 1))
+    g1.set(0, 0, "R")
+    g1.save(frame_path(animated_3_frames, 1))
+
+    g2 = Grid.load(frame_path(animated_3_frames, 2))
+    g2.set(0, 0, "B")
+    g2.save(frame_path(animated_3_frames, 2))
+
+    swap_frame_files(animated_3_frames, 1, 2)
+
+    after1 = Grid.load(frame_path(animated_3_frames, 1))
+    after2 = Grid.load(frame_path(animated_3_frames, 2))
+    assert after1.data[0][0] == "B"
+    assert after2.data[0][0] == "R"
+
+
+def test_swap_frame_files_nonexistent_errors(tmp_path):
+    """Swapping non-existent frame raises FileNotFoundError."""
+    (tmp_path / "frame_001.txt").write_text(". .\n. .\n")
+    with pytest.raises(FileNotFoundError):
+        swap_frame_files(tmp_path, 1, 5)
+
+
+def test_update_animations_after_swap():
+    """Swapping frames updates animation references."""
+    anims = {
+        "walk": {"frames": [1, 2, 3], "fps": 8, "loop": True},
+        "idle": {"frames": [1], "fps": 1, "loop": False},
+    }
+    result = update_animations_after_swap(anims, 1, 2)
+    assert result["walk"]["frames"] == [2, 1, 3]
+    assert result["idle"]["frames"] == [2]
+
+
+def test_update_animations_after_swap_no_affected():
+    """Swapping frames not referenced by animations leaves them unchanged."""
+    anims = {
+        "walk": {"frames": [1, 2], "fps": 8, "loop": True},
+    }
+    result = update_animations_after_swap(anims, 3, 4)
+    assert result["walk"]["frames"] == [1, 2]
+
+
+def test_update_animations_after_swap_same_frame():
+    """Swapping a frame with itself is a no-op."""
+    anims = {"walk": {"frames": [1, 2, 3], "fps": 8, "loop": True}}
+    result = update_animations_after_swap(anims, 2, 2)
+    assert result["walk"]["frames"] == [1, 2, 3]
+
+
+def test_swap_and_move_frame_left(animated_3_frames):
+    """Moving frame 2 left (swap 1,2) puts it in position 1."""
+    from gridfab.core.grid import Grid
+    g2 = Grid.load(frame_path(animated_3_frames, 2))
+    g2.set(1, 1, "G")
+    g2.save(frame_path(animated_3_frames, 2))
+
+    # Save animation referencing frames
+    anims = {"walk": {"frames": [1, 2, 3], "fps": 8, "loop": True}}
+    save_animations(animated_3_frames, anims)
+
+    swap_frame_files(animated_3_frames, 1, 2)
+    updated_anims = update_animations_after_swap(
+        load_animations(animated_3_frames), 1, 2,
+    )
+    save_animations(animated_3_frames, updated_anims)
+
+    # Frame 1 now has the content that was in frame 2
+    after = Grid.load(frame_path(animated_3_frames, 1))
+    assert after.data[1][1] == "G"
+    # Animation refs updated
+    final_anims = load_animations(animated_3_frames)
+    assert final_anims["walk"]["frames"] == [2, 1, 3]

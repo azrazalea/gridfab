@@ -129,3 +129,46 @@ def max_frame_number(directory: Path) -> int:
     """Return the highest frame number, or 0 if no frames exist."""
     frames = discover_frames(directory)
     return frames[-1] if frames else 0
+
+
+def swap_frame_files(directory: Path, frame_a: int, frame_b: int) -> None:
+    """Swap two frame files using a temp name to avoid collision.
+
+    Raises FileNotFoundError if either frame file doesn't exist.
+    """
+    if frame_a == frame_b:
+        return
+    path_a = frame_path(directory, frame_a)
+    path_b = frame_path(directory, frame_b)
+    if not path_a.exists():
+        raise FileNotFoundError(f"{path_a.name} not found in {directory}")
+    if not path_b.exists():
+        raise FileNotFoundError(f"{path_b.name} not found in {directory}")
+    tmp = directory / f"frame_{frame_a:03d}.txt.tmp"
+    path_a.rename(tmp)
+    path_b.rename(path_a)
+    tmp.rename(path_b)
+
+
+def update_animations_after_swap(animations: dict, frame_a: int, frame_b: int) -> dict:
+    """Update animation frame references after a swap.
+
+    Every occurrence of frame_a becomes frame_b and vice versa.
+    Returns a new dict (does not mutate input).
+    """
+    if frame_a == frame_b:
+        return animations
+    result = {}
+    for name, anim in animations.items():
+        new_anim = dict(anim)
+        new_frames = []
+        for f in anim.get("frames", []):
+            if f == frame_a:
+                new_frames.append(frame_b)
+            elif f == frame_b:
+                new_frames.append(frame_a)
+            else:
+                new_frames.append(f)
+        new_anim["frames"] = new_frames
+        result[name] = new_anim
+    return result

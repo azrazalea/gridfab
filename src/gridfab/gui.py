@@ -16,7 +16,8 @@ from gridfab.core.grid import Grid, TRANSPARENT, get_grid_dimensions
 from gridfab.core.palette import Palette
 from gridfab.core.animation import (
     discover_frames, is_animated, frame_path, resolve_grid_path,
-    load_state, save_state, load_animations, max_frame_number,
+    load_state, save_state, load_animations, save_animations,
+    max_frame_number, swap_frame_files, update_animations_after_swap,
 )
 
 ZOOM_LEVELS = [4, 8, 16, 24, 32, 48]
@@ -275,6 +276,9 @@ class PixelEditor:
         self._play_idx = 0
         self._play_after_id: str | None = None
 
+        # Frame copy/paste
+        self._copied_frame_data: list[list[str]] | None = None
+
         self._update_title()
 
         # Set window icon
@@ -408,6 +412,8 @@ class PixelEditor:
         root.bind("o", lambda e: self._toggle_onion_skin())
         root.bind("O", lambda e: self._cycle_onion_opacity())
         root.bind("<space>", lambda e: self._toggle_playback())
+        root.bind("<Control-c>", lambda e: self._copy_frame())
+        root.bind("<Control-v>", lambda e: self._paste_frame())
 
         self.select_color(TRANSPARENT)
         self._update_status()
@@ -825,6 +831,22 @@ class PixelEditor:
         btn_del.pack(side=tk.LEFT, padx=2)
         self._frame_strip_buttons.append(btn_del)
 
+        btn_copy = tk.Button(self.frame_strip, text="Cp", width=2, command=self._copy_frame)
+        btn_copy.pack(side=tk.LEFT, padx=2)
+        self._frame_strip_buttons.append(btn_copy)
+
+        btn_paste = tk.Button(self.frame_strip, text="Ps", width=2, command=self._paste_frame)
+        btn_paste.pack(side=tk.LEFT, padx=2)
+        self._frame_strip_buttons.append(btn_paste)
+
+        btn_left = tk.Button(self.frame_strip, text="\u25C0", width=2, command=self._move_frame_left)
+        btn_left.pack(side=tk.LEFT, padx=2)
+        self._frame_strip_buttons.append(btn_left)
+
+        btn_right = tk.Button(self.frame_strip, text="\u25B6", width=2, command=self._move_frame_right)
+        btn_right.pack(side=tk.LEFT, padx=2)
+        self._frame_strip_buttons.append(btn_right)
+
         sep = tk.Frame(self.frame_strip, width=4)
         sep.pack(side=tk.LEFT)
         self._frame_strip_buttons.append(sep)
@@ -996,6 +1018,96 @@ class PixelEditor:
         self._rebuild_frame_strip()
         self._rebuild_canvas()
         self._update_title()
+        self._update_status()
+
+    def _copy_frame(self) -> None:
+        """Copy the active frame's data to memory."""
+        if not self._animated:
+            return
+        self._copied_frame_data = self.grid.snapshot()
+
+    def _paste_frame(self) -> None:
+        """Paste copied frame data as a new frame."""
+        if not self._animated or self._copied_frame_data is None:
+            return
+        from gridfab.commands.frame_cmd import cmd_frame_add
+        if self.modified:
+            self.grid.save(self.grid_path)
+            self._set_modified(False)
+        cmd_frame_add(self.work_dir, blank=True)
+        state = load_state(self.work_dir)
+        new_frame = state.get("active_frame", 1)
+        self._active_frame = new_frame
+        self.grid_path = frame_path(self.work_dir, new_frame)
+        new_grid = Grid.load(self.grid_path)
+        new_grid.restore(self._copied_frame_data)
+        new_grid.save(self.grid_path)
+        self.grid = new_grid
+        self.undo_stack.clear()
+        self.redo_stack.clear()
+        self._rebuild_frame_strip()
+        self._rebuild_canvas()
+        self._update_title()
+        self._update_status()
+
+    def _move_frame_left(self) -> None:
+        """Move the active frame one position left (swap with previous)."""
+        if not self._animated:
+            return
+        frames = discover_frames(self.work_dir)
+        if self._active_frame not in frames:
+            return
+        idx = frames.index(self._active_frame)
+        if idx == 0:
+            return
+        prev_num = frames[idx - 1]
+        cur_num = self._active_frame
+        if self.modified:
+            self.grid.save(self.grid_path)
+            self._set_modified(False)
+        swap_frame_files(self.work_dir, prev_num, cur_num)
+        anims = load_animations(self.work_dir)
+        updated = update_animations_after_swap(anims, prev_num, cur_num)
+        save_animations(self.work_dir, updated)
+        # After swap, our content is now at prev_num
+        self._active_frame = prev_num
+        save_state(self.work_dir, {"active_frame": prev_num})
+        self.grid_path = frame_path(self.work_dir, prev_num)
+        self.grid = Grid.load(self.grid_path)
+        self.undo_stack.clear()
+        self.redo_stack.clear()
+        self._rebuild_frame_strip()
+        self._rebuild_canvas()
+        self._update_status()
+
+    def _move_frame_right(self) -> None:
+        """Move the active frame one position right (swap with next)."""
+        if not self._animated:
+            return
+        frames = discover_frames(self.work_dir)
+        if self._active_frame not in frames:
+            return
+        idx = frames.index(self._active_frame)
+        if idx >= len(frames) - 1:
+            return
+        next_num = frames[idx + 1]
+        cur_num = self._active_frame
+        if self.modified:
+            self.grid.save(self.grid_path)
+            self._set_modified(False)
+        swap_frame_files(self.work_dir, cur_num, next_num)
+        anims = load_animations(self.work_dir)
+        updated = update_animations_after_swap(anims, cur_num, next_num)
+        save_animations(self.work_dir, updated)
+        # After swap, our content is now at next_num
+        self._active_frame = next_num
+        save_state(self.work_dir, {"active_frame": next_num})
+        self.grid_path = frame_path(self.work_dir, next_num)
+        self.grid = Grid.load(self.grid_path)
+        self.undo_stack.clear()
+        self.redo_stack.clear()
+        self._rebuild_frame_strip()
+        self._rebuild_canvas()
         self._update_status()
 
     def save(self) -> None:

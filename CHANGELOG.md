@@ -25,6 +25,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - GUI auto-saves current frame when switching, clears undo/redo on frame switch
 - GUI onion skinning: toggle with `O` key to show previous frame as translucent overlay, `Shift+O` cycles opacity (25%/50%/75%)
 - GUI animation playback: Play/Pause button, FPS spinner (1-60), animation selector dropdown, Space bar to toggle; painting disabled during playback
+- GUI frame copy/paste: copy active frame to clipboard (Ctrl+C), paste as new frame (Ctrl+V)
+- GUI frame reorder: Move Left/Right buttons to swap adjacent frames, updates animation references
 - GUI status bar showing cursor position, selected color, grid dimensions, zoom level, tool name, modified indicator, and file path
 - GUI grid lines toggle (`G` key) to show/hide pixel borders
 - GUI zoom (mouse wheel) with 6 levels (4/8/16/24/32/48px) and pan (middle-click drag)
