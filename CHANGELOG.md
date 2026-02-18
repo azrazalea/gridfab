@@ -6,6 +6,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## [Unreleased]
 
+### Fixed
+- Tagger: preserve original sprite name before deduplication so downstream code uses the correct base name
+
 ## [0.3.0]
 
 ### Added

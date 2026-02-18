@@ -786,6 +786,7 @@ class TaggerApp:
             if old_name != name and old_name in self.sprites:
                 del self.sprites[old_name]
 
+        base_name = name
         name, renamed = _unique_sprite_name(name, self.sprites, row, col)
 
         # Collect tag names
