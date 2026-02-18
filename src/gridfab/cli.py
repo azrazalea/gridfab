@@ -22,6 +22,9 @@ Commands:
     frame delete <N> [dir]                   Delete a frame (renumbers remaining)
     frame select <N> [dir]                   Set active frame
     frame list [dir]                         List all frames
+    anim add <name> --frames 1,2,3 [opts]   Define a named animation
+    anim list [dir]                          List all animations
+    anim delete <name> [dir]                 Delete a named animation
 """
 
 import argparse
@@ -203,6 +206,26 @@ def main() -> None:
     p_frame_list = frame_sub.add_parser("list", help="List all frames")
     p_frame_list.add_argument("directory", nargs="?", default=".", help="Sprite directory")
 
+    # anim
+    p_anim = sub.add_parser("anim", help="Manage named animations")
+    anim_sub = p_anim.add_subparsers(dest="anim_command")
+
+    p_anim_add = anim_sub.add_parser("add", help="Define a named animation")
+    p_anim_add.add_argument("name", help="Animation name (e.g. walk, idle, attack)")
+    p_anim_add.add_argument("--frames", required=True,
+                            help="Comma-separated frame numbers (e.g. 1,2,3,4)")
+    p_anim_add.add_argument("--fps", type=int, default=8, help="Frames per second (default: 8)")
+    p_anim_add.add_argument("--loop", action="store_true", default=True, help="Loop animation (default)")
+    p_anim_add.add_argument("--no-loop", action="store_false", dest="loop", help="Don't loop")
+    p_anim_add.add_argument("directory", nargs="?", default=".", help="Sprite directory")
+
+    p_anim_list = anim_sub.add_parser("list", help="List all animations")
+    p_anim_list.add_argument("directory", nargs="?", default=".", help="Sprite directory")
+
+    p_anim_del = anim_sub.add_parser("delete", help="Delete a named animation")
+    p_anim_del.add_argument("name", help="Animation name to delete")
+    p_anim_del.add_argument("directory", nargs="?", default=".", help="Sprite directory")
+
     args = parser.parse_args()
 
     if not args.command:
@@ -328,6 +351,25 @@ def _dispatch(args: argparse.Namespace) -> None:
             cmd_frame_select(Path(args.directory), args.frame_num)
         elif fcmd == "list":
             cmd_frame_list(Path(args.directory))
+
+    elif cmd == "anim":
+        from gridfab.commands.anim_cmd import cmd_anim_add, cmd_anim_list, cmd_anim_delete
+
+        acmd = args.anim_command
+        if not acmd:
+            print("Usage: gridfab anim {add|list|delete}")
+            sys.exit(1)
+
+        if acmd == "add":
+            frames = [int(x) for x in args.frames.split(",")]
+            cmd_anim_add(
+                Path(args.directory), args.name, frames,
+                fps=args.fps, loop=args.loop,
+            )
+        elif acmd == "list":
+            cmd_anim_list(Path(args.directory))
+        elif acmd == "delete":
+            cmd_anim_delete(Path(args.directory), args.name)
 
     elif cmd == "import":
         from gridfab.commands.import_cmd import cmd_import

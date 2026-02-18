@@ -22,6 +22,11 @@ from gridfab.commands.frame_cmd import (
     cmd_frame_select,
     cmd_frame_list,
 )
+from gridfab.commands.anim_cmd import (
+    cmd_anim_add,
+    cmd_anim_list,
+    cmd_anim_delete,
+)
 
 
 # --- discover_frames ---
@@ -312,3 +317,73 @@ def test_frame_list(sprite_dir, capsys):
     assert "frame_001.txt" in output
     assert "frame_002.txt" in output
     assert "*" in output  # active marker
+
+
+# ===================================================================
+# Commit 4: Animation management commands
+# ===================================================================
+
+@pytest.fixture
+def animated_3_frames(tmp_path):
+    """Animated sprite with 3 frames for animation tests."""
+    (tmp_path / "palette.txt").write_text("R=#CC3333\nB=#0000FF\nG=#00CC00\n")
+    (tmp_path / "grid.txt").write_text(". . . .\n. . . .\n. . . .\n. . . .\n")
+    cmd_frame_add(tmp_path)  # 1, 2
+    cmd_frame_add(tmp_path)  # 1, 2, 3
+    return tmp_path
+
+
+def test_anim_add(animated_3_frames):
+    """Add a named animation."""
+    cmd_anim_add(animated_3_frames, "walk", [1, 2, 3], fps=8, loop=True)
+    anims = load_animations(animated_3_frames)
+    assert "walk" in anims
+    assert anims["walk"]["frames"] == [1, 2, 3]
+    assert anims["walk"]["fps"] == 8
+    assert anims["walk"]["loop"] is True
+
+
+def test_anim_add_duplicate_name_errors(animated_3_frames):
+    """Adding duplicate animation name raises ValueError."""
+    cmd_anim_add(animated_3_frames, "walk", [1, 2], fps=8)
+    with pytest.raises(ValueError, match="already exists"):
+        cmd_anim_add(animated_3_frames, "walk", [2, 3], fps=8)
+
+
+def test_anim_add_nonexistent_frame_errors(animated_3_frames):
+    """Adding animation with non-existent frame raises ValueError."""
+    with pytest.raises(ValueError, match="frame 99"):
+        cmd_anim_add(animated_3_frames, "walk", [1, 99], fps=8)
+
+
+def test_anim_list(animated_3_frames, capsys):
+    """List all animations."""
+    cmd_anim_add(animated_3_frames, "walk", [1, 2, 3], fps=8, loop=True)
+    cmd_anim_add(animated_3_frames, "idle", [1], fps=1, loop=False)
+    cmd_anim_list(animated_3_frames)
+    output = capsys.readouterr().out
+    assert "walk" in output
+    assert "idle" in output
+
+
+def test_anim_list_empty(animated_3_frames, capsys):
+    """List prints message when no animations defined."""
+    cmd_anim_list(animated_3_frames)
+    output = capsys.readouterr().out
+    assert "no animation" in output.lower()
+
+
+def test_anim_delete(animated_3_frames):
+    """Delete an animation by name."""
+    cmd_anim_add(animated_3_frames, "walk", [1, 2, 3], fps=8)
+    cmd_anim_add(animated_3_frames, "idle", [1], fps=1)
+    cmd_anim_delete(animated_3_frames, "walk")
+    anims = load_animations(animated_3_frames)
+    assert "walk" not in anims
+    assert "idle" in anims
+
+
+def test_anim_delete_missing_errors(animated_3_frames):
+    """Deleting non-existent animation raises ValueError."""
+    with pytest.raises(ValueError, match="not found"):
+        cmd_anim_delete(animated_3_frames, "walk")

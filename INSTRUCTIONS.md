@@ -373,6 +373,41 @@ List all frames with an `*` marker on the active frame.
 gridfab frame list [directory]
 ```
 
+### gridfab anim
+
+Manage named animations stored in `animation.json`. Animations reference frame numbers, specify playback FPS, and can loop.
+
+**Subcommands:**
+
+#### gridfab anim add
+
+Define a new named animation.
+
+```
+gridfab anim add <name> --frames 1,2,3,4 [--fps 8] [--loop|--no-loop] [directory]
+```
+
+- `name` — Animation name (e.g. `walk`, `idle`, `attack`)
+- `--frames` — Comma-separated frame numbers (required)
+- `--fps` — Frames per second (default: 8)
+- `--loop` / `--no-loop` — Whether the animation loops (default: loop)
+
+#### gridfab anim list
+
+Display all defined animations with their frame counts, FPS, and loop settings.
+
+```
+gridfab anim list [directory]
+```
+
+#### gridfab anim delete
+
+Remove an animation definition by name. Does not delete the frame files.
+
+```
+gridfab anim delete <name> [directory]
+```
+
 ### gridfab import
 
 Import an image into GridFab's text format (grid.txt + palette.txt). Supports single images, single tile extraction from tilesheets, and whole tilesheet splitting.
@@ -617,6 +652,9 @@ You are helping create pixel art using GridFab. The artwork is stored as plain t
 - `gridfab frame delete <N>` — Delete a frame (renumbers remaining)
 - `gridfab frame select <N>` — Set the active frame
 - `gridfab frame list` — List all frames with active marker
+- `gridfab anim add <name> --frames 1,2,3 [--fps 8] [--loop|--no-loop]` — Define a named animation
+- `gridfab anim list` — List all animations
+- `gridfab anim delete <name>` — Remove an animation
 
 **Other commands:**
 - `gridfab render` — Generate preview.png

@@ -13,6 +13,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - `frame select` command: set active frame via `.gridfab_state`
 - `frame list` command: list all frames with active marker
 - `--frame N` flag on all edit commands (`pixel`, `pixels`, `row`, `rows`, `fill`, `rect`, `clear`, `render`, `export`) to target specific animation frames
+- `anim add` command: define named animations with frame lists, FPS, and loop settings stored in `animation.json`
+- `anim list` command: display all defined animations
+- `anim delete` command: remove animations by name
 - GUI status bar showing cursor position, selected color, grid dimensions, zoom level, tool name, modified indicator, and file path
 - GUI grid lines toggle (`G` key) to show/hide pixel borders
 - GUI zoom (mouse wheel) with 6 levels (4/8/16/24/32/48px) and pan (middle-click drag)
