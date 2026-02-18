@@ -8,6 +8,7 @@ from gridfab.gui import (
     cursor_preview_color, eyedropper_pick,
     palette_key_to_index, palette_index_to_alias,
     render_frame_thumbnail, frame_strip_layout,
+    blend_hex_colors, onion_skin_color,
     CHECKER_LIGHT, CHECKER_DARK, ZOOM_LEVELS,
     TOOL_BRUSH, TOOL_EYEDROPPER, TOOL_FILL,
 )
@@ -317,3 +318,53 @@ class TestFrameStripLayout:
         """Zero frames returns empty list."""
         positions = frame_strip_layout(0, thumb_size=32, padding=4)
         assert positions == []
+
+
+# ===================================================================
+# Onion skinning pure functions
+# ===================================================================
+
+class TestBlendHexColors:
+    def test_full_opacity_returns_fg(self):
+        """Alpha 1.0 returns foreground color."""
+        assert blend_hex_colors("#FF0000", "#0000FF", 1.0) == "#FF0000"
+
+    def test_zero_opacity_returns_bg(self):
+        """Alpha 0.0 returns background color."""
+        assert blend_hex_colors("#FF0000", "#0000FF", 0.0) == "#0000FF"
+
+    def test_half_blend(self):
+        """50% alpha blends evenly."""
+        result = blend_hex_colors("#FF0000", "#0000FF", 0.5)
+        # Red channel: round(255*0.5) = 128, Blue: round(255*0.5) = 128
+        assert result == "#800080"
+
+    def test_quarter_blend(self):
+        """25% alpha gives mostly background."""
+        result = blend_hex_colors("#FFFFFF", "#000000", 0.25)
+        # Each channel: round(255*0.25) = 64
+        assert result == "#404040"
+
+
+class TestOnionSkinColor:
+    def test_prev_opaque_cur_opaque(self):
+        """Both opaque: blends prev over current."""
+        result = onion_skin_color("#FF0000", "#0000FF", 0.5)
+        assert result == "#800080"
+
+    def test_prev_transparent_cur_opaque(self):
+        """Previous frame transparent, current opaque: returns current."""
+        result = onion_skin_color(None, "#0000FF", 0.5)
+        assert result == "#0000FF"
+
+    def test_prev_opaque_cur_transparent(self):
+        """Previous frame opaque, current transparent: blends prev over checker."""
+        result = onion_skin_color("#FF0000", None, 0.25)
+        # Should be a valid hex color
+        assert result.startswith("#")
+        assert len(result) == 7
+
+    def test_both_transparent(self):
+        """Both transparent: returns None (still transparent)."""
+        result = onion_skin_color(None, None, 0.5)
+        assert result is None

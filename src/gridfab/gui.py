@@ -155,6 +155,34 @@ def frame_strip_layout(num_frames: int, thumb_size: int = 32, padding: int = 4) 
     return [padding + i * (thumb_size + padding) for i in range(num_frames)]
 
 
+def blend_hex_colors(fg: str, bg: str, alpha: float) -> str:
+    """Alpha-blend two hex colors. Returns #RRGGBB."""
+    fr, fg_g, fb = int(fg[1:3], 16), int(fg[3:5], 16), int(fg[5:7], 16)
+    br, bg_g, bb = int(bg[1:3], 16), int(bg[3:5], 16), int(bg[5:7], 16)
+    r = round(fr * alpha + br * (1 - alpha))
+    g = round(fg_g * alpha + bg_g * (1 - alpha))
+    b = round(fb * alpha + bb * (1 - alpha))
+    return f"#{r:02X}{g:02X}{b:02X}"
+
+
+def onion_skin_color(
+    prev_color: str | None, cur_color: str | None, opacity: float,
+) -> str | None:
+    """Compute display color with onion skin overlay.
+
+    Blends previous frame's color over current frame's display color.
+    Returns None only if both are transparent.
+    """
+    if prev_color is None and cur_color is None:
+        return None
+    if prev_color is None:
+        return cur_color
+    if cur_color is None:
+        # Blend prev over a neutral gray checkerboard color
+        return blend_hex_colors(prev_color, CHECKER_LIGHT, opacity)
+    return blend_hex_colors(prev_color, cur_color, opacity)
+
+
 def eyedropper_pick(grid, r: int | None, c: int | None) -> str | None:
     """Return the raw grid value at (r, c), or None if out of bounds."""
     if r is None or c is None:
@@ -212,6 +240,12 @@ class PixelEditor:
         self.redo_stack: list[list[list[str]]] = []
         self.max_undo = 512
         self._stroke_active = False
+
+        # Onion skinning
+        self.onion_skin_enabled = False
+        self.onion_skin_opacity = 0.25
+        self._onion_opacities = [0.25, 0.50, 0.75]
+        self._prev_frame_colors: list[list[str | None]] | None = None
 
         self._update_title()
 
@@ -343,6 +377,8 @@ class PixelEditor:
             root.bind(k, lambda e, key=k: self._select_palette_by_key(key))
         root.bind("<less>", lambda e: self._prev_frame())
         root.bind("<greater>", lambda e: self._next_frame())
+        root.bind("o", lambda e: self._toggle_onion_skin())
+        root.bind("O", lambda e: self._cycle_onion_opacity())
 
         self.select_color(TRANSPARENT)
         self._update_status()
@@ -465,6 +501,11 @@ class PixelEditor:
             zoom_pct=zoom_pct,
             file_path=self.work_dir.resolve().name,
         )
+        if self.onion_skin_enabled:
+            pct = round(self.onion_skin_opacity * 100)
+            text += f"  |  Onion:{pct}%"
+        if self._animated and self._active_frame is not None:
+            text += f"  |  Frame {self._active_frame}"
         self.status_var.set(text)
 
     def _toggle_grid_lines(self) -> None:
@@ -588,7 +629,57 @@ class PixelEditor:
                 color = cell_display_color(
                     self.grid.data[r][c], self.palette, r, c,
                 )
+                # Apply onion skin if enabled
+                if (self.onion_skin_enabled and self._prev_frame_colors is not None
+                        and r < len(self._prev_frame_colors)
+                        and c < len(self._prev_frame_colors[r])):
+                    prev_c = self._prev_frame_colors[r][c]
+                    cur_c = self.palette.resolve(self.grid.data[r][c], "") if self.grid.data[r][c] != TRANSPARENT else None
+                    blended = onion_skin_color(prev_c, cur_c, self.onion_skin_opacity)
+                    if blended is not None:
+                        color = blended
                 self.canvas.itemconfig(self.cells[r][c], fill=color)
+
+    # --- Onion skinning ---
+
+    def _toggle_onion_skin(self) -> None:
+        """Toggle onion skin overlay on/off."""
+        if not self._animated:
+            return
+        self.onion_skin_enabled = not self.onion_skin_enabled
+        if self.onion_skin_enabled:
+            self._load_prev_frame_colors()
+        else:
+            self._prev_frame_colors = None
+        self._redraw()
+        self._update_status()
+
+    def _cycle_onion_opacity(self) -> None:
+        """Cycle through onion skin opacity levels."""
+        if not self._animated:
+            return
+        try:
+            idx = self._onion_opacities.index(self.onion_skin_opacity)
+        except ValueError:
+            idx = -1
+        self.onion_skin_opacity = self._onion_opacities[(idx + 1) % len(self._onion_opacities)]
+        if self.onion_skin_enabled:
+            self._redraw()
+        self._update_status()
+
+    def _load_prev_frame_colors(self) -> None:
+        """Load the previous frame's resolved colors for onion skinning."""
+        if not self._animated or self._active_frame is None:
+            self._prev_frame_colors = None
+            return
+        frames = discover_frames(self.work_dir)
+        idx = frames.index(self._active_frame) if self._active_frame in frames else 0
+        if idx == 0:
+            self._prev_frame_colors = None
+            return
+        prev_num = frames[idx - 1]
+        prev_grid = Grid.load(frame_path(self.work_dir, prev_num))
+        self._prev_frame_colors = self.palette.resolve_grid(prev_grid.data)
 
     # --- Frame strip and navigation ---
 
@@ -649,6 +740,10 @@ class PixelEditor:
         # Clear undo/redo (simple approach)
         self.undo_stack.clear()
         self.redo_stack.clear()
+
+        # Reload onion skin data
+        if self.onion_skin_enabled:
+            self._load_prev_frame_colors()
 
         # Rebuild
         self._rebuild_frame_strip()
