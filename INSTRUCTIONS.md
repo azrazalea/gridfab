@@ -327,6 +327,50 @@ Reset all pixels in the grid to transparent, preserving grid dimensions.
 gridfab clear [directory]
 ```
 
+### gridfab frame
+
+Manage animation frames. A sprite becomes animated when `frame_NNN.txt` files exist. All frames share the same `palette.txt`. The first `frame add` on a grid.txt-only sprite converts it to animated mode by renaming `grid.txt` to `frame_001.txt`.
+
+**Subcommands:**
+
+#### gridfab frame add
+
+Add a new animation frame. By default, copies the active frame.
+
+```
+gridfab frame add [--from N] [--blank] [directory]
+```
+
+- `--from N` — Copy from a specific frame number instead of the active frame
+- `--blank` — Create a blank transparent frame (same dimensions as existing frames)
+- First call on a grid.txt-only sprite converts it to animated mode
+
+#### gridfab frame delete
+
+Delete a frame. Remaining frames are automatically renumbered to stay contiguous. Animation references in `animation.json` are updated accordingly.
+
+```
+gridfab frame delete <frame_num> [directory]
+```
+
+Cannot delete the only remaining frame.
+
+#### gridfab frame select
+
+Set the active frame. The active frame is used by edit commands when no `--frame` flag is given.
+
+```
+gridfab frame select <frame_num> [directory]
+```
+
+#### gridfab frame list
+
+List all frames with an `*` marker on the active frame.
+
+```
+gridfab frame list [directory]
+```
+
 ### gridfab import
 
 Import an image into GridFab's text format (grid.txt + palette.txt). Supports single images, single tile extraction from tilesheets, and whole tilesheet splitting.
@@ -565,6 +609,12 @@ You are helping create pixel art using GridFab. The artwork is stored as plain t
 - `gridfab row <n> <values...>` — Replace one row (must provide all values for the full width)
 - `gridfab rows <start> <end> <values...>` — Replace range of rows (all values, left-to-right, top-to-bottom)
 - `gridfab clear [dir]` — Reset all pixels to transparent
+
+**Animation commands:**
+- `gridfab frame add [--from N|--blank]` — Add a new frame (first call converts grid.txt to animated mode)
+- `gridfab frame delete <N>` — Delete a frame (renumbers remaining)
+- `gridfab frame select <N>` — Set the active frame
+- `gridfab frame list` — List all frames with active marker
 
 **Other commands:**
 - `gridfab render` — Generate preview.png

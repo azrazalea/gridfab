@@ -18,6 +18,10 @@ Commands:
     tag <tileset.png> [options]              Interactive tileset tagger with AI
     atlas <out> [sprites...] [options]       Pack sprites into a spritesheet
     import <image> [output] [options]         Import image to grid.txt format
+    frame add [--from N|--blank] [dir]       Add a new animation frame
+    frame delete <N> [dir]                   Delete a frame (renumbers remaining)
+    frame select <N> [dir]                   Set active frame
+    frame list [dir]                         List all frames
 """
 
 import argparse
@@ -168,6 +172,27 @@ def main() -> None:
     p_import.add_argument("--index", default=None, help="Atlas index.json for naming sprites")
     p_import.add_argument("--alpha-threshold", type=int, default=128, help="Alpha threshold (0-255, default 128)")
 
+    # frame
+    p_frame = sub.add_parser("frame", help="Manage animation frames")
+    frame_sub = p_frame.add_subparsers(dest="frame_command")
+
+    p_frame_add = frame_sub.add_parser("add", help="Add a new frame")
+    p_frame_add.add_argument("--from", type=int, default=None, dest="from_frame",
+                             help="Copy from specific frame number")
+    p_frame_add.add_argument("--blank", action="store_true", help="Create blank transparent frame")
+    p_frame_add.add_argument("directory", nargs="?", default=".", help="Sprite directory")
+
+    p_frame_del = frame_sub.add_parser("delete", help="Delete a frame")
+    p_frame_del.add_argument("frame_num", type=int, help="Frame number to delete")
+    p_frame_del.add_argument("directory", nargs="?", default=".", help="Sprite directory")
+
+    p_frame_sel = frame_sub.add_parser("select", help="Set active frame")
+    p_frame_sel.add_argument("frame_num", type=int, help="Frame number to activate")
+    p_frame_sel.add_argument("directory", nargs="?", default=".", help="Sprite directory")
+
+    p_frame_list = frame_sub.add_parser("list", help="List all frames")
+    p_frame_list.add_argument("directory", nargs="?", default=".", help="Sprite directory")
+
     args = parser.parse_args()
 
     if not args.command:
@@ -270,6 +295,29 @@ def _dispatch(args: argparse.Namespace) -> None:
             atlas_name=args.atlas_name,
             index_name=args.index_name,
         )
+
+    elif cmd == "frame":
+        from gridfab.commands.frame_cmd import (
+            cmd_frame_add, cmd_frame_delete, cmd_frame_select, cmd_frame_list,
+        )
+
+        fcmd = args.frame_command
+        if not fcmd:
+            print("Usage: gridfab frame {add|delete|select|list}")
+            sys.exit(1)
+
+        if fcmd == "add":
+            cmd_frame_add(
+                Path(args.directory),
+                from_frame=args.from_frame,
+                blank=args.blank,
+            )
+        elif fcmd == "delete":
+            cmd_frame_delete(Path(args.directory), args.frame_num)
+        elif fcmd == "select":
+            cmd_frame_select(Path(args.directory), args.frame_num)
+        elif fcmd == "list":
+            cmd_frame_list(Path(args.directory))
 
     elif cmd == "import":
         from gridfab.commands.import_cmd import cmd_import

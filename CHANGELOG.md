@@ -8,6 +8,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ### Added
 - Animation system core data model: frame discovery (`frame_NNN.txt`), animation metadata (`animation.json`), active frame state (`.gridfab_state`), grid path resolution for frame-aware commands
+- `frame add` command: add animation frames (copy active, `--from N`, or `--blank`); first call on grid.txt-only dir converts to animated mode
+- `frame delete` command: delete frames with automatic renumbering and animation.json reference updates
+- `frame select` command: set active frame via `.gridfab_state`
+- `frame list` command: list all frames with active marker
 - GUI status bar showing cursor position, selected color, grid dimensions, zoom level, tool name, modified indicator, and file path
 - GUI grid lines toggle (`G` key) to show/hide pixel borders
 - GUI zoom (mouse wheel) with 6 levels (4/8/16/24/32/48px) and pan (middle-click drag)

@@ -16,6 +16,12 @@ from gridfab.core.animation import (
     validate_animation,
     max_frame_number,
 )
+from gridfab.commands.frame_cmd import (
+    cmd_frame_add,
+    cmd_frame_delete,
+    cmd_frame_select,
+    cmd_frame_list,
+)
 
 
 # --- discover_frames ---
@@ -165,3 +171,144 @@ def test_max_frame_number_with_frames(tmp_path):
 def test_max_frame_number_no_frames(tmp_path):
     """Returns 0 when no frames exist."""
     assert max_frame_number(tmp_path) == 0
+
+
+# ===================================================================
+# Commit 2: Frame management commands
+# ===================================================================
+
+@pytest.fixture
+def sprite_dir(tmp_path):
+    """4x4 blank sprite with R/B/G palette for frame command tests."""
+    (tmp_path / "grid.txt").write_text(
+        ". . . .\n"
+        ". . . .\n"
+        ". . . .\n"
+        ". . . .\n"
+    )
+    (tmp_path / "palette.txt").write_text(
+        "R=#CC3333\n"
+        "B=#0000FF\n"
+        "G=#00CC00\n"
+    )
+    return tmp_path
+
+
+# --- cmd_frame_add ---
+
+def test_frame_add_first_renames_grid_txt(sprite_dir):
+    """First frame add renames grid.txt to frame_001.txt and adds frame_002.txt."""
+    cmd_frame_add(sprite_dir)
+    assert not (sprite_dir / "grid.txt").exists()
+    assert (sprite_dir / "frame_001.txt").exists()
+    assert (sprite_dir / "frame_002.txt").exists()
+    assert discover_frames(sprite_dir) == [1, 2]
+
+
+def test_frame_add_copies_active_frame(sprite_dir):
+    """Frame add copies content from active frame by default."""
+    (sprite_dir / "grid.txt").write_text("R R\nB B\n")
+    cmd_frame_add(sprite_dir)
+    # frame_002 should be copy of frame_001 (which was grid.txt)
+    content = (sprite_dir / "frame_002.txt").read_text()
+    assert content == "R R\nB B\n"
+
+
+def test_frame_add_blank(sprite_dir):
+    """Frame add --blank creates transparent frame."""
+    cmd_frame_add(sprite_dir)  # convert to animated
+    cmd_frame_add(sprite_dir, blank=True)
+    content = (sprite_dir / "frame_003.txt").read_text()
+    lines = [line for line in content.strip().split("\n") if line]
+    # all cells should be transparent
+    for line in lines:
+        assert all(v == "." for v in line.split())
+
+
+def test_frame_add_from_specific_frame(sprite_dir):
+    """Frame add --from N copies from a specific frame."""
+    cmd_frame_add(sprite_dir)  # now have frames 1 and 2
+    # Write distinct content to frame 1
+    (sprite_dir / "frame_001.txt").write_text("R R R R\n. . . .\n. . . .\n. . . .\n")
+    cmd_frame_add(sprite_dir, from_frame=1)  # frame 3 copies from 1
+    content = (sprite_dir / "frame_003.txt").read_text()
+    assert content.startswith("R R R R\n")
+
+
+def test_frame_add_updates_state(sprite_dir):
+    """Frame add sets active_frame to the new frame."""
+    cmd_frame_add(sprite_dir)
+    state = load_state(sprite_dir)
+    assert state["active_frame"] == 2
+
+
+# --- cmd_frame_delete ---
+
+def test_frame_delete_middle_renumbers(sprite_dir):
+    """Deleting middle frame renumbers remaining frames contiguously."""
+    cmd_frame_add(sprite_dir)  # 1, 2
+    cmd_frame_add(sprite_dir)  # 1, 2, 3
+    # Put distinct content in each
+    (sprite_dir / "frame_001.txt").write_text("R . . .\n. . . .\n. . . .\n. . . .\n")
+    (sprite_dir / "frame_003.txt").write_text(". . . R\n. . . .\n. . . .\n. . . .\n")
+    cmd_frame_delete(sprite_dir, 2)
+    assert discover_frames(sprite_dir) == [1, 2]
+    # Old frame 3 is now frame 2
+    content = (sprite_dir / "frame_002.txt").read_text()
+    assert content.startswith(". . . R\n")
+
+
+def test_frame_delete_last_frame_errors(sprite_dir):
+    """Cannot delete the only frame."""
+    cmd_frame_add(sprite_dir)  # convert to animated (1 frame + 1 new = 2)
+    cmd_frame_delete(sprite_dir, 2)  # delete one, leaving 1
+    with pytest.raises(ValueError, match="cannot delete the only frame"):
+        cmd_frame_delete(sprite_dir, 1)
+
+
+def test_frame_delete_updates_state(sprite_dir):
+    """Deleting active frame sets state to frame 1."""
+    cmd_frame_add(sprite_dir)  # 1, 2 (active = 2)
+    cmd_frame_delete(sprite_dir, 2)
+    state = load_state(sprite_dir)
+    assert state["active_frame"] == 1
+
+
+def test_frame_delete_updates_animation_refs(sprite_dir):
+    """Deleting a frame decrements animation frame refs >= deleted."""
+    cmd_frame_add(sprite_dir)  # 1, 2
+    cmd_frame_add(sprite_dir)  # 1, 2, 3
+    anims = {"walk": {"frames": [1, 2, 3], "fps": 8, "loop": True}}
+    save_animations(sprite_dir, anims)
+    cmd_frame_delete(sprite_dir, 2)
+    loaded = load_animations(sprite_dir)
+    assert loaded["walk"]["frames"] == [1, 2]
+
+
+# --- cmd_frame_select ---
+
+def test_frame_select(sprite_dir):
+    """Selecting a frame updates state."""
+    cmd_frame_add(sprite_dir)  # 1, 2
+    cmd_frame_select(sprite_dir, 1)
+    state = load_state(sprite_dir)
+    assert state["active_frame"] == 1
+
+
+def test_frame_select_invalid_errors(sprite_dir):
+    """Selecting non-existent frame raises ValueError."""
+    cmd_frame_add(sprite_dir)
+    with pytest.raises(ValueError, match="frame 99"):
+        cmd_frame_select(sprite_dir, 99)
+
+
+# --- cmd_frame_list ---
+
+def test_frame_list(sprite_dir, capsys):
+    """Frame list prints frames with active marker."""
+    cmd_frame_add(sprite_dir)  # 1, 2 (active = 2)
+    cmd_frame_list(sprite_dir)
+    output = capsys.readouterr().out
+    assert "frame_001.txt" in output
+    assert "frame_002.txt" in output
+    assert "*" in output  # active marker
