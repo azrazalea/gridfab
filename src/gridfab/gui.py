@@ -14,6 +14,10 @@ from pathlib import Path
 
 from gridfab.core.grid import Grid, TRANSPARENT, get_grid_dimensions
 from gridfab.core.palette import Palette
+from gridfab.core.animation import (
+    discover_frames, is_animated, frame_path, resolve_grid_path,
+    load_state, save_state, max_frame_number,
+)
 
 ZOOM_LEVELS = [4, 8, 16, 24, 32, 48]
 DEFAULT_CELL_SIZE = 16
@@ -139,6 +143,18 @@ def palette_index_to_alias(index: int, aliases: list[str]) -> str | None:
     return None
 
 
+def render_frame_thumbnail(
+    grid_data: list[list[str]], palette: Palette,
+) -> list[list[str | None]]:
+    """Resolve grid data to hex colors for a frame thumbnail."""
+    return palette.resolve_grid(grid_data)
+
+
+def frame_strip_layout(num_frames: int, thumb_size: int = 32, padding: int = 4) -> list[int]:
+    """Compute x positions for frame thumbnails in the strip."""
+    return [padding + i * (thumb_size + padding) for i in range(num_frames)]
+
+
 def eyedropper_pick(grid, r: int | None, c: int | None) -> str | None:
     """Return the raw grid value at (r, c), or None if out of bounds."""
     if r is None or c is None:
@@ -161,10 +177,20 @@ class PixelEditor:
     def __init__(self, root: tk.Tk, work_dir: Path):
         self.root = root
         self.work_dir = work_dir
-        self.grid_path = self.work_dir / "grid.txt"
         self.palette_path = self.work_dir / "palette.txt"
 
         self.palette = Palette.load(self.palette_path)
+
+        # Animation state
+        self._animated = is_animated(self.work_dir)
+        self._active_frame: int | None = None
+        if self._animated:
+            state = load_state(self.work_dir)
+            frames = discover_frames(self.work_dir)
+            self._active_frame = state.get("active_frame", frames[0] if frames else 1)
+
+        # Resolve grid path (frame-aware)
+        self.grid_path = resolve_grid_path(self.work_dir) if self._animated or (self.work_dir / "grid.txt").exists() else self.work_dir / "grid.txt"
 
         if self.grid_path.exists():
             self.grid = Grid.load(self.grid_path)
@@ -211,6 +237,13 @@ class PixelEditor:
             relief=tk.SUNKEN, padx=5, font=("Consolas", 9),
         )
         self.status_bar.pack(side=tk.BOTTOM, fill=tk.X)
+
+        # Frame strip (above status bar, below canvas)
+        self.frame_strip = tk.Frame(root, height=50)
+        self._frame_strip_buttons: list[tk.Button] = []
+        if self._animated:
+            self.frame_strip.pack(side=tk.BOTTOM, fill=tk.X, padx=5, pady=2)
+            self._rebuild_frame_strip()
 
         # Main layout
         main = tk.Frame(root)
@@ -308,6 +341,8 @@ class PixelEditor:
         root.bind("<period>", lambda e: self.select_color(TRANSPARENT))
         for k in "1234567890":
             root.bind(k, lambda e, key=k: self._select_palette_by_key(key))
+        root.bind("<less>", lambda e: self._prev_frame())
+        root.bind("<greater>", lambda e: self._next_frame())
 
         self.select_color(TRANSPARENT)
         self._update_status()
@@ -555,6 +590,159 @@ class PixelEditor:
                 )
                 self.canvas.itemconfig(self.cells[r][c], fill=color)
 
+    # --- Frame strip and navigation ---
+
+    def _rebuild_frame_strip(self) -> None:
+        """Recreate frame strip thumbnails for all frames."""
+        for btn in self._frame_strip_buttons:
+            btn.destroy()
+        self._frame_strip_buttons.clear()
+
+        # Control buttons
+        btn_add = tk.Button(self.frame_strip, text="+", width=3, command=self._add_frame)
+        btn_add.pack(side=tk.LEFT, padx=2)
+        self._frame_strip_buttons.append(btn_add)
+
+        btn_dup = tk.Button(self.frame_strip, text="Dup", width=3, command=self._duplicate_frame)
+        btn_dup.pack(side=tk.LEFT, padx=2)
+        self._frame_strip_buttons.append(btn_dup)
+
+        btn_del = tk.Button(self.frame_strip, text="Del", width=3, command=self._delete_frame_gui)
+        btn_del.pack(side=tk.LEFT, padx=2)
+        self._frame_strip_buttons.append(btn_del)
+
+        sep = tk.Frame(self.frame_strip, width=8)
+        sep.pack(side=tk.LEFT)
+        self._frame_strip_buttons.append(sep)
+
+        frames = discover_frames(self.work_dir)
+        for f in frames:
+            is_active = f == self._active_frame
+            relief = tk.SUNKEN if is_active else tk.RAISED
+            border = 3 if is_active else 1
+            btn = tk.Button(
+                self.frame_strip, text=str(f), width=4, height=1,
+                relief=relief, borderwidth=border,
+                command=lambda num=f: self._switch_frame(num),
+            )
+            btn.pack(side=tk.LEFT, padx=2, pady=2)
+            self._frame_strip_buttons.append(btn)
+
+    def _switch_frame(self, frame_num: int) -> None:
+        """Switch to a different frame."""
+        if frame_num == self._active_frame:
+            return
+
+        # Auto-save current frame if modified
+        if self.modified:
+            self.grid.save(self.grid_path)
+            self._set_modified(False)
+
+        # Update active frame
+        self._active_frame = frame_num
+        save_state(self.work_dir, {"active_frame": frame_num})
+        self.grid_path = frame_path(self.work_dir, frame_num)
+
+        # Load new frame
+        self.grid = Grid.load(self.grid_path)
+
+        # Clear undo/redo (simple approach)
+        self.undo_stack.clear()
+        self.redo_stack.clear()
+
+        # Rebuild
+        self._rebuild_frame_strip()
+        self._rebuild_canvas()
+        self._update_title()
+        self._update_status()
+
+    def _prev_frame(self) -> None:
+        """Switch to previous frame."""
+        if not self._animated:
+            return
+        frames = discover_frames(self.work_dir)
+        if not frames:
+            return
+        idx = frames.index(self._active_frame) if self._active_frame in frames else 0
+        if idx > 0:
+            self._switch_frame(frames[idx - 1])
+
+    def _next_frame(self) -> None:
+        """Switch to next frame."""
+        if not self._animated:
+            return
+        frames = discover_frames(self.work_dir)
+        if not frames:
+            return
+        idx = frames.index(self._active_frame) if self._active_frame in frames else 0
+        if idx < len(frames) - 1:
+            self._switch_frame(frames[idx + 1])
+
+    def _add_frame(self) -> None:
+        """Add a new frame via GUI."""
+        from gridfab.commands.frame_cmd import cmd_frame_add
+        if self.modified:
+            self.grid.save(self.grid_path)
+            self._set_modified(False)
+        cmd_frame_add(self.work_dir)
+        self._animated = True
+        state = load_state(self.work_dir)
+        self._active_frame = state.get("active_frame", 1)
+        self.grid_path = frame_path(self.work_dir, self._active_frame)
+        self.grid = Grid.load(self.grid_path)
+        self.undo_stack.clear()
+        self.redo_stack.clear()
+        if not self.frame_strip.winfo_ismapped():
+            self.frame_strip.pack(side=tk.BOTTOM, fill=tk.X, padx=5, pady=2,
+                                  before=self.status_bar)
+        self._rebuild_frame_strip()
+        self._rebuild_canvas()
+        self._update_title()
+        self._update_status()
+
+    def _duplicate_frame(self) -> None:
+        """Duplicate the active frame."""
+        if not self._animated:
+            return
+        from gridfab.commands.frame_cmd import cmd_frame_add
+        if self.modified:
+            self.grid.save(self.grid_path)
+            self._set_modified(False)
+        cmd_frame_add(self.work_dir, from_frame=self._active_frame)
+        state = load_state(self.work_dir)
+        self._active_frame = state.get("active_frame", 1)
+        self.grid_path = frame_path(self.work_dir, self._active_frame)
+        self.grid = Grid.load(self.grid_path)
+        self.undo_stack.clear()
+        self.redo_stack.clear()
+        self._rebuild_frame_strip()
+        self._rebuild_canvas()
+        self._update_title()
+        self._update_status()
+
+    def _delete_frame_gui(self) -> None:
+        """Delete the active frame via GUI."""
+        if not self._animated:
+            return
+        frames = discover_frames(self.work_dir)
+        if len(frames) <= 1:
+            messagebox.showwarning("Cannot Delete", "Cannot delete the only frame.")
+            return
+        if not messagebox.askyesno("Delete Frame", f"Delete frame {self._active_frame}?"):
+            return
+        from gridfab.commands.frame_cmd import cmd_frame_delete
+        cmd_frame_delete(self.work_dir, self._active_frame)
+        state = load_state(self.work_dir)
+        self._active_frame = state.get("active_frame", 1)
+        self.grid_path = frame_path(self.work_dir, self._active_frame)
+        self.grid = Grid.load(self.grid_path)
+        self.undo_stack.clear()
+        self.redo_stack.clear()
+        self._rebuild_frame_strip()
+        self._rebuild_canvas()
+        self._update_title()
+        self._update_status()
+
     def save(self) -> None:
         self.grid.save(self.grid_path)
         self._set_modified(False)
@@ -693,10 +881,10 @@ class PixelEditor:
             return
 
         folder_path = Path(folder)
-        if not (folder_path / "grid.txt").exists():
+        if not (folder_path / "grid.txt").exists() and not is_animated(folder_path):
             messagebox.showerror(
                 "Not a Sprite",
-                f"No grid.txt found in {folder_path.name}\n\n"
+                f"No grid.txt or frame files found in {folder_path.name}\n\n"
                 "Select a folder containing grid.txt and palette.txt.",
             )
             return
@@ -772,8 +960,18 @@ class PixelEditor:
     def _switch_to_dir(self, new_dir: Path) -> None:
         """Switch the editor to a different sprite directory."""
         self.work_dir = new_dir
-        self.grid_path = new_dir / "grid.txt"
         self.palette_path = new_dir / "palette.txt"
+
+        # Check animation state
+        self._animated = is_animated(new_dir)
+        if self._animated:
+            state = load_state(new_dir)
+            frames = discover_frames(new_dir)
+            self._active_frame = state.get("active_frame", frames[0] if frames else 1)
+            self.grid_path = frame_path(new_dir, self._active_frame)
+        else:
+            self._active_frame = None
+            self.grid_path = new_dir / "grid.txt"
 
         # Reload palette and grid
         self.palette = Palette.load(self.palette_path)
@@ -790,6 +988,15 @@ class PixelEditor:
 
         # Rebuild palette buttons
         self._rebuild_palette_buttons()
+
+        # Frame strip
+        if self._animated:
+            if not self.frame_strip.winfo_ismapped():
+                self.frame_strip.pack(side=tk.BOTTOM, fill=tk.X, padx=5, pady=2,
+                                      before=self.status_bar)
+            self._rebuild_frame_strip()
+        else:
+            self.frame_strip.pack_forget()
 
         # Rebuild canvas
         self._rebuild_canvas(resize_viewport=True)

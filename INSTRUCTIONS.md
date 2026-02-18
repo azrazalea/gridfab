@@ -175,6 +175,8 @@ Removing a color deletes it from palette.txt. Any cells using that alias will sh
 | . | Select transparent |
 | [ | Zoom out |
 | ] | Zoom in |
+| < (Shift+,) | Previous frame (animated sprites) |
+| > (Shift+.) | Next frame (animated sprites) |
 
 ### Undo/Redo
 

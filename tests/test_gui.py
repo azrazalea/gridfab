@@ -7,6 +7,7 @@ from gridfab.gui import (
     zoom_step, cell_at_coords, fit_zoom_level,
     cursor_preview_color, eyedropper_pick,
     palette_key_to_index, palette_index_to_alias,
+    render_frame_thumbnail, frame_strip_layout,
     CHECKER_LIGHT, CHECKER_DARK, ZOOM_LEVELS,
     TOOL_BRUSH, TOOL_EYEDROPPER, TOOL_FILL,
 )
@@ -273,3 +274,46 @@ class TestPaletteIndexToAlias:
 
     def test_empty_list(self):
         assert palette_index_to_alias(0, []) is None
+
+
+# ===================================================================
+# Frame strip pure functions
+# ===================================================================
+
+class TestRenderFrameThumbnail:
+    def test_basic_resolution(self):
+        """Resolves grid data through palette to hex colors."""
+        palette = Palette({"R": "#FF0000", "B": "#0000FF"})
+        grid_data = [["R", "B"], [".", "R"]]
+        colors = render_frame_thumbnail(grid_data, palette)
+        assert colors[0][0] == "#FF0000"
+        assert colors[0][1] == "#0000FF"
+        assert colors[1][0] is None  # transparent
+        assert colors[1][1] == "#FF0000"
+
+    def test_all_transparent(self):
+        """All transparent returns all None."""
+        palette = Palette()
+        grid_data = [[".", "."], [".", "."]]
+        colors = render_frame_thumbnail(grid_data, palette)
+        assert all(c is None for row in colors for c in row)
+
+
+class TestFrameStripLayout:
+    def test_basic_layout(self):
+        """Returns positions for thumbnails."""
+        positions = frame_strip_layout(3, thumb_size=32, padding=4)
+        assert len(positions) == 3
+        assert positions[0] == 4  # first x position with padding
+        assert positions[1] == 4 + 32 + 4
+        assert positions[2] == 4 + (32 + 4) * 2
+
+    def test_single_frame(self):
+        """Single frame has one position."""
+        positions = frame_strip_layout(1, thumb_size=32, padding=4)
+        assert len(positions) == 1
+
+    def test_zero_frames(self):
+        """Zero frames returns empty list."""
+        positions = frame_strip_layout(0, thumb_size=32, padding=4)
+        assert positions == []
