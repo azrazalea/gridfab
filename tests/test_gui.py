@@ -6,6 +6,7 @@ from gridfab.gui import (
     format_status_text, grid_line_config,
     zoom_step, cell_at_coords, fit_zoom_level,
     cursor_preview_color, eyedropper_pick,
+    palette_key_to_index, palette_index_to_alias,
     CHECKER_LIGHT, CHECKER_DARK, ZOOM_LEVELS,
     TOOL_BRUSH, TOOL_EYEDROPPER, TOOL_FILL,
 )
@@ -245,3 +246,30 @@ class TestEyedropperPick:
     def test_returns_none_for_invalid_coords(self):
         grid = Grid.blank(4, 4)
         assert eyedropper_pick(grid, None, None) is None
+
+
+class TestPaletteKeyToIndex:
+    def test_key_1_returns_0(self):
+        assert palette_key_to_index("1") == 0
+
+    def test_key_9_returns_8(self):
+        assert palette_key_to_index("9") == 8
+
+    def test_key_0_returns_9(self):
+        assert palette_key_to_index("0") == 9
+
+    def test_invalid_key_returns_none(self):
+        assert palette_key_to_index("a") is None
+
+
+class TestPaletteIndexToAlias:
+    def test_index_0_is_first_alias(self):
+        aliases = ["R", "B", "G"]
+        assert palette_index_to_alias(0, aliases) == "R"
+
+    def test_index_out_of_range(self):
+        aliases = ["R", "B"]
+        assert palette_index_to_alias(5, aliases) is None
+
+    def test_empty_list(self):
+        assert palette_index_to_alias(0, []) is None

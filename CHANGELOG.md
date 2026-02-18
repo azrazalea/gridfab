@@ -14,6 +14,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - GUI tool mode system with Brush, Eyedropper (`I` key), and Fill tools
 - GUI eyedropper tool: pick color from canvas, auto-returns to brush; Alt+click from any tool
 - GUI fill tool (`F` key): flood-fill contiguous region with selected color, undoable
+- GUI keyboard shortcuts: `B` brush, `R` render, `E` export, `1-9`/`0` select palette color, `.` transparent, `H` flip horizontal, `V` flip vertical, `[`/`]` zoom out/in
 
 ### Fixed
 - Tagger: preserve original sprite name before deduplication so downstream code uses the correct base name

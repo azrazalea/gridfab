@@ -123,6 +123,14 @@ class TestGridManipulation:
         grid.flip_horizontal()
         assert grid.data[0] == [".", ".", ".", "R"]
 
+    def test_flip_horizontal_2d(self):
+        grid = Grid.blank(3, 2)
+        grid.data[0] = ["R", "G", "B"]
+        grid.data[1] = [".", "R", "."]
+        grid.flip_horizontal()
+        assert grid.data[0] == ["B", "G", "R"]
+        assert grid.data[1] == [".", "R", "."]
+
     def test_flip_vertical(self):
         grid = Grid.blank(1, 3)
         grid.data[0] = ["R"]
@@ -131,6 +139,16 @@ class TestGridManipulation:
         grid.flip_vertical()
         assert grid.data[0] == ["B"]
         assert grid.data[2] == ["R"]
+
+    def test_flip_vertical_2d(self):
+        grid = Grid.blank(3, 3)
+        grid.data[0] = ["R", "G", "B"]
+        grid.data[1] = [".", ".", "."]
+        grid.data[2] = ["X", "Y", "Z"]
+        grid.flip_vertical()
+        assert grid.data[0] == ["X", "Y", "Z"]
+        assert grid.data[1] == [".", ".", "."]
+        assert grid.data[2] == ["R", "G", "B"]
 
     def test_snapshot_restore(self, sample_grid: Path):
         grid = Grid.load(sample_grid / "grid.txt")

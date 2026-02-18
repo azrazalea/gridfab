@@ -162,10 +162,19 @@ Removing a color deletes it from palette.txt. Any cells using that alias will sh
 | Ctrl+Z | Undo (up to 512 steps) |
 | Ctrl+Y | Redo |
 | Ctrl+Shift+Z | Redo (alternative) |
-| G | Toggle grid lines |
+| B | Brush tool (default) |
 | I | Eyedropper tool (pick color from canvas) |
-| Alt+Click | Eyedropper (from any tool) |
 | F | Fill tool (flood-fill region) |
+| Alt+Click | Eyedropper (from any tool) |
+| G | Toggle grid lines |
+| R | Render preview.png |
+| E | Export PNGs |
+| H | Flip grid horizontally |
+| V | Flip grid vertically |
+| 1-9, 0 | Select palette color (1=first, 0=tenth) |
+| . | Select transparent |
+| [ | Zoom out |
+| ] | Zoom in |
 
 ### Undo/Redo
 

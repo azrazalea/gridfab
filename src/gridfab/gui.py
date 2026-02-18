@@ -123,6 +123,22 @@ def cursor_preview_color(selected: str, palette: Palette) -> str:
     return "#FF00FF"
 
 
+def palette_key_to_index(key: str) -> int | None:
+    """Convert a keyboard key (1-9, 0) to a 0-based palette index."""
+    if key in "123456789":
+        return int(key) - 1
+    if key == "0":
+        return 9
+    return None
+
+
+def palette_index_to_alias(index: int, aliases: list[str]) -> str | None:
+    """Return the palette alias at the given index, or None if out of range."""
+    if 0 <= index < len(aliases):
+        return aliases[index]
+    return None
+
+
 def eyedropper_pick(grid, r: int | None, c: int | None) -> str | None:
     """Return the raw grid value at (r, c), or None if out of bounds."""
     if r is None or c is None:
@@ -282,6 +298,16 @@ class PixelEditor:
         root.bind("g", lambda e: self._toggle_grid_lines())
         root.bind("i", lambda e: self._set_tool(TOOL_EYEDROPPER))
         root.bind("f", lambda e: self._set_tool(TOOL_FILL))
+        root.bind("b", lambda e: self._set_tool(TOOL_BRUSH))
+        root.bind("r", lambda e: self.render())
+        root.bind("e", lambda e: self._export())
+        root.bind("h", lambda e: self._flip_horizontal())
+        root.bind("v", lambda e: self._flip_vertical())
+        root.bind("bracketleft", lambda e: self._zoom(-1))
+        root.bind("bracketright", lambda e: self._zoom(1))
+        root.bind("period", lambda e: self.select_color(TRANSPARENT))
+        for k in "1234567890":
+            root.bind(k, lambda e, key=k: self._select_palette_by_key(key))
 
         self.select_color(TRANSPARENT)
         self._update_status()
@@ -304,6 +330,40 @@ class PixelEditor:
         }
         self.canvas.config(cursor=cursors.get(tool, ""))
         self._update_status()
+
+    def _select_palette_by_key(self, key: str) -> None:
+        idx = palette_key_to_index(key)
+        if idx is None:
+            return
+        aliases = sorted(self.palette.colors.keys())
+        alias = palette_index_to_alias(idx, aliases)
+        if alias is not None:
+            self.select_color(alias)
+
+    def _export(self) -> None:
+        self.save()
+        subprocess.run(
+            [sys.executable, "-m", "gridfab", "export", str(self.work_dir)],
+        )
+        print("Exported PNGs")
+
+    def _flip_horizontal(self) -> None:
+        self.undo_stack.append(self.grid.snapshot())
+        if len(self.undo_stack) > self.max_undo:
+            self.undo_stack.pop(0)
+        self.redo_stack.clear()
+        self.grid.flip_horizontal()
+        self._redraw()
+        self._set_modified()
+
+    def _flip_vertical(self) -> None:
+        self.undo_stack.append(self.grid.snapshot())
+        if len(self.undo_stack) > self.max_undo:
+            self.undo_stack.pop(0)
+        self.redo_stack.clear()
+        self.grid.flip_vertical()
+        self._redraw()
+        self._set_modified()
 
     def _on_motion(self, event: tk.Event) -> None:
         r, c = self.cell_at(event)
