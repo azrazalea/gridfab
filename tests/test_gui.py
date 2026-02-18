@@ -9,6 +9,7 @@ from gridfab.gui import (
     palette_key_to_index, palette_index_to_alias,
     render_frame_thumbnail, frame_strip_layout,
     blend_hex_colors, onion_skin_color,
+    playback_frame_sequence, frame_interval_ms,
     CHECKER_LIGHT, CHECKER_DARK, ZOOM_LEVELS,
     TOOL_BRUSH, TOOL_EYEDROPPER, TOOL_FILL,
 )
@@ -368,3 +369,47 @@ class TestOnionSkinColor:
         """Both transparent: returns None (still transparent)."""
         result = onion_skin_color(None, None, 0.5)
         assert result is None
+
+
+# ===================================================================
+# Playback pure functions
+# ===================================================================
+
+class TestPlaybackFrameSequence:
+    def test_named_animation(self):
+        """Returns frame list for a named animation."""
+        animations = {"walk": {"frames": [1, 2, 3], "fps": 8, "loop": True}}
+        assert playback_frame_sequence(animations, "walk", [1, 2, 3, 4]) == [1, 2, 3]
+
+    def test_all_frames_when_no_name(self):
+        """None name returns all frames."""
+        animations = {"walk": {"frames": [1, 2], "fps": 8, "loop": True}}
+        assert playback_frame_sequence(animations, None, [1, 2, 3]) == [1, 2, 3]
+
+    def test_unknown_animation_returns_all(self):
+        """Unknown animation name falls back to all frames."""
+        animations = {"walk": {"frames": [1, 2], "fps": 8, "loop": True}}
+        assert playback_frame_sequence(animations, "run", [1, 2, 3]) == [1, 2, 3]
+
+    def test_empty_all_frames(self):
+        """Empty all_frames returns empty list."""
+        assert playback_frame_sequence({}, None, []) == []
+
+
+class TestFrameIntervalMs:
+    def test_8_fps(self):
+        """8 FPS = 125ms interval."""
+        assert frame_interval_ms(8) == 125
+
+    def test_1_fps(self):
+        """1 FPS = 1000ms interval."""
+        assert frame_interval_ms(1) == 1000
+
+    def test_60_fps(self):
+        """60 FPS = ~17ms interval."""
+        assert frame_interval_ms(60) == 17
+
+    def test_clamps_minimum(self):
+        """0 or negative FPS clamps to 1 FPS (1000ms)."""
+        assert frame_interval_ms(0) == 1000
+        assert frame_interval_ms(-5) == 1000

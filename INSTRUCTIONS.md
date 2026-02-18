@@ -179,6 +179,7 @@ Removing a color deletes it from palette.txt. Any cells using that alias will sh
 | > (Shift+.) | Next frame (animated sprites) |
 | O | Toggle onion skinning (show previous frame overlay) |
 | Shift+O | Cycle onion skin opacity (25% → 50% → 75%) |
+| Space | Play/Pause animation (animated sprites) |
 
 ### Undo/Redo
 

@@ -16,7 +16,7 @@ from gridfab.core.grid import Grid, TRANSPARENT, get_grid_dimensions
 from gridfab.core.palette import Palette
 from gridfab.core.animation import (
     discover_frames, is_animated, frame_path, resolve_grid_path,
-    load_state, save_state, max_frame_number,
+    load_state, save_state, load_animations, max_frame_number,
 )
 
 ZOOM_LEVELS = [4, 8, 16, 24, 32, 48]
@@ -183,6 +183,26 @@ def onion_skin_color(
     return blend_hex_colors(prev_color, cur_color, opacity)
 
 
+def playback_frame_sequence(
+    animations: dict, anim_name: str | None, all_frames: list[int],
+) -> list[int]:
+    """Return the frame sequence for playback.
+
+    If anim_name matches a named animation, return its frame list.
+    Otherwise return all_frames.
+    """
+    if anim_name is not None and anim_name in animations:
+        return animations[anim_name].get("frames", all_frames)
+    return list(all_frames)
+
+
+def frame_interval_ms(fps: int) -> int:
+    """Convert FPS to millisecond interval between frames."""
+    if fps <= 0:
+        fps = 1
+    return round(1000 / fps)
+
+
 def eyedropper_pick(grid, r: int | None, c: int | None) -> str | None:
     """Return the raw grid value at (r, c), or None if out of bounds."""
     if r is None or c is None:
@@ -246,6 +266,14 @@ class PixelEditor:
         self.onion_skin_opacity = 0.25
         self._onion_opacities = [0.25, 0.50, 0.75]
         self._prev_frame_colors: list[list[str | None]] | None = None
+
+        # Playback state
+        self._playing = False
+        self._play_anim_name: str | None = None
+        self._play_fps = 8
+        self._play_frame_seq: list[int] = []
+        self._play_idx = 0
+        self._play_after_id: str | None = None
 
         self._update_title()
 
@@ -379,6 +407,7 @@ class PixelEditor:
         root.bind("<greater>", lambda e: self._next_frame())
         root.bind("o", lambda e: self._toggle_onion_skin())
         root.bind("O", lambda e: self._cycle_onion_opacity())
+        root.bind("<space>", lambda e: self._toggle_playback())
 
         self.select_color(TRANSPARENT)
         self._update_status()
@@ -501,6 +530,8 @@ class PixelEditor:
             zoom_pct=zoom_pct,
             file_path=self.work_dir.resolve().name,
         )
+        if self._playing:
+            text += "  |  Playing"
         if self.onion_skin_enabled:
             pct = round(self.onion_skin_opacity * 100)
             text += f"  |  Onion:{pct}%"
@@ -559,6 +590,8 @@ class PixelEditor:
         self._set_modified()
 
     def on_click(self, event: tk.Event) -> None:
+        if self._playing:
+            return
         # Alt+click = eyedropper from any tool
         if event.state & 0x20000:  # Alt modifier
             self._eyedropper_at(event)
@@ -572,6 +605,8 @@ class PixelEditor:
             self.paint(r, c, self.selected)
 
     def on_drag(self, event: tk.Event) -> None:
+        if self._playing:
+            return
         if self.tool != TOOL_BRUSH:
             return
         r, c = self.cell_at(event)
@@ -596,10 +631,14 @@ class PixelEditor:
         self._set_modified()
 
     def on_right_click(self, event: tk.Event) -> None:
+        if self._playing:
+            return
         r, c = self.cell_at(event)
         self.paint(r, c, TRANSPARENT)
 
     def on_right_drag(self, event: tk.Event) -> None:
+        if self._playing:
+            return
         r, c = self.cell_at(event)
         self.paint(r, c, TRANSPARENT)
 
@@ -681,6 +720,90 @@ class PixelEditor:
         prev_grid = Grid.load(frame_path(self.work_dir, prev_num))
         self._prev_frame_colors = self.palette.resolve_grid(prev_grid.data)
 
+    # --- Playback ---
+
+    def _toggle_playback(self) -> None:
+        """Toggle animation playback on/off."""
+        if not self._animated:
+            return
+        if self._playing:
+            self._stop_playback()
+        else:
+            self._start_playback()
+
+    def _start_playback(self) -> None:
+        """Start animation playback."""
+        if self._playing:
+            return
+        # Auto-save before playback
+        if self.modified:
+            self.grid.save(self.grid_path)
+            self._set_modified(False)
+
+        animations = load_animations(self.work_dir)
+        all_frames = discover_frames(self.work_dir)
+        self._play_frame_seq = playback_frame_sequence(
+            animations, self._play_anim_name, all_frames,
+        )
+        if not self._play_frame_seq:
+            return
+
+        # Use animation's FPS if playing a named anim
+        if (self._play_anim_name and self._play_anim_name in animations):
+            anim_data = animations[self._play_anim_name]
+            self._play_fps = anim_data.get("fps", self._play_fps)
+            self._fps_var.set(self._play_fps)
+
+        self._playing = True
+        self._play_idx = 0
+        self._rebuild_frame_strip()
+        self._play_tick()
+
+    def _stop_playback(self) -> None:
+        """Stop animation playback."""
+        if self._play_after_id is not None:
+            self.root.after_cancel(self._play_after_id)
+            self._play_after_id = None
+        self._playing = False
+        self._rebuild_frame_strip()
+        self._update_status()
+
+    def _play_tick(self) -> None:
+        """Advance to the next frame in the playback sequence."""
+        if not self._playing or not self._play_frame_seq:
+            return
+        frame_num = self._play_frame_seq[self._play_idx]
+        self._switch_frame_no_rebuild(frame_num)
+        self._play_idx = (self._play_idx + 1) % len(self._play_frame_seq)
+        interval = frame_interval_ms(self._play_fps)
+        self._play_after_id = self.root.after(interval, self._play_tick)
+
+    def _switch_frame_no_rebuild(self, frame_num: int) -> None:
+        """Switch frame display without rebuilding the frame strip (for playback)."""
+        self._active_frame = frame_num
+        self.grid_path = frame_path(self.work_dir, frame_num)
+        self.grid = Grid.load(self.grid_path)
+        self._redraw()
+        self._update_status()
+
+    def _on_fps_change(self) -> None:
+        """Handle FPS spinner change."""
+        try:
+            self._play_fps = self._fps_var.get()
+        except (tk.TclError, ValueError):
+            pass
+
+    def _on_anim_select(self, value: str) -> None:
+        """Handle animation dropdown selection."""
+        if value == "(All Frames)":
+            self._play_anim_name = None
+        else:
+            self._play_anim_name = value
+        # If currently playing, restart with new sequence
+        if self._playing:
+            self._stop_playback()
+            self._start_playback()
+
     # --- Frame strip and navigation ---
 
     def _rebuild_frame_strip(self) -> None:
@@ -702,9 +825,46 @@ class PixelEditor:
         btn_del.pack(side=tk.LEFT, padx=2)
         self._frame_strip_buttons.append(btn_del)
 
-        sep = tk.Frame(self.frame_strip, width=8)
+        sep = tk.Frame(self.frame_strip, width=4)
         sep.pack(side=tk.LEFT)
         self._frame_strip_buttons.append(sep)
+
+        # Play/Pause button
+        play_text = "Stop" if self._playing else "Play"
+        btn_play = tk.Button(self.frame_strip, text=play_text, width=4, command=self._toggle_playback)
+        btn_play.pack(side=tk.LEFT, padx=2)
+        self._frame_strip_buttons.append(btn_play)
+
+        # FPS spinner
+        fps_label = tk.Label(self.frame_strip, text="FPS:")
+        fps_label.pack(side=tk.LEFT, padx=(4, 0))
+        self._frame_strip_buttons.append(fps_label)
+
+        self._fps_var = tk.IntVar(value=self._play_fps)
+        fps_spin = tk.Spinbox(
+            self.frame_strip, from_=1, to=60, width=3,
+            textvariable=self._fps_var, command=self._on_fps_change,
+        )
+        fps_spin.pack(side=tk.LEFT, padx=2)
+        self._frame_strip_buttons.append(fps_spin)
+
+        # Animation selector dropdown
+        animations = load_animations(self.work_dir)
+        anim_names = ["(All Frames)"] + sorted(animations.keys())
+        self._anim_var = tk.StringVar(value=anim_names[0])
+        if self._play_anim_name and self._play_anim_name in animations:
+            self._anim_var.set(self._play_anim_name)
+        anim_menu = tk.OptionMenu(
+            self.frame_strip, self._anim_var, *anim_names,
+            command=self._on_anim_select,
+        )
+        anim_menu.config(width=10)
+        anim_menu.pack(side=tk.LEFT, padx=2)
+        self._frame_strip_buttons.append(anim_menu)
+
+        sep2 = tk.Frame(self.frame_strip, width=4)
+        sep2.pack(side=tk.LEFT)
+        self._frame_strip_buttons.append(sep2)
 
         frames = discover_frames(self.work_dir)
         for f in frames:
