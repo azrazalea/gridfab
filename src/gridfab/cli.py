@@ -189,6 +189,10 @@ def main() -> None:
     p_import.add_argument("--index", default=None, help="Atlas index.json for naming sprites")
     p_import.add_argument("--alpha-threshold", type=int, default=128, help="Alpha threshold (0-255, default 128)")
 
+    # gui
+    p_gui = sub.add_parser("gui", help="Launch the GUI editor")
+    p_gui.add_argument("directory", nargs="?", default=".", help="Sprite directory")
+
     # frame
     p_frame = sub.add_parser("frame", help="Manage animation frames")
     frame_sub = p_frame.add_subparsers(dest="frame_command")
@@ -413,6 +417,13 @@ def _dispatch(args: argparse.Namespace) -> None:
             )
         elif acmd in ("gif", "preview"):
             cmd_anim_gif(Path(args.directory), args.name, scale=args.scale)
+
+    elif cmd == "gui":
+        import tkinter as tk
+        from gridfab.gui import PixelEditor
+        root = tk.Tk()
+        PixelEditor(root, Path(args.directory))
+        root.mainloop()
 
     elif cmd == "import":
         from gridfab.commands.import_cmd import cmd_import

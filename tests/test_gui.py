@@ -10,6 +10,7 @@ from gridfab.gui import (
     render_frame_thumbnail, frame_strip_layout,
     blend_hex_colors, onion_skin_color,
     playback_frame_sequence, frame_interval_ms,
+    frame_cell_at_coords, side_by_side_layout,
     CHECKER_LIGHT, CHECKER_DARK, ZOOM_LEVELS,
     TOOL_BRUSH, TOOL_EYEDROPPER, TOOL_FILL,
 )
@@ -413,3 +414,175 @@ class TestFrameIntervalMs:
         """0 or negative FPS clamps to 1 FPS (1000ms)."""
         assert frame_interval_ms(0) == 1000
         assert frame_interval_ms(-5) == 1000
+
+
+# ===================================================================
+# Side-by-side view pure functions
+# ===================================================================
+
+class TestFrameCellAtCoords:
+    """Tests for frame_cell_at_coords — maps canvas pixel to (frame, row, col)."""
+
+    def test_first_frame_top_left(self):
+        """Click at (0,0) maps to frame 0, row 0, col 0."""
+        f, r, c = frame_cell_at_coords(0, 0, 16, 4, 4, 3, 8)
+        assert (f, r, c) == (0, 0, 0)
+
+    def test_first_frame_interior(self):
+        """Click inside first frame maps correctly."""
+        # cell_size=16, so pixel (33, 17) = col 2, row 1
+        f, r, c = frame_cell_at_coords(33, 17, 16, 4, 4, 3, 8)
+        assert (f, r, c) == (0, 1, 2)
+
+    def test_second_frame(self):
+        """Click in second frame area maps to frame 1."""
+        # Frame 0 occupies x=[0, 64), gap=[64, 72), Frame 1 occupies x=[72, 136)
+        # grid_w=4, cell_size=16 → frame_pixel_w = 64, gap=8
+        # x=72 is start of frame 1, col 0
+        f, r, c = frame_cell_at_coords(72, 0, 16, 4, 4, 3, 8)
+        assert (f, r, c) == (1, 0, 0)
+
+    def test_third_frame(self):
+        """Click in third frame maps to frame 2."""
+        # Frame 2 starts at x = 2*(64+8) = 144
+        f, r, c = frame_cell_at_coords(144, 0, 16, 4, 4, 3, 8)
+        assert (f, r, c) == (2, 0, 0)
+
+    def test_gap_between_frames(self):
+        """Click in the gap returns (None, None, None)."""
+        # Gap is at x=[64, 72)
+        f, r, c = frame_cell_at_coords(65, 0, 16, 4, 4, 3, 8)
+        assert (f, r, c) == (None, None, None)
+
+    def test_below_grid(self):
+        """Click below all frame grids returns (None, None, None)."""
+        # grid_h=4, cell_size=16 → height=64, so y=65 is OOB
+        f, r, c = frame_cell_at_coords(0, 65, 16, 4, 4, 3, 8)
+        assert (f, r, c) == (None, None, None)
+
+    def test_past_last_frame(self):
+        """Click past the last frame returns (None, None, None)."""
+        # 3 frames: total_w = 3*64 + 2*8 = 208, so x=210 is OOB
+        f, r, c = frame_cell_at_coords(210, 0, 16, 4, 4, 3, 8)
+        assert (f, r, c) == (None, None, None)
+
+    def test_negative_coords(self):
+        """Negative coordinates return (None, None, None)."""
+        f, r, c = frame_cell_at_coords(-5, 10, 16, 4, 4, 3, 8)
+        assert (f, r, c) == (None, None, None)
+
+    def test_single_frame(self):
+        """Single frame with no gaps works correctly."""
+        f, r, c = frame_cell_at_coords(0, 0, 16, 4, 4, 1, 8)
+        assert (f, r, c) == (0, 0, 0)
+
+    def test_last_pixel_of_frame(self):
+        """Last pixel of a frame still maps to that frame's last cell."""
+        # Frame 0 last pixel: x=63, y=63 → col=3, row=3
+        f, r, c = frame_cell_at_coords(63, 63, 16, 4, 4, 3, 8)
+        assert (f, r, c) == (0, 3, 3)
+
+    def test_wrapped_second_row(self):
+        """Click in a frame on the second row with viewport wrapping."""
+        # 4 frames, stride=72, viewport_w=150 → cols_per_row=2
+        # Frame 2 is at row 1, col 0 → (x=0, y=72)
+        f, r, c = frame_cell_at_coords(0, 72, 16, 4, 4, 4, 8, viewport_w=150)
+        assert (f, r, c) == (2, 0, 0)
+
+    def test_wrapped_second_row_second_col(self):
+        """Click in frame 3 on second row, second column."""
+        # Frame 3 is at row 1, col 1 → (x=72, y=72)
+        f, r, c = frame_cell_at_coords(72, 72, 16, 4, 4, 4, 8, viewport_w=150)
+        assert (f, r, c) == (3, 0, 0)
+
+    def test_wrapped_gap_between_rows(self):
+        """Click in vertical gap between rows returns None."""
+        # Row 0 ends at y=64, row 1 starts at y=72, gap at y=65
+        f, r, c = frame_cell_at_coords(0, 65, 16, 4, 4, 4, 8, viewport_w=150)
+        assert (f, r, c) == (None, None, None)
+
+    def test_wrapped_past_last_frame(self):
+        """Click at position of nonexistent frame in partial last row."""
+        # 3 frames, cols_per_row=2 → row 1 has only frame 2 at col 0
+        # Click at col 1 of row 1 → frame_idx 3 which doesn't exist
+        f, r, c = frame_cell_at_coords(72, 72, 16, 4, 4, 3, 8, viewport_w=150)
+        assert (f, r, c) == (None, None, None)
+
+    def test_wrapped_interior_cell(self):
+        """Click inside a wrapped frame maps to correct cell."""
+        # Frame 2 at row 1, col 0 → origin (0, 72)
+        # Click at (33, 72+17) = (33, 89) → local (33, 17) → col 2, row 1
+        f, r, c = frame_cell_at_coords(33, 89, 16, 4, 4, 4, 8, viewport_w=150)
+        assert (f, r, c) == (2, 1, 2)
+
+
+class TestSideBySideLayout:
+    """Tests for side_by_side_layout — computes total dims and per-frame offsets."""
+
+    def test_basic_three_frames(self):
+        """Three frames with known dimensions (single row, no viewport)."""
+        total_w, total_h, offsets = side_by_side_layout(3, 4, 4, 16, 8)
+        # Each frame: 4*16 = 64px wide, 3 frames + 2 gaps of 8
+        assert total_w == 3 * 64 + 2 * 8  # 208
+        assert total_h == 4 * 16  # 64
+        assert offsets == [(0, 0), (72, 0), (144, 0)]
+
+    def test_single_frame(self):
+        """Single frame has no gaps."""
+        total_w, total_h, offsets = side_by_side_layout(1, 8, 8, 16, 8)
+        assert total_w == 128
+        assert total_h == 128
+        assert offsets == [(0, 0)]
+
+    def test_zero_frames(self):
+        """Zero frames returns zero dimensions and empty offsets."""
+        total_w, total_h, offsets = side_by_side_layout(0, 4, 4, 16, 8)
+        assert total_w == 0
+        assert total_h == 0
+        assert offsets == []
+
+    def test_offsets_x_monotonic_single_row(self):
+        """X-offsets increase when all frames fit in one row."""
+        _, _, offsets = side_by_side_layout(5, 4, 4, 16, 8)
+        for i in range(1, len(offsets)):
+            assert offsets[i][0] > offsets[i - 1][0]
+
+    def test_gap_zero(self):
+        """Zero gap means frames are adjacent."""
+        total_w, _, offsets = side_by_side_layout(3, 4, 4, 16, 0)
+        assert total_w == 3 * 64  # 192
+        assert offsets == [(0, 0), (64, 0), (128, 0)]
+
+    def test_wrapping_two_rows(self):
+        """Narrow viewport forces frames into two rows."""
+        # 4 frames, frame_pixel_w=64, gap=8, stride=72
+        # viewport_w=150 → cols_per_row = 150//72 = 2
+        total_w, total_h, offsets = side_by_side_layout(4, 4, 4, 16, 8, viewport_w=150)
+        assert offsets == [(0, 0), (72, 0), (0, 72), (72, 72)]
+        assert total_w == 2 * 72 - 8  # 136
+        assert total_h == 2 * 72 - 8  # 136
+
+    def test_wrapping_three_rows(self):
+        """Very narrow viewport forces one frame per row."""
+        # viewport_w=72 → cols_per_row = 72//72 = 1
+        _, total_h, offsets = side_by_side_layout(3, 4, 4, 16, 8, viewport_w=72)
+        assert offsets == [(0, 0), (0, 72), (0, 144)]
+        assert total_h == 3 * 72 - 8  # 208
+
+    def test_wrapping_partial_last_row(self):
+        """Last row may have fewer frames than cols_per_row."""
+        # 5 frames, viewport_w=220 → cols_per_row = 220//72 = 3
+        _, _, offsets = side_by_side_layout(5, 4, 4, 16, 8, viewport_w=220)
+        assert len(offsets) == 5
+        # Row 0: frames 0,1,2
+        assert offsets[0] == (0, 0)
+        assert offsets[1] == (72, 0)
+        assert offsets[2] == (144, 0)
+        # Row 1: frames 3,4
+        assert offsets[3] == (0, 72)
+        assert offsets[4] == (72, 72)
+
+    def test_wide_viewport_single_row(self):
+        """A very wide viewport keeps everything in one row."""
+        _, _, offsets = side_by_side_layout(3, 4, 4, 16, 8, viewport_w=9999)
+        assert offsets == [(0, 0), (72, 0), (144, 0)]

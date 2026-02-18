@@ -7,6 +7,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 ## [Unreleased]
 
 ### Added
+- `gui` CLI command: `gridfab gui [directory]` launches the GUI editor from the CLI
 - Animation system core data model: frame discovery (`frame_NNN.txt`), animation metadata (`animation.json`), active frame state (`.gridfab_state`), grid path resolution for frame-aware commands
 - `frame add` command: add animation frames (copy active, `--from N`, or `--blank`); first call on grid.txt-only dir converts to animated mode
 - `frame delete` command: delete frames with automatic renumbering and animation.json reference updates
@@ -36,6 +37,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - GUI eyedropper tool: pick color from canvas, auto-returns to brush; Alt+click from any tool
 - GUI fill tool (`F` key): flood-fill contiguous region with selected color, undoable
 - GUI keyboard shortcuts: `B` brush, `R` render, `E` export, `1-9`/`0` select palette color, `.` transparent, `H` flip horizontal, `V` flip vertical, `[`/`]` zoom out/in
+- GUI side-by-side view: press `M` to show all animation frames in a flexbox-style wrapping grid that fills horizontally then wraps to new rows; window auto-resizes on enter (capped at 85% of screen) and restores on exit; frames dynamically re-wrap when the window is resized
+- GUI multi-frame editing: Ctrl+click frame buttons to toggle multi-selection, Shift+click for range selection; paint/fill/erase/flip operations broadcast to all selected frames simultaneously
+- Tagger "Copy grid.txt" button: copies the current tile's grid.txt + palette.txt text representation to clipboard; also available via Ctrl+C in tag mode
+- Tagger AI prompt now includes the tile's grid.txt + palette.txt text so the AI can reason about actual pixel data, not just the upscaled image
+- GUI multi-frame undo/redo: Ctrl+Z/Ctrl+Y reverts operations across all affected frames atomically
+- GUI side-by-side frame labels with selection highlighting: active frame (red), selected frames (blue), with colored indicator bars
 
 ### Fixed
 - Tagger: preserve original sprite name before deduplication so downstream code uses the correct base name

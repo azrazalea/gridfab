@@ -204,6 +204,80 @@ def frame_interval_ms(fps: int) -> int:
     return round(1000 / fps)
 
 
+def frame_cell_at_coords(
+    x: int, y: int, cell_size: int, grid_w: int, grid_h: int,
+    num_frames: int, gap: int, viewport_w: int = 0,
+) -> tuple[int | None, int | None, int | None]:
+    """Map canvas pixel to (frame_idx, row, col) in side-by-side layout.
+
+    When *viewport_w* > 0 the layout wraps frames into multiple rows.
+    Returns (None, None, None) for gaps between frames or out-of-bounds.
+    """
+    if x < 0 or y < 0:
+        return None, None, None
+    frame_pixel_w = grid_w * cell_size
+    frame_pixel_h = grid_h * cell_size
+    col_stride = frame_pixel_w + gap
+    row_stride = frame_pixel_h + gap
+    if col_stride == 0 or row_stride == 0:
+        return None, None, None
+
+    if viewport_w > 0 and col_stride > 0:
+        cols_per_row = max(1, viewport_w // col_stride)
+    else:
+        cols_per_row = num_frames if num_frames > 0 else 1
+
+    frame_col = x // col_stride
+    frame_row = y // row_stride
+    if frame_col >= cols_per_row:
+        return None, None, None
+    frame_idx = frame_row * cols_per_row + frame_col
+    if frame_idx >= num_frames:
+        return None, None, None
+
+    local_x = x - frame_col * col_stride
+    local_y = y - frame_row * row_stride
+    if local_x >= frame_pixel_w or local_y >= frame_pixel_h:
+        # In a gap (horizontal or vertical)
+        return None, None, None
+    c = local_x // cell_size
+    r = local_y // cell_size
+    return frame_idx, r, c
+
+
+def side_by_side_layout(
+    num_frames: int, grid_w: int, grid_h: int, cell_size: int, gap: int,
+    viewport_w: int = 0,
+) -> tuple[int, int, list[tuple[int, int]]]:
+    """Compute total canvas dimensions and per-frame (x, y) offsets for SBS view.
+
+    Frames wrap into rows when *viewport_w* is positive and narrower than a
+    single row would need.  With ``viewport_w=0`` (default) all frames sit in
+    one row — preserving the old behaviour.
+    """
+    if num_frames == 0:
+        return 0, 0, []
+    frame_pixel_w = grid_w * cell_size
+    frame_pixel_h = grid_h * cell_size
+    stride = frame_pixel_w + gap
+
+    if viewport_w > 0 and stride > 0:
+        cols_per_row = max(1, viewport_w // stride)
+    else:
+        cols_per_row = num_frames  # single row
+
+    num_rows = (num_frames + cols_per_row - 1) // cols_per_row
+    total_w = min(num_frames, cols_per_row) * stride - gap
+    total_h = num_rows * (frame_pixel_h + gap) - gap
+
+    offsets: list[tuple[int, int]] = []
+    for i in range(num_frames):
+        col = i % cols_per_row
+        row = i // cols_per_row
+        offsets.append((col * stride, row * (frame_pixel_h + gap)))
+    return total_w, total_h, offsets
+
+
 def eyedropper_pick(grid, r: int | None, c: int | None) -> str | None:
     """Return the raw grid value at (r, c), or None if out of bounds."""
     if r is None or c is None:
@@ -278,6 +352,23 @@ class PixelEditor:
 
         # Frame copy/paste
         self._copied_frame_data: list[list[str]] | None = None
+
+        # Side-by-side view
+        self._side_by_side = False
+        self._frame_grids: dict[int, Grid] = {}
+        self._frame_cells: dict[int, list[list[int]]] = {}
+        self._frame_offsets: dict[int, tuple[int, int]] = {}
+        self._sbs_gap = 8
+        self._saved_geometry: str | None = None
+        self._sbs_resize_pending = False
+        self._sbs_rebuilding = False
+        self._sbs_last_viewport_w = 0
+
+        # Multi-frame selection (works in both modes)
+        self._selected_frames: set[int] = set()
+        self._frame_modified: dict[int, bool] = {}
+        self._multi_undo_stack: list[dict[int, list[list[str]]]] = []
+        self._multi_redo_stack: list[dict[int, list[list[str]]]] = []
 
         self._update_title()
 
@@ -413,6 +504,7 @@ class PixelEditor:
         root.bind("o", lambda e: self._toggle_onion_skin())
         root.bind("O", lambda e: self._cycle_onion_opacity())
         root.bind("<space>", lambda e: self._toggle_playback())
+        root.bind("m", lambda e: self._toggle_side_by_side())
         root.bind("<Control-c>", lambda e: self._copy_frame())
         root.bind("<Control-v>", lambda e: self._paste_frame())
 
@@ -459,20 +551,48 @@ class PixelEditor:
             print(f"Export failed: {result.stderr.strip()}")
 
     def _flip_horizontal(self) -> None:
-        self.undo_stack.append(self.grid.snapshot())
-        if len(self.undo_stack) > self.max_undo:
-            self.undo_stack.pop(0)
-        self.redo_stack.clear()
-        self.grid.flip_horizontal()
+        if len(self._selected_frames) > 1:
+            snap = {f: self._frame_grids[f].snapshot()
+                    for f in self._selected_frames if f in self._frame_grids}
+            self._multi_undo_stack.append(snap)
+            if len(self._multi_undo_stack) > self.max_undo:
+                self._multi_undo_stack.pop(0)
+            self._multi_redo_stack.clear()
+            for f in self._selected_frames:
+                if f in self._frame_grids:
+                    self._frame_grids[f].flip_horizontal()
+                    self._frame_modified[f] = True
+                    if self._side_by_side and f in self._frame_cells:
+                        self._redraw_sbs_frame(f)
+        else:
+            self.undo_stack.append(self.grid.snapshot())
+            if len(self.undo_stack) > self.max_undo:
+                self.undo_stack.pop(0)
+            self.redo_stack.clear()
+            self.grid.flip_horizontal()
         self._redraw()
         self._set_modified()
 
     def _flip_vertical(self) -> None:
-        self.undo_stack.append(self.grid.snapshot())
-        if len(self.undo_stack) > self.max_undo:
-            self.undo_stack.pop(0)
-        self.redo_stack.clear()
-        self.grid.flip_vertical()
+        if len(self._selected_frames) > 1:
+            snap = {f: self._frame_grids[f].snapshot()
+                    for f in self._selected_frames if f in self._frame_grids}
+            self._multi_undo_stack.append(snap)
+            if len(self._multi_undo_stack) > self.max_undo:
+                self._multi_undo_stack.pop(0)
+            self._multi_redo_stack.clear()
+            for f in self._selected_frames:
+                if f in self._frame_grids:
+                    self._frame_grids[f].flip_vertical()
+                    self._frame_modified[f] = True
+                    if self._side_by_side and f in self._frame_cells:
+                        self._redraw_sbs_frame(f)
+        else:
+            self.undo_stack.append(self.grid.snapshot())
+            if len(self.undo_stack) > self.max_undo:
+                self.undo_stack.pop(0)
+            self.redo_stack.clear()
+            self.grid.flip_vertical()
         self._redraw()
         self._set_modified()
 
@@ -495,8 +615,14 @@ class PixelEditor:
         if r is None or c is None:
             return
         cs = self.cell_size
-        x0 = c * cs
-        y0 = r * cs
+        x_off = 0
+        y_off = 0
+        if self._side_by_side and self._active_frame in self._frame_offsets:
+            fx, fy = self._frame_offsets[self._active_frame]
+            x_off = fx
+            y_off = fy + 16  # add label height per row
+        x0 = x_off + c * cs
+        y0 = y_off + r * cs
         color = cursor_preview_color(self.selected, self.palette)
         self._preview_rect = self.canvas.create_rectangle(
             x0 + 1, y0 + 1, x0 + cs - 1, y0 + cs - 1,
@@ -544,21 +670,34 @@ class PixelEditor:
             text += f"  |  Onion:{pct}%"
         if self._animated and self._active_frame is not None:
             text += f"  |  Frame {self._active_frame}"
+        if len(self._selected_frames) > 1:
+            text += f"  |  Selected: {len(self._selected_frames)} frames"
+        if self._side_by_side:
+            text += "  |  SBS"
         self.status_var.set(text)
 
     def _toggle_grid_lines(self) -> None:
         self.grid_lines_visible = not self.grid_lines_visible
         cfg = grid_line_config(self.grid_lines_visible)
-        for row in self.cells:
-            for rect in row:
-                self.canvas.itemconfig(rect, **cfg)
+        if self._side_by_side:
+            for frame_cells in self._frame_cells.values():
+                for row in frame_cells:
+                    for rect in row:
+                        self.canvas.itemconfig(rect, **cfg)
+        else:
+            for row in self.cells:
+                for rect in row:
+                    self.canvas.itemconfig(rect, **cfg)
 
     def _on_mousewheel(self, event: tk.Event) -> None:
         direction = 1 if event.delta > 0 else -1
         new_size = zoom_step(self.cell_size, direction)
         if new_size != self.cell_size:
             self.cell_size = new_size
-            self._rebuild_canvas()
+            if self._side_by_side:
+                self._rebuild_canvas_sbs()
+            else:
+                self._rebuild_canvas()
             self._update_status()
 
     def _on_pan_start(self, event: tk.Event) -> None:
@@ -571,30 +710,82 @@ class PixelEditor:
         new_size = zoom_step(self.cell_size, direction)
         if new_size != self.cell_size:
             self.cell_size = new_size
-            self._rebuild_canvas()
+            if self._side_by_side:
+                self._rebuild_canvas_sbs()
+            else:
+                self._rebuild_canvas()
             self._update_status()
 
     def cell_at(self, event: tk.Event) -> tuple[int | None, int | None]:
         x = int(self.canvas.canvasx(event.x))
         y = int(self.canvas.canvasy(event.y))
+        if self._side_by_side:
+            cs = self.cell_size
+            frame_pw = self.grid.width * cs
+            frame_ph = self.grid.height * cs
+            clicked_frame = None
+            r = c = None
+            for f, (fx, fy) in self._frame_offsets.items():
+                lx, ly = x - fx, y - fy
+                if 0 <= lx < frame_pw and 0 <= ly < frame_ph:
+                    clicked_frame = f
+                    r = ly // cs
+                    c = lx // cs
+                    break
+            if clicked_frame is not None:
+                if clicked_frame != self._active_frame and clicked_frame in self._frame_grids:
+                    if self.modified:
+                        self.grid.save(self.grid_path)
+                    self._active_frame = clicked_frame
+                    self.grid = self._frame_grids[clicked_frame]
+                    self.grid_path = frame_path(self.work_dir, clicked_frame)
+                    self._frame_grids[clicked_frame] = self.grid
+                return r, c
+            return None, None
         return cell_at_coords(x, y, self.cell_size, self.grid.width, self.grid.height)
 
     def _begin_stroke(self) -> None:
         if not self._stroke_active:
-            self.undo_stack.append(self.grid.snapshot())
-            if len(self.undo_stack) > self.max_undo:
-                self.undo_stack.pop(0)
-            self.redo_stack.clear()
+            if len(self._selected_frames) > 1:
+                snap = {f: self._frame_grids[f].snapshot()
+                        for f in self._selected_frames if f in self._frame_grids}
+                self._multi_undo_stack.append(snap)
+                if len(self._multi_undo_stack) > self.max_undo:
+                    self._multi_undo_stack.pop(0)
+                self._multi_redo_stack.clear()
+            else:
+                self.undo_stack.append(self.grid.snapshot())
+                if len(self.undo_stack) > self.max_undo:
+                    self.undo_stack.pop(0)
+                self.redo_stack.clear()
             self._stroke_active = True
 
     def paint(self, r: int | None, c: int | None, value: str) -> None:
         if r is None or c is None:
             return
         self._begin_stroke()
+        # Always paint the active frame's canvas
         self.grid.data[r][c] = value
         color = cell_display_color(value, self.palette, r, c)
-        self.canvas.itemconfig(self.cells[r][c], fill=color)
+        if self._side_by_side and self._active_frame in self._frame_cells:
+            self.canvas.itemconfig(self._frame_cells[self._active_frame][r][c], fill=color)
+        else:
+            self.canvas.itemconfig(self.cells[r][c], fill=color)
         self._set_modified()
+        # Broadcast to other selected frames
+        if len(self._selected_frames) > 1:
+            for f in self._selected_frames:
+                if f == self._active_frame:
+                    continue
+                if f in self._frame_grids:
+                    grid = self._frame_grids[f]
+                    if 0 <= r < grid.height and 0 <= c < grid.width:
+                        grid.data[r][c] = value
+                        self._frame_modified[f] = True
+                        if self._side_by_side and f in self._frame_cells:
+                            self.canvas.itemconfig(
+                                self._frame_cells[f][r][c], fill=color,
+                            )
 
     def on_click(self, event: tk.Event) -> None:
         if self._playing:
@@ -629,12 +820,27 @@ class PixelEditor:
     def _fill_at(self, r: int | None, c: int | None) -> None:
         if r is None or c is None:
             return
-        self.undo_stack.append(self.grid.snapshot())
-        if len(self.undo_stack) > self.max_undo:
-            self.undo_stack.pop(0)
-        self.redo_stack.clear()
-        self.grid.flood_fill(r, c, self.selected)
-        self._redraw()
+        if len(self._selected_frames) > 1:
+            snap = {f: self._frame_grids[f].snapshot()
+                    for f in self._selected_frames if f in self._frame_grids}
+            self._multi_undo_stack.append(snap)
+            if len(self._multi_undo_stack) > self.max_undo:
+                self._multi_undo_stack.pop(0)
+            self._multi_redo_stack.clear()
+            for f in self._selected_frames:
+                if f in self._frame_grids:
+                    self._frame_grids[f].flood_fill(r, c, self.selected)
+                    self._frame_modified[f] = True
+                    if self._side_by_side and f in self._frame_cells:
+                        self._redraw_sbs_frame(f)
+            self._redraw()
+        else:
+            self.undo_stack.append(self.grid.snapshot())
+            if len(self.undo_stack) > self.max_undo:
+                self.undo_stack.pop(0)
+            self.redo_stack.clear()
+            self.grid.flood_fill(r, c, self.selected)
+            self._redraw()
         self._set_modified()
 
     def on_right_click(self, event: tk.Event) -> None:
@@ -653,6 +859,20 @@ class PixelEditor:
         self._stroke_active = False
 
     def undo(self) -> None:
+        if len(self._selected_frames) > 1 and self._multi_undo_stack:
+            # Multi-frame atomic undo
+            current = {f: self._frame_grids[f].snapshot()
+                       for f in self._selected_frames if f in self._frame_grids}
+            self._multi_redo_stack.append(current)
+            snap = self._multi_undo_stack.pop()
+            for f, data in snap.items():
+                if f in self._frame_grids:
+                    self._frame_grids[f].restore(data)
+                    self._frame_modified[f] = True
+                    if self._side_by_side and f in self._frame_cells:
+                        self._redraw_sbs_frame(f)
+            self._redraw()
+            return
         if not self.undo_stack:
             return
         self.redo_stack.append(self.grid.snapshot())
@@ -661,6 +881,20 @@ class PixelEditor:
         self._redraw()
 
     def redo(self) -> None:
+        if len(self._selected_frames) > 1 and self._multi_redo_stack:
+            # Multi-frame atomic redo
+            current = {f: self._frame_grids[f].snapshot()
+                       for f in self._selected_frames if f in self._frame_grids}
+            self._multi_undo_stack.append(current)
+            snap = self._multi_redo_stack.pop()
+            for f, data in snap.items():
+                if f in self._frame_grids:
+                    self._frame_grids[f].restore(data)
+                    self._frame_modified[f] = True
+                    if self._side_by_side and f in self._frame_cells:
+                        self._redraw_sbs_frame(f)
+            self._redraw()
+            return
         if not self.redo_stack:
             return
         self.undo_stack.append(self.grid.snapshot())
@@ -670,6 +904,10 @@ class PixelEditor:
 
     def _redraw(self) -> None:
         self._clear_preview()
+        if self._side_by_side:
+            for f in self._frame_cells:
+                self._redraw_sbs_frame(f)
+            return
         for r in range(self.grid.height):
             for c in range(self.grid.width):
                 color = cell_display_color(
@@ -686,11 +924,249 @@ class PixelEditor:
                         color = blended
                 self.canvas.itemconfig(self.cells[r][c], fill=color)
 
+    def _redraw_sbs_frame(self, frame_num: int) -> None:
+        """Redraw a single frame in side-by-side mode."""
+        if frame_num not in self._frame_cells or frame_num not in self._frame_grids:
+            return
+        grid = self._frame_grids[frame_num]
+        cells = self._frame_cells[frame_num]
+        for r in range(grid.height):
+            for c in range(grid.width):
+                color = cell_display_color(grid.data[r][c], self.palette, r, c)
+                self.canvas.itemconfig(cells[r][c], fill=color)
+
+    # --- Side-by-side view ---
+
+    def _toggle_side_by_side(self) -> None:
+        """Toggle side-by-side view (M key). Only for animated sprites."""
+        if not self._animated:
+            return
+        if self._playing:
+            return
+        if self._side_by_side:
+            self._exit_side_by_side()
+        else:
+            self._enter_side_by_side()
+
+    def _enter_side_by_side(self) -> None:
+        """Enter side-by-side view showing all frames."""
+        if self.modified:
+            self.grid.save(self.grid_path)
+            self._set_modified(False)
+
+        # Disable onion skin in SBS
+        self.onion_skin_enabled = False
+        self._prev_frame_colors = None
+
+        # Save current window geometry for later restore
+        self._saved_geometry = self.root.geometry()
+
+        self._side_by_side = True
+
+        # Load all frame grids
+        frames = discover_frames(self.work_dir)
+        self._frame_grids.clear()
+        for f in frames:
+            if f == self._active_frame:
+                self._frame_grids[f] = self.grid
+            else:
+                self._frame_grids[f] = Grid.load(frame_path(self.work_dir, f))
+            self._frame_modified.setdefault(f, False)
+
+        # Ensure active frame is in selection
+        if not self._selected_frames:
+            self._selected_frames = {self._active_frame} if self._active_frame else set()
+
+        # Reset viewport tracking and bind resize handler
+        self._sbs_last_viewport_w = 0
+        self.canvas.bind("<Configure>", self._on_sbs_configure)
+
+        # Auto-resize window for SBS layout
+        self._resize_for_sbs(len(frames))
+
+        self._rebuild_canvas_sbs()
+        self._rebuild_frame_strip()
+        self._update_status()
+
+    def _exit_side_by_side(self) -> None:
+        """Exit side-by-side view, save modified frames."""
+        self.canvas.unbind("<Configure>")
+        self._sbs_resize_pending = False
+        self._sbs_last_viewport_w = 0
+        self._flush_multi_frame_changes()
+        self._side_by_side = False
+        self._frame_cells.clear()
+        self._frame_offsets.clear()
+        # Keep _frame_grids if multi-selection is active
+        if len(self._selected_frames) <= 1:
+            self._frame_grids.clear()
+            self._frame_modified.clear()
+        self._rebuild_canvas()
+        self._rebuild_frame_strip()
+        self._update_status()
+
+        # Restore saved window geometry
+        if self._saved_geometry:
+            self.root.geometry(self._saved_geometry)
+            self._saved_geometry = None
+
+    def _resize_for_sbs(self, num_frames: int) -> None:
+        """Grow the window to fit more frames in SBS mode, capped at 85% of screen."""
+        cs = self.cell_size
+        gap = self._sbs_gap
+        frame_pixel_w = self.grid.width * cs
+        # Estimate palette sidebar width
+        sidebar_w = 160
+        screen_w = self.root.winfo_screenwidth()
+        screen_h = self.root.winfo_screenheight()
+        max_w = int(screen_w * 0.85)
+        max_h = int(screen_h * 0.85)
+
+        # Desired canvas width: fit all frames in one row if possible
+        desired_canvas_w = num_frames * (frame_pixel_w + gap) - gap
+        desired_w = min(desired_canvas_w + sidebar_w + 40, max_w)
+
+        # Compute layout with that canvas width to get total height
+        _, total_h, _ = side_by_side_layout(
+            num_frames, self.grid.width, self.grid.height, cs, gap,
+            viewport_w=desired_w - sidebar_w - 40,
+        )
+        label_h = 16
+        frame_pixel_h = self.grid.height * cs
+        row_stride = frame_pixel_h + gap
+        if row_stride > 0 and total_h > 0:
+            num_rows = (total_h + gap) // row_stride
+        else:
+            num_rows = 1
+        total_h += label_h * num_rows
+
+        # Add room for frame strip, status bar, toolbar
+        chrome_h = 120
+        desired_h = min(total_h + chrome_h, max_h)
+
+        # Only grow, never shrink below current size
+        cur_w = self.root.winfo_width()
+        cur_h = self.root.winfo_height()
+        new_w = max(desired_w, cur_w)
+        new_h = max(desired_h, cur_h)
+        if new_w != cur_w or new_h != cur_h:
+            self.root.geometry(f"{new_w}x{new_h}")
+
+    def _on_sbs_configure(self, event: tk.Event) -> None:
+        """Re-layout SBS when canvas width changes (debounced)."""
+        if not self._side_by_side or self._sbs_resize_pending or self._sbs_rebuilding:
+            return
+        # Only re-layout when the width actually changed
+        new_w = event.width
+        if new_w <= 1 or new_w == self._sbs_last_viewport_w:
+            return
+        self._sbs_resize_pending = True
+        self.root.after(50, self._sbs_configure_idle)
+
+    def _sbs_configure_idle(self) -> None:
+        """Deferred SBS re-layout after resize."""
+        self._sbs_resize_pending = False
+        if self._side_by_side and not self._sbs_rebuilding:
+            self._rebuild_canvas_sbs()
+
+    def _rebuild_canvas_sbs(self) -> None:
+        """Rebuild canvas in side-by-side layout with all frames."""
+        if self._sbs_rebuilding:
+            return
+        self._sbs_rebuilding = True
+        try:
+            self._rebuild_canvas_sbs_inner()
+        finally:
+            self._sbs_rebuilding = False
+
+    def _rebuild_canvas_sbs_inner(self) -> None:
+        frames = discover_frames(self.work_dir)
+        if not frames:
+            return
+        cs = self.cell_size
+        gap = self._sbs_gap
+        label_h = 16  # Height for frame labels above each frame
+
+        # Use canvas width for wrapping; fall back to 0 (single row) if not mapped
+        viewport_w = self.canvas.winfo_width()
+        if viewport_w <= 1:
+            viewport_w = 0
+        self._sbs_last_viewport_w = viewport_w
+
+        total_w, total_h, offsets = side_by_side_layout(
+            len(frames), self.grid.width, self.grid.height, cs, gap,
+            viewport_w=viewport_w,
+        )
+
+        # Account for one label_h per row of frames
+        frame_pixel_h = self.grid.height * cs
+        row_stride = frame_pixel_h + gap
+        if row_stride > 0 and total_h > 0:
+            num_rows = (total_h + gap) // row_stride
+        else:
+            num_rows = 1
+        total_h += label_h * num_rows
+
+        self.canvas.config(scrollregion=(0, 0, total_w, total_h))
+        self.canvas.delete("all")
+        self.cells = []
+        self._frame_cells.clear()
+        self._frame_offsets.clear()
+        line_cfg = grid_line_config(self.grid_lines_visible)
+
+        for idx, f in enumerate(frames):
+            x_off, y_off_raw = offsets[idx]
+            # Compute which visual row this frame is in for label offset
+            row_idx = y_off_raw // row_stride if row_stride > 0 else 0
+            y_off = y_off_raw + label_h * (row_idx + 1)
+            self._frame_offsets[f] = (x_off, y_off)
+            grid = self._frame_grids.get(f)
+            if grid is None:
+                continue
+
+            # Frame label
+            is_selected = f in self._selected_frames
+            is_active = f == self._active_frame
+            label_color = "#4488CC" if is_selected else "#666666"
+            if is_active:
+                label_color = "#CC4444"
+            self.canvas.create_text(
+                x_off + (self.grid.width * cs) // 2,
+                y_off - label_h // 2,
+                text=str(f), fill=label_color,
+                font=("Consolas", 9, "bold"),
+            )
+
+            # Selection indicator bar
+            if is_selected:
+                bar_color = "#CC4444" if is_active else "#AADDFF"
+                self.canvas.create_rectangle(
+                    x_off, y_off - 3,
+                    x_off + self.grid.width * cs, y_off,
+                    fill=bar_color, outline="",
+                )
+
+            # Draw cells
+            frame_cells: list[list[int]] = []
+            for r in range(grid.height):
+                row_cells: list[int] = []
+                for c in range(grid.width):
+                    x0 = x_off + c * cs
+                    y0 = y_off + r * cs
+                    color = cell_display_color(grid.data[r][c], self.palette, r, c)
+                    rect = self.canvas.create_rectangle(
+                        x0, y0, x0 + cs, y0 + cs,
+                        fill=color, **line_cfg,
+                    )
+                    row_cells.append(rect)
+                frame_cells.append(row_cells)
+            self._frame_cells[f] = frame_cells
+
     # --- Onion skinning ---
 
     def _toggle_onion_skin(self) -> None:
         """Toggle onion skin overlay on/off."""
-        if not self._animated:
+        if not self._animated or self._side_by_side:
             return
         self.onion_skin_enabled = not self.onion_skin_enabled
         if self.onion_skin_enabled:
@@ -731,7 +1207,7 @@ class PixelEditor:
 
     def _toggle_playback(self) -> None:
         """Toggle animation playback on/off."""
-        if not self._animated:
+        if not self._animated or self._side_by_side:
             return
         if self._playing:
             self._stop_playback()
@@ -892,25 +1368,56 @@ class PixelEditor:
         frames = discover_frames(self.work_dir)
         for f in frames:
             is_active = f == self._active_frame
+            is_selected = f in self._selected_frames
             relief = tk.SUNKEN if is_active else tk.RAISED
             border = 3 if is_active else 1
+            bg = "#AADDFF" if is_selected and not is_active else "#D0D0D0" if is_active else None
             btn = tk.Button(
                 self.frame_strip, text=str(f), width=4, height=1,
                 relief=relief, borderwidth=border,
                 command=lambda num=f: self._switch_frame(num),
             )
+            if bg:
+                btn.config(bg=bg)
+            btn.bind("<Control-Button-1>", lambda e, num=f: self._toggle_frame_selection(num))
+            btn.bind("<Shift-Button-1>", lambda e, num=f: self._range_select_frames(num))
             btn.pack(side=tk.LEFT, padx=2, pady=2)
             self._frame_strip_buttons.append(btn)
 
     def _switch_frame(self, frame_num: int) -> None:
-        """Switch to a different frame."""
+        """Switch to a different frame. Clears multi-selection unless in SBS mode."""
         if frame_num == self._active_frame:
             return
+
+        # Save all modified frames in multi-selection
+        self._flush_multi_frame_changes()
 
         # Auto-save current frame if modified
         if self.modified:
             self.grid.save(self.grid_path)
             self._set_modified(False)
+
+        if self._side_by_side:
+            # In SBS mode, keep frame_grids alive — just switch active
+            self._active_frame = frame_num
+            save_state(self.work_dir, {"active_frame": frame_num})
+            self.grid_path = frame_path(self.work_dir, frame_num)
+            self.grid = self._frame_grids.get(frame_num) or Grid.load(self.grid_path)
+            self._frame_grids[frame_num] = self.grid
+            self.undo_stack.clear()
+            self.redo_stack.clear()
+            self._rebuild_canvas_sbs()
+            self._rebuild_frame_strip()
+            self._update_title()
+            self._update_status()
+            return
+
+        # Clear multi-selection (plain click = single frame)
+        self._selected_frames.clear()
+        self._frame_grids.clear()
+        self._frame_modified.clear()
+        self._multi_undo_stack.clear()
+        self._multi_redo_stack.clear()
 
         # Update active frame
         self._active_frame = frame_num
@@ -933,6 +1440,57 @@ class PixelEditor:
         self._rebuild_canvas()
         self._update_title()
         self._update_status()
+
+    def _toggle_frame_selection(self, frame_num: int) -> None:
+        """Ctrl+click: toggle a frame in/out of multi-selection."""
+        if frame_num in self._selected_frames:
+            # Don't remove the active frame from selection
+            if frame_num != self._active_frame:
+                self._selected_frames.discard(frame_num)
+                self._frame_grids.pop(frame_num, None)
+                self._frame_modified.pop(frame_num, None)
+        else:
+            self._selected_frames.add(frame_num)
+        # Ensure active frame is always in selection when multi-selecting
+        if self._selected_frames:
+            self._selected_frames.add(self._active_frame)
+            self._load_selected_frame_grids()
+        self._rebuild_frame_strip()
+        self._update_status()
+        return "break"  # Prevent default button command
+
+    def _range_select_frames(self, frame_num: int) -> None:
+        """Shift+click: select contiguous range from active frame to clicked frame."""
+        frames = discover_frames(self.work_dir)
+        if self._active_frame not in frames or frame_num not in frames:
+            return "break"
+        idx_active = frames.index(self._active_frame)
+        idx_target = frames.index(frame_num)
+        lo, hi = min(idx_active, idx_target), max(idx_active, idx_target)
+        self._selected_frames = set(frames[lo:hi + 1])
+        self._load_selected_frame_grids()
+        self._rebuild_frame_strip()
+        self._update_status()
+        return "break"  # Prevent default button command
+
+    def _load_selected_frame_grids(self) -> None:
+        """Ensure _frame_grids is populated for all selected frames."""
+        for f in self._selected_frames:
+            if f not in self._frame_grids:
+                if f == self._active_frame:
+                    self._frame_grids[f] = self.grid
+                else:
+                    self._frame_grids[f] = Grid.load(frame_path(self.work_dir, f))
+                self._frame_modified.setdefault(f, False)
+
+    def _flush_multi_frame_changes(self) -> None:
+        """Save all modified frames in _frame_grids to disk."""
+        for f, modified in self._frame_modified.items():
+            if modified and f in self._frame_grids:
+                if f == self._active_frame:
+                    continue  # Will be saved via normal self.grid.save
+                self._frame_grids[f].save(frame_path(self.work_dir, f))
+        self._frame_modified = {f: False for f in self._frame_modified}
 
     def _prev_frame(self) -> None:
         """Switch to previous frame."""
@@ -1113,6 +1671,7 @@ class PixelEditor:
 
     def save(self) -> None:
         self.grid.save(self.grid_path)
+        self._flush_multi_frame_changes()
         self._set_modified(False)
         print("Saved grid.txt")
 

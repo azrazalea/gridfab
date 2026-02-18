@@ -6,6 +6,7 @@ Scripts that support the GridFab workflow but are not part of the installable pa
 
 - **`make_social_preview.py`** — Generates the GitHub social preview image from the logo assets.
 - **`tileset_tagger.py`** — **Deprecated.** Thin wrapper that imports from `gridfab.tagger`. Use `gridfab tag` or `gridfab-tagger` instead.
+- **`tag_dcss.py`** — **Moved** to `Veil of Ages/tools/tag_atlas.py`. This script is specific to Veil of Ages assets, not GridFab.
 
 ## Usage
 

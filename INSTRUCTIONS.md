@@ -201,6 +201,9 @@ Removing a color deletes it from palette.txt. Any cells using that alias will sh
 | Space | Play/Pause animation (animated sprites) |
 | Ctrl+C | Copy active frame (animated sprites) |
 | Ctrl+V | Paste frame as new frame (animated sprites) |
+| M | Toggle side-by-side view (animated sprites) |
+| Ctrl+Click frame | Toggle frame in multi-selection |
+| Shift+Click frame | Select range of frames |
 
 ### Undo/Redo
 
@@ -218,6 +221,8 @@ When editing an animated sprite (one with `frame_NNN.txt` files), the GUI shows 
 - **FPS spinner** — Set playback speed (1-60 FPS).
 - **Animation dropdown** — Select a named animation to play, or "(All Frames)" to play all.
 - **Onion skinning** — Press `O` to show the previous frame as a translucent overlay. `Shift+O` cycles opacity (25% / 50% / 75%).
+- **Side-by-side view** — Press `M` to show all frames in a wrapping grid layout (fills horizontally, then wraps to new rows). The window auto-resizes to fit more frames (capped at 85% of screen) and restores its previous size when you exit. Frames dynamically re-wrap when you resize the window. Zoom and pan are synchronized. Press `M` again to return to single-frame view. Onion skinning and playback are disabled in SBS mode.
+- **Multi-frame editing** — Ctrl+click frame buttons to toggle frames in/out of a multi-selection. Shift+click selects a contiguous range. When multiple frames are selected, paint, fill, erase, and flip operations broadcast to all selected frames simultaneously. Each frame's flood-fill runs independently from the same start cell. Undo/redo is atomic across all affected frames. Single-click (no modifier) clears multi-selection. Works in both single-frame and SBS views.
 
 The undo/redo history is cleared when switching frames. Frame changes auto-save the current frame if modified.
 
@@ -529,6 +534,18 @@ gridfab import sheet.png --tile-size 16x16 output/
 gridfab import sheet.png --tile-size 16x16 --index index.json output/
 ```
 
+### gridfab gui
+
+Launch the GUI editor for a sprite directory.
+
+```
+gridfab gui [directory]
+```
+
+- `directory` — Sprite directory to open (default: `.`)
+
+This is equivalent to running `gridfab-gui <directory>`.
+
 ### gridfab tag
 
 Interactive tileset tagger for labeling tiles in existing spritesheet PNGs. Includes AI-assisted name and description generation via Claude Code CLI.
@@ -558,6 +575,7 @@ gridfab tag <tileset.png> [--tile-size N] [--output FILE] [--model haiku|sonnet|
 | Space | Skip tile without saving |
 | Backspace | Go back to previous tile |
 | Delete | Mark tile as empty & skip |
+| Ctrl+C | Copy grid.txt + palette.txt text to clipboard |
 | Arrow keys | Resize multi-tile selection |
 | + or = | Add a new tag shortcut |
 | F1 | Show help |
@@ -580,6 +598,8 @@ gridfab tag <tileset.png> [--tile-size N] [--output FILE] [--model haiku|sonnet|
 **AI assists, not replaces:** You can type a partial name or description, press Escape to return to tag mode, then press Tab to generate — the AI will refine what you wrote rather than starting from scratch. For example, type "dark" in the Name field, Escape, then Tab — the AI sees your draft and incorporates it. This works for both the Name and Description fields.
 
 **Workshopping with the agent:** You can append feedback to the Name or Description fields using `@:`. For example, if the agent suggests `"wooden_crate"` as the name but you disagree, edit it to `"wooden_crate @: I think this is a chest not a crate"` and re-generate (Escape, Tab). The `@:` marker anywhere in the field triggers feedback mode — instead of trying to keep your text as-is, the agent will generate a fresh result based on your instructions. This is useful for iterating on tricky tiles or when you're unsure what something is.
+
+**Copy grid.txt:** The "Copy grid.txt" button below the tile preview (or Ctrl+C in tag mode) copies the current tile's grid.txt + palette.txt text representation to the clipboard. This is useful for pasting tile data into other tools or LLM conversations. In entry fields, Ctrl+C performs normal text copy.
 
 **Type field:** Auto-populated from active tags. One alphabetic tag fills in that tag name; two or more alphabetic tags fill in "multi". Numeric material tags (1-5) don't affect the type. You can always edit the type manually.
 
@@ -742,6 +762,7 @@ You are helping create pixel art using GridFab. The artwork is stored as plain t
 - `gridfab icon` — Export icon.ico (requires square grid)
 - `gridfab palette` — Show current palette colors
 - `gridfab import <image> [output_dir]` — Import image to grid.txt format (single image, tile, or tilesheet)
+- `gridfab gui [directory]` — Launch the GUI editor
 - `gridfab tag <tileset.png>` — Interactive tileset tagger with AI-assisted naming
 - `gridfab atlas <output_dir> [sprites...]` — Pack sprites into a spritesheet (atlas.png + index.json)
 
