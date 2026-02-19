@@ -52,6 +52,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - Tagger AI prompt now includes the tile's grid.txt + palette.txt text so the AI can reason about actual pixel data, not just the upscaled image
 - GUI multi-frame undo/redo: Ctrl+Z/Ctrl+Y reverts operations across all affected frames atomically
 - GUI side-by-side frame labels with selection highlighting: active frame (red), selected frames (blue), with colored indicator bars
+- Animation subdirectories: each animation can live in its own subdirectory with independent frame numbering (e.g. `burn/frame_001.txt`), inheriting `palette.txt` and `gridfab.json` from the parent sprite directory
+- `base:N` frame references in animation.json: subdirectory animations can reference frames from the parent sprite (e.g. `"base:1"` uses parent's `frame_001.txt`)
+- `anim create` command: create an animation subdirectory with an empty `animation.json` (`gridfab anim create <name> [--fps N] [--loop|--no-loop] [directory]`)
+- `anim sheets` discovers and exports subdirectory animations alongside root-level animations
+- `frame add`/`frame delete` in animation subdirectories automatically update the subdir's `animation.json` frame list
+- `clean` recurses into animation subdirectories to remove generated files
+- Atlas discovers spritesheets inside animation subdirectories (not just root-level sheets)
+- Palette and config parent-directory fallback: `palette.txt` and `gridfab.json` are found in the current directory or its parent, so animation subdirectories inherit the sprite's shared palette and config
+- GUI animation directory selector: dropdown in frame strip to switch between "(Base)" and animation subdirectories
+- GUI "NewAnim" button: create a new animation subdirectory from the GUI
+- GUI "+Base" button: insert a `base:N` frame reference into an animation subdirectory's frame list
 
 ### Changed
 - Grid cell values no longer support inline `#RRGGBB` hex colors — all colors must have palette aliases

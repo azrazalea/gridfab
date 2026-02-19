@@ -8,15 +8,25 @@ from PIL import Image
 
 from gridfab.core.grid import Grid
 from gridfab.core.palette import Palette
-from gridfab.core.animation import is_animated
+from gridfab.core.animation import is_animated, discover_anim_dirs
 from gridfab.render.export import render_export
+
+
+def _has_any_sheets(p: Path) -> bool:
+    """Check if a directory or its anim subdirs have *_sheet.png files."""
+    if list(p.glob("*_sheet.png")):
+        return True
+    for subdir in discover_anim_dirs(p):
+        if list(subdir.glob("*_sheet.png")):
+            return True
+    return False
 
 
 def _is_valid_sprite_dir(p: Path) -> bool:
     """Check if a directory is a valid sprite dir (static or animated with sheets)."""
     if (p / "grid.txt").exists():
         return True
-    if is_animated(p) and list(p.glob("*_sheet.png")):
+    if is_animated(p) and _has_any_sheets(p):
         return True
     return False
 
@@ -26,7 +36,7 @@ def _validate_sprite_dir(p: Path) -> None:
     if (p / "grid.txt").exists():
         return
     if is_animated(p):
-        if list(p.glob("*_sheet.png")):
+        if _has_any_sheets(p):
             return
         raise ValueError(
             f"{p} has animation frames but no *_sheet.png — "
@@ -192,10 +202,16 @@ def _collect_animated_entries(
     """Collect atlas entries from an animated sprite directory.
 
     Each *_sheet.png becomes a separate entry named '{dir_name}/{anim_name}'.
+    Also checks animation subdirectories for sheets.
     Returns list of (name, tiles_x, tiles_y, image, anim_meta).
     """
     entries = []
-    for sheet_png in sorted(d.glob("*_sheet.png")):
+    # Collect sheets from root (backward compat)
+    sheet_pngs = sorted(d.glob("*_sheet.png"))
+    # Also collect sheets from animation subdirectories
+    for subdir in discover_anim_dirs(d):
+        sheet_pngs.extend(sorted(subdir.glob("*_sheet.png")))
+    for sheet_png in sheet_pngs:
         anim_name = sheet_png.stem.replace("_sheet", "")
         entry_name = f"{d.name}/{anim_name}"
 

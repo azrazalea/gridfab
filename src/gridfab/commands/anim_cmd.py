@@ -11,7 +11,38 @@ from gridfab.core.animation import (
     load_animations,
     save_animations,
     validate_animation,
+    resolve_palette_path,
+    is_anim_subdir,
+    load_subdir_animation,
+    resolve_frame_path,
+    discover_anim_dirs,
+    parse_frame_ref,
 )
+
+
+def cmd_anim_create(
+    directory: Path,
+    name: str,
+    fps: int = 8,
+    loop: bool = True,
+) -> None:
+    """Create a new animation subdirectory.
+
+    Creates directory/name/ with an empty animation.json.
+    Raises FileExistsError if the subdirectory already exists.
+    """
+    subdir = directory / name
+    if subdir.exists():
+        raise FileExistsError(
+            f"animation directory '{name}' already exists in {directory}"
+        )
+    subdir.mkdir()
+    anim_data = {"frames": [], "fps": fps, "loop": loop}
+    with open(subdir / "animation.json", "w", newline="\n") as f:
+        json.dump(anim_data, f, indent=2)
+        f.write("\n")
+    print(f"Animation '{name}' created at {subdir}")
+    print(f"  Add frames with: gridfab frame add {subdir}")
 
 
 def cmd_anim_add(
@@ -71,18 +102,26 @@ def cmd_anim_delete(directory: Path, name: str) -> None:
 def _load_anim_frames(directory: Path, name: str) -> tuple[list[list[list[str | None]]], dict]:
     """Load resolved color grids for all frames of a named animation.
 
+    Handles both old-style (root animation.json with int frame refs) and
+    new-style (subdir animation.json with base:N refs).
     Returns (frames_colors, anim_dict).
     """
-    anims = load_animations(directory)
-    if name not in anims:
-        raise ValueError(f"animation '{name}' not found")
+    # Check if this is an animation subdirectory
+    resolved = directory.resolve()
+    if is_anim_subdir(resolved) and name == resolved.name:
+        anim = load_subdir_animation(directory)
+    else:
+        anims = load_animations(directory)
+        if name not in anims:
+            raise ValueError(f"animation '{name}' not found")
+        anim = anims[name]
 
-    anim = anims[name]
-    palette_path = directory / "palette.txt"
+    palette_path = resolve_palette_path(directory)
     palette = Palette.load(palette_path)
     frames_colors = []
-    for f in anim["frames"]:
-        grid = Grid.load(frame_path(directory, f), palette_path=palette_path)
+    for ref in anim["frames"]:
+        path = resolve_frame_path(ref, directory)
+        grid = Grid.load(path, palette_path=palette_path)
         colors = palette.resolve_grid(grid.data)
         frames_colors.append(colors)
     return frames_colors, anim
@@ -100,9 +139,11 @@ def cmd_anim_sheet(
 
     frames_colors, anim = _load_anim_frames(directory, name)
 
-    # Get dimensions from first frame
-    grid = Grid.load(frame_path(directory, anim["frames"][0]),
-                     palette_path=directory / "palette.txt")
+    # Get dimensions from first frame (resolving base refs)
+    first_ref = anim["frames"][0]
+    first_path = resolve_frame_path(first_ref, directory)
+    palette_path = resolve_palette_path(directory)
+    grid = Grid.load(first_path, palette_path=palette_path)
     fps = anim.get("fps", 8)
     loop = anim.get("loop", True)
 
@@ -131,13 +172,29 @@ def cmd_anim_sheets(
     scale: int = 1,
     layout: str = "horizontal",
 ) -> None:
-    """Export spritesheets for all defined animations."""
-    anims = load_animations(directory)
-    if not anims:
-        raise ValueError("no animations defined")
+    """Export spritesheets for all defined animations.
 
-    for name in anims:
-        cmd_anim_sheet(directory, name, scale=scale, layout=layout)
+    Exports both old-style (root animation.json) and new-style (subdirectory)
+    animations. Subdirectory animations are exported into their subdirectory.
+    """
+    # Export root-level animations from animation.json
+    root_path = directory / "animation.json"
+    if root_path.exists():
+        with open(root_path) as f:
+            root_anims = json.load(f)
+        for name in root_anims:
+            cmd_anim_sheet(directory, name, scale=scale, layout=layout)
+
+    # Export subdirectory animations
+    for subdir in discover_anim_dirs(directory):
+        name = subdir.name
+        cmd_anim_sheet(subdir, name, scale=scale, layout=layout)
+
+    # Check if anything was exported
+    has_root = root_path.exists() and bool(json.loads(root_path.read_text()))
+    has_subdirs = bool(discover_anim_dirs(directory))
+    if not has_root and not has_subdirs:
+        raise ValueError("no animations defined")
 
 
 def cmd_anim_gif(
@@ -150,8 +207,10 @@ def cmd_anim_gif(
 
     frames_colors, anim = _load_anim_frames(directory, name)
 
-    grid = Grid.load(frame_path(directory, anim["frames"][0]),
-                     palette_path=directory / "palette.txt")
+    first_ref = anim["frames"][0]
+    first_path = resolve_frame_path(first_ref, directory)
+    palette_path = resolve_palette_path(directory)
+    grid = Grid.load(first_path, palette_path=palette_path)
     fps = anim.get("fps", 8)
     loop = anim.get("loop", True)
 

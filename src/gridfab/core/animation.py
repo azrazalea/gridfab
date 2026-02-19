@@ -89,12 +89,24 @@ def save_state(directory: Path, state: dict) -> None:
 
 
 def load_animations(directory: Path) -> dict:
-    """Load animation.json, or return empty dict if missing."""
+    """Load animation definitions from root animation.json and subdirectories.
+
+    Old-style animations (in root animation.json) and new-style subdirectory
+    animations coexist. Subdir animations get their name from the folder name.
+    """
+    anims = {}
     path = directory / ANIM_FILE
-    if not path.exists():
-        return {}
-    with open(path) as f:
-        return json.load(f)
+    if path.exists():
+        with open(path) as f:
+            anims = json.load(f)
+
+    # Discover animation subdirectories
+    for subdir in discover_anim_dirs(directory):
+        name = subdir.name
+        if name not in anims:
+            anims[name] = load_subdir_animation(subdir)
+
+    return anims
 
 
 def save_animations(directory: Path, anims: dict) -> None:
@@ -123,6 +135,118 @@ def validate_animation(
                 f"animation '{name}' references frame {f}, "
                 f"but it doesn't exist (available: {sorted(existing)})"
             )
+
+
+def resolve_palette_path(directory: Path) -> Path:
+    """Find palette.txt in directory or its parent.
+
+    Resolves the path first so that Path(".") works correctly.
+    Raises FileNotFoundError if neither location has palette.txt.
+    """
+    directory = directory.resolve()
+    local = directory / "palette.txt"
+    if local.exists():
+        return local
+    parent = directory.parent / "palette.txt"
+    if parent.exists():
+        return parent
+    raise FileNotFoundError(
+        f"palette.txt not found in {directory} or {directory.parent}"
+    )
+
+
+def resolve_config_path(directory: Path) -> Path | None:
+    """Find gridfab.json in directory or its parent. Returns None if missing."""
+    directory = directory.resolve()
+    local = directory / "gridfab.json"
+    if local.exists():
+        return local
+    parent = directory.parent / "gridfab.json"
+    if parent.exists():
+        return parent
+    return None
+
+
+def is_anim_subdir(directory: Path) -> bool:
+    """True if directory is an animation subdirectory of a sprite root.
+
+    An animation subdirectory has frame_NNN.txt files or an animation.json,
+    AND its parent is a sprite root (has grid.txt or frame_NNN.txt files).
+    Resolves the path first so that Path(".") works correctly.
+    """
+    directory = directory.resolve()
+    has_frames = bool(discover_frames(directory))
+    has_anim_json = (directory / ANIM_FILE).exists()
+    if not has_frames and not has_anim_json:
+        return False
+    parent = directory.parent
+    if (parent / "grid.txt").exists():
+        return True
+    if discover_frames(parent):
+        return True
+    return False
+
+
+def discover_anim_dirs(directory: Path) -> list[Path]:
+    """Find subdirectories that contain frame_NNN.txt files. Returns sorted list."""
+    result = []
+    if not directory.is_dir():
+        return result
+    for child in directory.iterdir():
+        if child.is_dir() and discover_frames(child):
+            result.append(child)
+    result.sort(key=lambda p: p.name)
+    return result
+
+
+def parse_frame_ref(ref) -> tuple[str, int]:
+    """Parse a frame reference from animation.json.
+
+    - int → ("local", N)
+    - "base:N" → ("base", N)
+
+    Raises ValueError for invalid references.
+    """
+    if isinstance(ref, int):
+        return ("local", ref)
+    if isinstance(ref, str) and ref.startswith("base:"):
+        try:
+            num = int(ref[5:])
+            return ("base", num)
+        except ValueError:
+            pass
+    raise ValueError(f"invalid frame reference: {ref!r}")
+
+
+def resolve_frame_path(ref, directory: Path) -> Path:
+    """Resolve a frame reference to a file path.
+
+    Resolves the path first so that Path(".") works correctly.
+    - int → directory/frame_NNN.txt
+    - "base:N" → directory.parent/frame_NNN.txt
+    """
+    directory = directory.resolve()
+    kind, num = parse_frame_ref(ref)
+    if kind == "base":
+        return frame_path(directory.parent, num)
+    return frame_path(directory, num)
+
+
+def load_subdir_animation(directory: Path) -> dict:
+    """Load simplified animation.json from an animation subdirectory.
+
+    Returns {"frames": [...], "fps": N, "loop": bool}.
+    If animation.json is missing, returns a default empty structure.
+    """
+    path = directory / ANIM_FILE
+    if not path.exists():
+        return {"frames": [], "fps": 8, "loop": True}
+    with open(path) as f:
+        data = json.load(f)
+    data.setdefault("fps", 8)
+    data.setdefault("loop", True)
+    data.setdefault("frames", [])
+    return data
 
 
 def max_frame_number(directory: Path) -> int:

@@ -586,3 +586,37 @@ class TestSideBySideLayout:
         """A very wide viewport keeps everything in one row."""
         _, _, offsets = side_by_side_layout(3, 4, 4, 16, 8, viewport_w=9999)
         assert offsets == [(0, 0), (72, 0), (144, 0)]
+
+
+# ===================================================================
+# Animation Subdirectory Model — GUI pure functions
+# ===================================================================
+
+from gridfab.gui import anim_dir_choices
+
+
+class TestAnimDirChoices:
+    def test_no_anim_dirs(self, tmp_path):
+        """Returns just '(Base)' when no animation subdirs exist."""
+        assert anim_dir_choices(tmp_path) == ["(Base)"]
+
+    def test_with_anim_dirs(self, tmp_path):
+        """Returns '(Base)' + sorted subdirectory names."""
+        (tmp_path / "grid.txt").write_text(". .\n")
+        burn = tmp_path / "burn"
+        burn.mkdir()
+        (burn / "frame_001.txt").write_text(". .\n")
+        ext = tmp_path / "extinguish"
+        ext.mkdir()
+        (ext / "frame_001.txt").write_text(". .\n")
+        result = anim_dir_choices(tmp_path)
+        assert result == ["(Base)", "burn", "extinguish"]
+
+    def test_with_anim_json_only_subdirs(self, tmp_path):
+        """Subdirs with just animation.json (no frames yet) are included."""
+        (tmp_path / "grid.txt").write_text(". .\n")
+        burn = tmp_path / "burn"
+        burn.mkdir()
+        (burn / "animation.json").write_text('{"frames": []}')
+        result = anim_dir_choices(tmp_path)
+        assert result == ["(Base)", "burn"]

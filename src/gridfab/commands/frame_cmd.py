@@ -6,13 +6,77 @@ from gridfab.core.grid import Grid
 from gridfab.core.animation import (
     discover_frames,
     is_animated,
+    is_anim_subdir,
     frame_path,
     max_frame_number,
     load_state,
     save_state,
     load_animations,
     save_animations,
+    load_subdir_animation,
+    resolve_palette_path,
 )
+
+
+import json
+
+
+def _update_subdir_anim_add(directory: Path, frame_num: int) -> None:
+    """Append a local frame number to the subdir's animation.json frame list."""
+    anim = load_subdir_animation(directory)
+    anim["frames"].append(frame_num)
+    anim_path = directory / "animation.json"
+    with open(anim_path, "w", newline="\n") as f:
+        json.dump(anim, f, indent=2)
+        f.write("\n")
+
+
+def _update_subdir_anim_delete(directory: Path, frame_num: int) -> None:
+    """Remove a local frame from subdir's animation.json and renumber higher refs."""
+    anim = load_subdir_animation(directory)
+    new_frames = []
+    for ref in anim["frames"]:
+        if isinstance(ref, int):
+            if ref == frame_num:
+                continue
+            elif ref > frame_num:
+                new_frames.append(ref - 1)
+            else:
+                new_frames.append(ref)
+        else:
+            # base:N references are unaffected by local renumbering
+            new_frames.append(ref)
+    anim["frames"] = new_frames
+    anim_path = directory / "animation.json"
+    with open(anim_path, "w", newline="\n") as f:
+        json.dump(anim, f, indent=2)
+        f.write("\n")
+
+
+def _get_dimensions_for_subdir(directory: Path) -> tuple[int, int]:
+    """Get grid dimensions for a new frame in an animation subdirectory.
+
+    Uses existing local frames, or falls back to parent frames/config.
+    """
+    palette_path = resolve_palette_path(directory)
+    frames = discover_frames(directory)
+    if frames:
+        src = Grid.load(frame_path(directory, frames[0]), palette_path=palette_path)
+        return src.width, src.height
+    # Fall back to parent frames
+    parent = directory.parent
+    parent_frames = discover_frames(parent)
+    if parent_frames:
+        src = Grid.load(frame_path(parent, parent_frames[0]), palette_path=palette_path)
+        return src.width, src.height
+    # Fall back to grid.txt
+    grid_txt = parent / "grid.txt"
+    if grid_txt.exists():
+        src = Grid.load(grid_txt, palette_path=palette_path)
+        return src.width, src.height
+    # Fall back to config
+    from gridfab.core.grid import get_grid_dimensions
+    return get_grid_dimensions(directory)
 
 
 def cmd_frame_add(
@@ -27,10 +91,14 @@ def cmd_frame_add(
     - Default: copy active frame
     - --from N: copy from specific frame
     - --blank: create transparent frame with same dimensions
+
+    In an animation subdirectory, also updates the subdir's animation.json.
     """
+    in_subdir = is_anim_subdir(directory)
+    palette_path = resolve_palette_path(directory)
     frames = discover_frames(directory)
 
-    if not frames:
+    if not frames and not in_subdir:
         # First frame add: convert from single-frame to animated
         grid_path = directory / "grid.txt"
         if not grid_path.exists():
@@ -44,11 +112,14 @@ def cmd_frame_add(
     new_num = max_frame_number(directory) + 1
     new_path = frame_path(directory, new_num)
 
-    if blank:
-        # Load any existing frame to get dimensions
-        src = Grid.load(frame_path(directory, frames[0]),
-                        palette_path=directory / "palette.txt")
-        new_grid = Grid.blank(src.width, src.height)
+    if blank or (in_subdir and not frames):
+        # For subdir with no frames, create blank with inherited dimensions
+        if frames:
+            src = Grid.load(frame_path(directory, frames[0]), palette_path=palette_path)
+            w, h = src.width, src.height
+        else:
+            w, h = _get_dimensions_for_subdir(directory)
+        new_grid = Grid.blank(w, h)
         new_grid.save(new_path)
     elif from_frame is not None:
         src_path = frame_path(directory, from_frame)
@@ -57,17 +128,21 @@ def cmd_frame_add(
                 f"frame {from_frame} does not exist "
                 f"(available: {frames})"
             )
-        src = Grid.load(src_path, palette_path=directory / "palette.txt")
+        src = Grid.load(src_path, palette_path=palette_path)
         src.save(new_path)
     else:
         # Copy active frame
         state = load_state(directory)
         active = state.get("active_frame", frames[0])
-        src = Grid.load(frame_path(directory, active),
-                        palette_path=directory / "palette.txt")
+        src = Grid.load(frame_path(directory, active), palette_path=palette_path)
         src.save(new_path)
 
     save_state(directory, {"active_frame": new_num})
+
+    # In an animation subdir, auto-append to animation.json
+    if in_subdir:
+        _update_subdir_anim_add(directory, new_num)
+
     print(f"Added frame {new_num} ({new_path.name}).")
 
 
@@ -75,8 +150,10 @@ def cmd_frame_delete(directory: Path, frame_num: int) -> None:
     """Delete a frame and renumber remaining frames contiguously.
 
     Updates .gridfab_state and animation.json references.
+    In an animation subdirectory, also updates the subdir's animation.json.
     Cannot delete the only remaining frame.
     """
+    in_subdir = is_anim_subdir(directory)
     frames = discover_frames(directory)
 
     if frame_num not in frames:
@@ -103,22 +180,26 @@ def cmd_frame_delete(directory: Path, frame_num: int) -> None:
         dst = frame_path(directory, f - 1)
         tmp.rename(dst)
 
-    # Update animation.json: remove refs to deleted frame, decrement higher
-    anims = load_animations(directory)
-    if anims:
-        for name, anim in anims.items():
-            new_frames = []
-            for f in anim["frames"]:
-                if f == frame_num:
-                    continue  # removed
-                elif f > frame_num:
-                    new_frames.append(f - 1)
-                else:
-                    new_frames.append(f)
-            anim["frames"] = new_frames
-        # Remove animations with no frames left
-        anims = {k: v for k, v in anims.items() if v["frames"]}
-        save_animations(directory, anims)
+    # Update subdir animation.json if in an animation subdirectory
+    if in_subdir:
+        _update_subdir_anim_delete(directory, frame_num)
+    else:
+        # Update root animation.json: remove refs to deleted frame, decrement higher
+        anims = load_animations(directory)
+        if anims:
+            for name, anim in anims.items():
+                new_frames = []
+                for f in anim["frames"]:
+                    if f == frame_num:
+                        continue  # removed
+                    elif f > frame_num:
+                        new_frames.append(f - 1)
+                    else:
+                        new_frames.append(f)
+                anim["frames"] = new_frames
+            # Remove animations with no frames left
+            anims = {k: v for k, v in anims.items() if v["frames"]}
+            save_animations(directory, anims)
 
     # Update state
     state = load_state(directory)
@@ -157,7 +238,7 @@ def cmd_frame_copy_rect(
                 f"frame {f} does not exist (available: {frames})"
             )
 
-    palette_path = directory / "palette.txt"
+    palette_path = resolve_palette_path(directory)
     src = Grid.load(frame_path(directory, src_frame), palette_path=palette_path)
     dst = Grid.load(frame_path(directory, dst_frame), palette_path=palette_path)
 

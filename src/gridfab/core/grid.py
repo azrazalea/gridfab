@@ -34,10 +34,17 @@ def _unpad_cell(value: str) -> str:
 
 
 def load_config(directory: Path) -> dict:
-    """Load gridfab.json config from a sprite directory, or return defaults."""
+    """Load gridfab.json config from a sprite directory, or return defaults.
+
+    Falls back to parent directory if not found locally (for animation subdirs).
+    """
     config_path = directory / "gridfab.json"
     if config_path.exists():
         with open(config_path) as f:
+            return json.load(f)
+    parent_path = directory.parent / "gridfab.json"
+    if parent_path.exists():
+        with open(parent_path) as f:
             return json.load(f)
     return {}
 

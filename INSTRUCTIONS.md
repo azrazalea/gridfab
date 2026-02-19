@@ -124,6 +124,37 @@ Animated sprites use `frame_NNN.txt` files (e.g. `frame_001.txt`, `frame_002.txt
 
 A directory with only `grid.txt` is a valid non-animated sprite. Animation mode activates when `frame_NNN.txt` files exist. Use `gridfab frame add` to convert a sprite to animated mode.
 
+#### Animation Subdirectories
+
+Each animation can optionally live in its own subdirectory with independent frame numbering. This keeps each animation's frames separate, so working on "extinguish" doesn't require seeing all "burn" frames.
+
+```
+stone_hearth/                  # sprite root
+  palette.txt                  # shared palette (inherited by subdirs)
+  gridfab.json                 # shared config (inherited by subdirs)
+  frame_001.txt                # base/shared frames
+  frame_002.txt
+  burn/                        # animation subdirectory
+    frame_001.txt              # burn-specific frames (own numbering)
+    frame_002.txt
+    animation.json             # {"frames": ["base:1", 1, 2], "fps": 8, "loop": true}
+  extinguish/
+    frame_001.txt
+    animation.json             # {"frames": ["base:1", 1], "fps": 4, "loop": false}
+```
+
+**Key rules:**
+- **Palette**: always inherited from the parent sprite directory (no per-animation palettes)
+- **Config**: `gridfab.json` is inherited from the parent (dimensions are per-sprite, not per-animation)
+- **Base frame references**: Use `"base:N"` in the animation.json frame list to reference a frame from the parent directory (e.g. `"base:1"` uses `stone_hearth/frame_001.txt`)
+- **Animation name**: the folder name is the animation name (not duplicated in JSON)
+- **Subdirectory animation.json**: a simplified single-animation object (not a dict of named animations):
+  ```json
+  {"frames": ["base:1", 1, 2, 3], "fps": 8, "loop": true}
+  ```
+
+Use `gridfab anim create <name>` to create an animation subdirectory. All CLI commands (`frame add`, `frame delete`, `render`, `export`, etc.) work inside subdirectories — they automatically find `palette.txt` and `gridfab.json` in the parent directory.
+
 ## GUI Editor
 
 Launch with `gridfab-gui [directory]` (defaults to current directory). On Windows, double-click `gridfab-gui.exe`.
@@ -175,6 +206,7 @@ Removing a color deletes it from palette.txt. Any cells using that alias will sh
 - **New** — If a sprite is loaded, offers a choice: resize the current grid in place, or create a new sprite in a different folder. If no sprite is loaded, goes straight to the new-sprite flow (pick parent folder, name, size).
 - **Import** — Import an image into a new sprite folder. Supports single images and single-tile extraction from tilesheets. The editor switches to the imported sprite after completion.
 - **Animate** — Add a frame to the current sprite. On a non-animated sprite (grid.txt only), this converts it to animated mode and reveals the frame strip with all animation controls.
+- **NewAnim** — Create a new animation subdirectory. Prompts for a name, creates the folder with `animation.json`, and switches to it.
 
 ### Keyboard Shortcuts
 
@@ -226,6 +258,9 @@ When editing an animated sprite (one with `frame_NNN.txt` files), the GUI shows 
 - **Onion skinning** — Press `O` to show the previous frame as a translucent overlay. `Shift+O` cycles opacity (25% / 50% / 75%).
 - **Side-by-side view** — Press `M` to show all frames in a wrapping grid layout (fills horizontally, then wraps to new rows). The window auto-resizes to fit more frames (capped at 85% of screen) and restores its previous size when you exit. Frames dynamically re-wrap when you resize the window. Zoom and pan are synchronized. Press `M` again to return to single-frame view. Onion skinning and playback are disabled in SBS mode.
 - **Multi-frame editing** — Ctrl+click frame buttons to toggle frames in/out of a multi-selection. Shift+click selects a contiguous range. When multiple frames are selected, paint, fill, erase, and flip operations broadcast to all selected frames simultaneously. Each frame's flood-fill runs independently from the same start cell. Undo/redo is atomic across all affected frames. Single-click (no modifier) clears multi-selection. Works in both single-frame and SBS views.
+- **Animation directory selector** — When the sprite has animation subdirectories, a dropdown appears in the frame strip listing "(Base)" and each animation folder name. Selecting an entry switches the editor to that subdirectory (or back to the sprite root for "(Base)"), reloading frames and rebuilding the frame strip. The status bar shows `Anim:<name>` when working in a subdirectory.
+- **NewAnim button** — Creates a new animation subdirectory. Prompts for a name, then creates the folder with an empty `animation.json` and switches to it.
+- **+Base button** — Visible only when editing inside an animation subdirectory. Opens a dialog to select a base frame number from the parent sprite, then inserts a `"base:N"` reference into the subdirectory's `animation.json` frame list.
 
 The undo/redo history is cleared when switching frames. Frame changes auto-save the current frame if modified.
 
@@ -401,7 +436,7 @@ Remove generated/intermediate files from a sprite directory, keeping source file
 gridfab clean [directory]
 ```
 
-**Removed:** `preview.png`, scaled output PNGs (`output_2x.png`, `output_4x.png`, etc.), and their corresponding `.import` files.
+**Removed:** `preview.png`, scaled output PNGs (`output_2x.png`, `output_4x.png`, etc.), and their corresponding `.import` files. Also recurses into animation subdirectories.
 
 **Kept:** `grid.txt`, `frame_NNN.txt`, `palette.txt`, `gridfab.json`, `animation.json`, `.gridfab_state`, `output.png` (1x export), `icon.*`, `*_sheet.png`, `*_sheet.json`, `*.gif`, and `.import` files for kept files.
 
@@ -519,6 +554,20 @@ Output: `<name>.gif`
 #### gridfab anim preview
 
 Alias for `gridfab anim gif`.
+
+#### gridfab anim create
+
+Create an animation subdirectory with an empty `animation.json`.
+
+```
+gridfab anim create <name> [--fps N] [--loop|--no-loop] [directory]
+```
+
+- `name` — Animation name (becomes the subdirectory name)
+- `--fps N` — Default FPS for the animation (default: 8)
+- `--loop` / `--no-loop` — Whether the animation loops (default: loop)
+
+After creating, use `gridfab frame add <directory>/<name>/` to add frames to the animation.
 
 ### gridfab import
 
@@ -711,7 +760,7 @@ gridfab atlas <output_dir> [sprites...] [--include GLOB] [--exclude GLOB]
 | `sprites.*.fps` | Frames per second (only present on animated entries). |
 | `sprites.*.loop` | Whether the animation loops (only present on animated entries). |
 
-**Animated sprites:** Each `*_sheet.png` in an animated directory becomes a separate atlas entry named `{dir_name}/{anim_name}` (e.g. `fire/burn`). The sheet is pasted directly into the atlas at its tile span. Animation metadata (`frame_count`, `fps`, `loop`) is read from the corresponding `*_sheet.json`.
+**Animated sprites:** Each `*_sheet.png` in an animated directory becomes a separate atlas entry named `{dir_name}/{anim_name}` (e.g. `fire/burn`). Sheets inside animation subdirectories are also discovered automatically. The sheet is pasted directly into the atlas at its tile span. Animation metadata (`frame_count`, `fps`, `loop`) is read from the corresponding `*_sheet.json`.
 
 **Semantic fields:** New sprites are created with empty `description`, `tags`, and `tile_type`. These fields are preserved when rebuilding, reordering, or adding sprites — so you can safely fill them in by editing index.json and they won't be lost on the next atlas rebuild. These fields help LLMs and game engines find sprites by meaning rather than just by name.
 
@@ -787,11 +836,12 @@ You are helping create pixel art using GridFab. The artwork is stored as plain t
 - `gridfab frame delete <N>` — Delete a frame (renumbers remaining)
 - `gridfab frame select <N>` — Set the active frame
 - `gridfab frame list` — List all frames with active marker
+- `gridfab anim create <name> [--fps N] [--loop|--no-loop]` — Create an animation subdirectory
 - `gridfab anim add <name> --frames 1,2,3 [--fps 8] [--loop|--no-loop]` — Define a named animation
 - `gridfab anim list` — List all animations
 - `gridfab anim delete <name>` — Remove an animation
 - `gridfab anim sheet <name> [--scale N]` — Export animation spritesheet (PNG + JSON)
-- `gridfab anim sheets` — Export all animation spritesheets
+- `gridfab anim sheets` — Export all animation spritesheets (including subdirectory animations)
 - `gridfab anim gif <name> [--scale N]` — Export animated GIF
 
 **Other commands:**

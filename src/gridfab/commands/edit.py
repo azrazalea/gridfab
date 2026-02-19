@@ -5,7 +5,7 @@ from pathlib import Path
 
 from gridfab.core.grid import Grid
 from gridfab.core.palette import Palette, validate_hex_color
-from gridfab.core.animation import resolve_grid_path
+from gridfab.core.animation import resolve_grid_path, resolve_palette_path, discover_anim_dirs
 
 _HEX_COLOR_RE = re.compile(r"^#[0-9a-fA-F]{6}$")
 
@@ -13,9 +13,10 @@ _HEX_COLOR_RE = re.compile(r"^#[0-9a-fA-F]{6}$")
 def _load(directory: Path, frame: int | None = None) -> tuple[Grid, Palette, Path]:
     """Load grid and palette from a sprite directory.
 
+    Uses resolve_palette_path to find palette.txt in dir or parent (for anim subdirs).
     Returns the resolved grid path so callers save to the same file.
     """
-    palette_path = directory / "palette.txt"
+    palette_path = resolve_palette_path(directory)
     grid_path = resolve_grid_path(directory, frame)
     grid = Grid.load(grid_path, palette_path=palette_path)
     palette = Palette.load(palette_path)
@@ -65,7 +66,7 @@ def _resolve_color(color: str, palette: Palette, palette_path: Path, context: st
 def cmd_row(directory: Path, row_num: int, values: list[str], frame: int | None = None) -> None:
     """Replace a single row in the grid."""
     grid, palette, grid_path = _load(directory, frame)
-    palette_path = directory / "palette.txt"
+    palette_path = resolve_palette_path(directory)
 
     if len(values) != grid.width:
         raise ValueError(
@@ -81,7 +82,7 @@ def cmd_row(directory: Path, row_num: int, values: list[str], frame: int | None 
 def cmd_rows(directory: Path, start: int, end: int, values: list[str], frame: int | None = None) -> None:
     """Replace a range of rows (inclusive) in the grid."""
     grid, palette, grid_path = _load(directory, frame)
-    palette_path = directory / "palette.txt"
+    palette_path = resolve_palette_path(directory)
 
     num_rows = end - start + 1
     expected = num_rows * grid.width
@@ -104,7 +105,7 @@ def cmd_rows(directory: Path, start: int, end: int, values: list[str], frame: in
 def cmd_fill(directory: Path, row: int, col_start: int, col_end: int, color: str, frame: int | None = None) -> None:
     """Fill a horizontal span in a single row."""
     grid, palette, grid_path = _load(directory, frame)
-    palette_path = directory / "palette.txt"
+    palette_path = resolve_palette_path(directory)
     color = _resolve_color(color, palette, palette_path, "fill color")
     grid.fill_row(row, col_start, col_end, color)
     grid.save(grid_path)
@@ -116,7 +117,7 @@ def cmd_rect(
 ) -> None:
     """Fill a rectangular region with one color."""
     grid, palette, grid_path = _load(directory, frame)
-    palette_path = directory / "palette.txt"
+    palette_path = resolve_palette_path(directory)
     color = _resolve_color(color, palette, palette_path, "rect color")
     grid.fill_rect(r0, c0, r1, c1, color)
     grid.save(grid_path)
@@ -136,7 +137,7 @@ def cmd_clear(directory: Path, frame: int | None = None) -> None:
 def cmd_pixel(directory: Path, row: int, col: int, color: str, frame: int | None = None) -> None:
     """Set a single pixel by coordinate."""
     grid, palette, grid_path = _load(directory, frame)
-    palette_path = directory / "palette.txt"
+    palette_path = resolve_palette_path(directory)
     color = _resolve_color(color, palette, palette_path, "pixel color")
     grid.set(row, col, color)
     grid.save(grid_path)
@@ -146,7 +147,7 @@ def cmd_pixel(directory: Path, row: int, col: int, color: str, frame: int | None
 def cmd_pixels(directory: Path, specs: list[str], frame: int | None = None) -> None:
     """Set multiple pixels from comma-separated triplets: row,col,color."""
     grid, palette, grid_path = _load(directory, frame)
-    palette_path = directory / "palette.txt"
+    palette_path = resolve_palette_path(directory)
 
     placements = []
     for i, spec in enumerate(specs):
@@ -179,11 +180,9 @@ def cmd_pixels(directory: Path, specs: list[str], frame: int | None = None) -> N
 _SCALED_OUTPUT_RE = re.compile(r"^output_\d+x\.png$")
 
 
-def cmd_clean_files(directory: Path) -> None:
-    """Remove generated/intermediate files, keeping source and final exports."""
+def _clean_dir(directory: Path) -> list[str]:
+    """Remove generated files from a single directory. Returns list of removed names."""
     removed = []
-
-    # Files to remove: preview.png and scaled outputs (output_Nx.png where N>1)
     candidates = []
     preview = directory / "preview.png"
     if preview.exists():
@@ -193,7 +192,6 @@ def cmd_clean_files(directory: Path) -> None:
         if _SCALED_OUTPUT_RE.match(p.name):
             candidates.append(p)
 
-    # Remove candidates and their .import files
     for p in candidates:
         p.unlink()
         removed.append(p.name)
@@ -201,6 +199,21 @@ def cmd_clean_files(directory: Path) -> None:
         if import_file.exists():
             import_file.unlink()
             removed.append(import_file.name)
+
+    return removed
+
+
+def cmd_clean_files(directory: Path) -> None:
+    """Remove generated/intermediate files, keeping source and final exports.
+
+    Recurses into animation subdirectories.
+    """
+    removed = _clean_dir(directory)
+
+    # Also clean animation subdirectories
+    for subdir in discover_anim_dirs(directory):
+        sub_removed = _clean_dir(subdir)
+        removed.extend(f"{subdir.name}/{n}" for n in sub_removed)
 
     if removed:
         for name in removed:

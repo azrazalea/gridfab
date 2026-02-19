@@ -23,6 +23,7 @@ Commands:
     frame delete <N> [dir]                   Delete a frame (renumbers remaining)
     frame select <N> [dir]                   Set active frame
     frame list [dir]                         List all frames
+    anim create <name> [--fps N] [dir]       Create animation subdirectory
     anim add <name> --frames 1,2,3 [opts]   Define a named animation
     anim list [dir]                          List all animations
     anim delete <name> [dir]                 Delete a named animation
@@ -273,6 +274,13 @@ def main() -> None:
                                default="horizontal", help="Layout (default: horizontal)")
     p_anim_sheets.add_argument("directory", nargs="?", default=".", help="Sprite directory")
 
+    p_anim_create = anim_sub.add_parser("create", help="Create animation subdirectory")
+    p_anim_create.add_argument("name", help="Animation name (becomes directory name)")
+    p_anim_create.add_argument("--fps", type=int, default=8, help="Frames per second (default: 8)")
+    p_anim_create.add_argument("--loop", action="store_true", default=True, help="Loop animation (default)")
+    p_anim_create.add_argument("--no-loop", action="store_false", dest="loop", help="Don't loop")
+    p_anim_create.add_argument("directory", nargs="?", default=".", help="Sprite directory")
+
     p_anim_gif = anim_sub.add_parser("gif", help="Export animated GIF")
     p_anim_gif.add_argument("name", help="Animation name")
     p_anim_gif.add_argument("--scale", type=int, default=1, help="Scale factor (default: 1)")
@@ -432,14 +440,20 @@ def _dispatch(args: argparse.Namespace) -> None:
         from gridfab.commands.anim_cmd import (
             cmd_anim_add, cmd_anim_list, cmd_anim_delete,
             cmd_anim_sheet, cmd_anim_sheets, cmd_anim_gif,
+            cmd_anim_create,
         )
 
         acmd = args.anim_command
         if not acmd:
-            print("Usage: gridfab anim {add|list|delete|sheet|sheets|gif|preview}")
+            print("Usage: gridfab anim {create|add|list|delete|sheet|sheets|gif|preview}")
             sys.exit(1)
 
-        if acmd == "add":
+        if acmd == "create":
+            cmd_anim_create(
+                Path(args.directory), args.name,
+                fps=args.fps, loop=args.loop,
+            )
+        elif acmd == "add":
             frames = [int(x) for x in args.frames.split(",")]
             cmd_anim_add(
                 Path(args.directory), args.name, frames,

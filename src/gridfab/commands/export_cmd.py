@@ -5,14 +5,14 @@ from pathlib import Path
 
 from gridfab.core.grid import Grid, load_config, _pad_cell
 from gridfab.core.palette import Palette
-from gridfab.core.animation import resolve_grid_path, discover_frames, frame_path
+from gridfab.core.animation import resolve_grid_path, resolve_palette_path, discover_frames, frame_path
 from gridfab.render.export import render_export
 
 
 def cmd_export(directory: Path, frame: int | None = None) -> None:
     """Export final PNGs at configured scales with true transparency."""
     grid_path = resolve_grid_path(directory, frame)
-    palette_path = directory / "palette.txt"
+    palette_path = resolve_palette_path(directory)
     grid = Grid.load(grid_path, palette_path=palette_path)
     palette = Palette.load(palette_path)
     colors = palette.resolve_grid(grid.data)

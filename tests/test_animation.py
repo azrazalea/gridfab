@@ -771,3 +771,439 @@ def test_frame_copy_rect_nonexistent_frame_errors(animated_3_frames):
     """copy-rect with non-existent frame raises ValueError."""
     with pytest.raises(ValueError, match="does not exist"):
         cmd_frame_copy_rect(animated_3_frames, 0, 0, 1, 1, src_frame=1, dst_frame=99)
+
+
+# ===================================================================
+# Animation Subdirectory Model — Phase 1: Core Data Model
+# ===================================================================
+
+from gridfab.core.animation import (
+    resolve_palette_path,
+    resolve_config_path,
+    is_anim_subdir,
+    discover_anim_dirs,
+    parse_frame_ref,
+    resolve_frame_path,
+    load_subdir_animation,
+)
+
+
+# --- resolve_palette_path ---
+
+def test_resolve_palette_path_in_dir(tmp_path):
+    """Finds palette.txt in the directory itself."""
+    (tmp_path / "palette.txt").write_text("R=#FF0000\n")
+    assert resolve_palette_path(tmp_path) == tmp_path / "palette.txt"
+
+
+def test_resolve_palette_path_in_parent(tmp_path):
+    """Falls back to parent directory when palette.txt not in dir."""
+    (tmp_path / "palette.txt").write_text("R=#FF0000\n")
+    subdir = tmp_path / "burn"
+    subdir.mkdir()
+    assert resolve_palette_path(subdir) == tmp_path / "palette.txt"
+
+
+def test_resolve_palette_path_not_found(tmp_path):
+    """Raises FileNotFoundError when palette.txt in neither dir nor parent."""
+    subdir = tmp_path / "burn"
+    subdir.mkdir()
+    with pytest.raises(FileNotFoundError, match="palette.txt"):
+        resolve_palette_path(subdir)
+
+
+# --- resolve_config_path ---
+
+def test_resolve_config_path_in_dir(tmp_path):
+    """Finds gridfab.json in the directory itself."""
+    (tmp_path / "gridfab.json").write_text('{"grid": {"width": 16}}\n')
+    assert resolve_config_path(tmp_path) == tmp_path / "gridfab.json"
+
+
+def test_resolve_config_path_in_parent(tmp_path):
+    """Falls back to parent directory."""
+    (tmp_path / "gridfab.json").write_text('{"grid": {"width": 16}}\n')
+    subdir = tmp_path / "burn"
+    subdir.mkdir()
+    assert resolve_config_path(subdir) == tmp_path / "gridfab.json"
+
+
+def test_resolve_config_path_not_found(tmp_path):
+    """Returns None when gridfab.json in neither dir nor parent."""
+    subdir = tmp_path / "burn"
+    subdir.mkdir()
+    assert resolve_config_path(subdir) is None
+
+
+# --- is_anim_subdir ---
+
+def test_is_anim_subdir_true(tmp_path):
+    """Subdir with frames whose parent has grid.txt is an anim subdir."""
+    (tmp_path / "grid.txt").write_text(". .\n")
+    subdir = tmp_path / "burn"
+    subdir.mkdir()
+    (subdir / "frame_001.txt").write_text(". .\n")
+    assert is_anim_subdir(subdir) is True
+
+
+def test_is_anim_subdir_true_parent_has_frames(tmp_path):
+    """Subdir with frames whose parent has frame_NNN.txt is an anim subdir."""
+    (tmp_path / "frame_001.txt").write_text(". .\n")
+    subdir = tmp_path / "burn"
+    subdir.mkdir()
+    (subdir / "frame_001.txt").write_text(". .\n")
+    assert is_anim_subdir(subdir) is True
+
+
+def test_is_anim_subdir_false_no_frames(tmp_path):
+    """Subdir without frame files is not an anim subdir."""
+    (tmp_path / "grid.txt").write_text(". .\n")
+    subdir = tmp_path / "burn"
+    subdir.mkdir()
+    assert is_anim_subdir(subdir) is False
+
+
+def test_is_anim_subdir_false_standalone_sprite(tmp_path):
+    """Dir with frames but no sprite parent is a standalone sprite, not anim subdir."""
+    (tmp_path / "frame_001.txt").write_text(". .\n")
+    assert is_anim_subdir(tmp_path) is False
+
+
+# --- discover_anim_dirs ---
+
+def test_discover_anim_dirs_finds_subdirs(tmp_path):
+    """Discovers animation subdirectories with frame files."""
+    (tmp_path / "grid.txt").write_text(". .\n")
+    burn = tmp_path / "burn"
+    burn.mkdir()
+    (burn / "frame_001.txt").write_text(". .\n")
+    ext = tmp_path / "extinguish"
+    ext.mkdir()
+    (ext / "frame_001.txt").write_text(". .\n")
+    result = discover_anim_dirs(tmp_path)
+    assert [d.name for d in result] == ["burn", "extinguish"]
+
+
+def test_discover_anim_dirs_ignores_non_anim_subdirs(tmp_path):
+    """Ignores subdirectories without frame files."""
+    (tmp_path / "grid.txt").write_text(". .\n")
+    other = tmp_path / "notes"
+    other.mkdir()
+    (other / "readme.txt").write_text("hello\n")
+    assert discover_anim_dirs(tmp_path) == []
+
+
+def test_discover_anim_dirs_empty(tmp_path):
+    """Returns empty list when no subdirectories exist."""
+    assert discover_anim_dirs(tmp_path) == []
+
+
+# --- parse_frame_ref ---
+
+def test_parse_frame_ref_integer():
+    """Integer reference returns ('local', N)."""
+    assert parse_frame_ref(3) == ("local", 3)
+
+
+def test_parse_frame_ref_base_string():
+    """'base:N' string returns ('base', N)."""
+    assert parse_frame_ref("base:3") == ("base", 3)
+
+
+def test_parse_frame_ref_local_int_in_json():
+    """Integer from JSON returns ('local', N)."""
+    assert parse_frame_ref(1) == ("local", 1)
+
+
+def test_parse_frame_ref_invalid():
+    """Invalid reference format raises ValueError."""
+    with pytest.raises(ValueError, match="invalid frame reference"):
+        parse_frame_ref("invalid:3")
+
+
+# --- resolve_frame_path ---
+
+def test_resolve_frame_path_local(tmp_path):
+    """Local int reference resolves to dir/frame_NNN.txt."""
+    assert resolve_frame_path(3, tmp_path) == tmp_path / "frame_003.txt"
+
+
+def test_resolve_frame_path_base(tmp_path):
+    """'base:N' reference resolves to parent/frame_NNN.txt."""
+    subdir = tmp_path / "burn"
+    subdir.mkdir()
+    assert resolve_frame_path("base:1", subdir) == tmp_path / "frame_001.txt"
+
+
+# --- load_subdir_animation ---
+
+def test_load_subdir_animation(tmp_path):
+    """Loads simplified animation.json from a subdirectory."""
+    subdir = tmp_path / "burn"
+    subdir.mkdir()
+    data = {"frames": ["base:1", 1, 2], "fps": 8, "loop": True}
+    (subdir / "animation.json").write_text(json.dumps(data))
+    result = load_subdir_animation(subdir)
+    assert result == data
+
+
+def test_load_subdir_animation_defaults(tmp_path):
+    """Missing fps/loop get defaults."""
+    subdir = tmp_path / "burn"
+    subdir.mkdir()
+    (subdir / "animation.json").write_text('{"frames": [1]}')
+    result = load_subdir_animation(subdir)
+    assert result["fps"] == 8
+    assert result["loop"] is True
+
+
+def test_load_subdir_animation_missing(tmp_path):
+    """Missing animation.json returns default empty structure."""
+    subdir = tmp_path / "burn"
+    subdir.mkdir()
+    result = load_subdir_animation(subdir)
+    assert result == {"frames": [], "fps": 8, "loop": True}
+
+
+# --- load_animations with subdirectories ---
+
+def test_load_animations_includes_subdirs(tmp_path):
+    """load_animations discovers animation subdirectories."""
+    (tmp_path / "palette.txt").write_text("R=#FF0000\n")
+    (tmp_path / "frame_001.txt").write_text(". .\n")
+    # Old-style animation in root
+    save_animations(tmp_path, {"idle": {"frames": [1], "fps": 1, "loop": False}})
+    # Subdir animation
+    burn = tmp_path / "burn"
+    burn.mkdir()
+    (burn / "frame_001.txt").write_text(". .\n")
+    (burn / "animation.json").write_text(
+        '{"frames": ["base:1", 1], "fps": 8, "loop": true}'
+    )
+    anims = load_animations(tmp_path)
+    assert "idle" in anims
+    assert "burn" in anims
+    assert anims["burn"]["frames"] == ["base:1", 1]
+
+
+# --- load_config with parent fallback ---
+
+def test_load_config_parent_fallback(tmp_path):
+    """load_config falls back to parent directory."""
+    from gridfab.core.grid import load_config
+    (tmp_path / "gridfab.json").write_text('{"grid": {"width": 16, "height": 16}}\n')
+    subdir = tmp_path / "burn"
+    subdir.mkdir()
+    config = load_config(subdir)
+    assert config["grid"]["width"] == 16
+
+
+# ===================================================================
+# Animation Subdirectory Model — Phase 3: anim create, frame ops in subdirs
+# ===================================================================
+
+from gridfab.commands.anim_cmd import cmd_anim_create
+
+
+def test_anim_create_basic(tmp_path):
+    """anim create creates subdirectory with animation.json."""
+    (tmp_path / "palette.txt").write_text("R=#FF0000\n")
+    (tmp_path / "frame_001.txt").write_text(". .\n")
+    cmd_anim_create(tmp_path, "burn", fps=8, loop=True)
+    burn = tmp_path / "burn"
+    assert burn.is_dir()
+    assert (burn / "animation.json").exists()
+    data = json.loads((burn / "animation.json").read_text())
+    assert data == {"frames": [], "fps": 8, "loop": True}
+
+
+def test_anim_create_custom_fps_loop(tmp_path):
+    """anim create respects fps and loop flags."""
+    (tmp_path / "palette.txt").write_text("R=#FF0000\n")
+    (tmp_path / "grid.txt").write_text(". .\n")
+    cmd_anim_create(tmp_path, "slow", fps=4, loop=False)
+    data = json.loads((tmp_path / "slow" / "animation.json").read_text())
+    assert data["fps"] == 4
+    assert data["loop"] is False
+
+
+def test_anim_create_duplicate_errors(tmp_path):
+    """anim create on existing directory raises FileExistsError."""
+    (tmp_path / "palette.txt").write_text("R=#FF0000\n")
+    (tmp_path / "grid.txt").write_text(". .\n")
+    cmd_anim_create(tmp_path, "burn")
+    with pytest.raises(FileExistsError, match="burn"):
+        cmd_anim_create(tmp_path, "burn")
+
+
+def test_frame_add_in_subdir_updates_animation_json(tmp_path):
+    """frame add in an animation subdir auto-appends to animation.json."""
+    (tmp_path / "palette.txt").write_text("R=#FF0000\n")
+    (tmp_path / "frame_001.txt").write_text(". . . .\n. . . .\n. . . .\n. . . .\n")
+    burn = tmp_path / "burn"
+    burn.mkdir()
+    (burn / "animation.json").write_text('{"frames": [], "fps": 8, "loop": true}')
+    cmd_frame_add(burn, blank=True)
+    # Should have created frame_001.txt in burn/
+    assert (burn / "frame_001.txt").exists()
+    data = json.loads((burn / "animation.json").read_text())
+    assert 1 in data["frames"]
+
+
+def test_frame_delete_in_subdir_updates_animation_json(tmp_path):
+    """frame delete in an animation subdir removes from animation.json."""
+    (tmp_path / "palette.txt").write_text("R=#FF0000\n")
+    (tmp_path / "frame_001.txt").write_text(". . . .\n. . . .\n. . . .\n. . . .\n")
+    burn = tmp_path / "burn"
+    burn.mkdir()
+    (burn / "frame_001.txt").write_text(". . . .\n. . . .\n. . . .\n. . . .\n")
+    (burn / "frame_002.txt").write_text(". . . .\n. . . .\n. . . .\n. . . .\n")
+    (burn / "animation.json").write_text('{"frames": [1, 2], "fps": 8, "loop": true}')
+    cmd_frame_delete(burn, 1)
+    data = json.loads((burn / "animation.json").read_text())
+    # Frame 1 removed, frame 2 renumbered to 1
+    assert data["frames"] == [1]
+
+
+# ===================================================================
+# Animation Subdirectory Model — Phase 2: Commands in subdirs
+# ===================================================================
+
+
+@pytest.fixture
+def sprite_with_anim_subdir(tmp_path):
+    """Sprite root with base frames + 'burn' animation subdirectory."""
+    # Palette in root
+    (tmp_path / "palette.txt").write_text("R=#CC3333\nB=#0000FF\nG=#00CC00\n")
+    # Base frames in root
+    (tmp_path / "frame_001.txt").write_text("R. R. R. R.\nR. R. R. R.\nR. R. R. R.\nR. R. R. R.\n")
+    (tmp_path / "frame_002.txt").write_text("B. B. B. B.\nB. B. B. B.\nB. B. B. B.\nB. B. B. B.\n")
+    # Animation subdir
+    burn = tmp_path / "burn"
+    burn.mkdir()
+    (burn / "frame_001.txt").write_text("G. G. G. G.\nG. G. G. G.\nG. G. G. G.\nG. G. G. G.\n")
+    (burn / "frame_002.txt").write_text(".. .. .. ..\n.. .. .. ..\n.. .. .. ..\n.. .. .. ..\n")
+    (burn / "animation.json").write_text(
+        json.dumps({"frames": ["base:1", 1, 2], "fps": 8, "loop": True})
+    )
+    return tmp_path
+
+
+def test_edit_load_in_subdir(sprite_with_anim_subdir):
+    """_load() finds palette in parent dir when in an animation subdir."""
+    from gridfab.commands.edit import _load
+    burn = sprite_with_anim_subdir / "burn"
+    grid, palette, grid_path = _load(burn, frame=1)
+    assert "R" in palette.entries
+    assert grid_path == burn / "frame_001.txt"
+
+
+def test_render_in_subdir(sprite_with_anim_subdir):
+    """render command works in animation subdirectory."""
+    from gridfab.commands.render_cmd import cmd_render
+    burn = sprite_with_anim_subdir / "burn"
+    cmd_render(burn, frame=1)
+    assert (burn / "preview.png").exists()
+
+
+def test_export_in_subdir(sprite_with_anim_subdir):
+    """export command works in animation subdirectory."""
+    from gridfab.commands.export_cmd import cmd_export
+    burn = sprite_with_anim_subdir / "burn"
+    cmd_export(burn, frame=1)
+    assert (burn / "output.png").exists()
+
+
+def test_anim_sheet_with_base_refs(sprite_with_anim_subdir):
+    """anim sheet resolves base:N references when in subdirectory."""
+    burn = sprite_with_anim_subdir / "burn"
+    cmd_anim_sheet(burn, "burn", scale=1)
+    assert (burn / "burn_sheet.png").exists()
+    assert (burn / "burn_sheet.json").exists()
+    # Load metadata — should have 3 frames
+    meta = json.loads((burn / "burn_sheet.json").read_text())
+    assert len(meta["animations"]["burn"]["frames"]) == 3
+
+
+def test_anim_gif_with_base_refs(sprite_with_anim_subdir):
+    """anim gif resolves base:N references when in subdirectory."""
+    burn = sprite_with_anim_subdir / "burn"
+    cmd_anim_gif(burn, "burn", scale=1)
+    assert (burn / "burn.gif").exists()
+
+
+def test_anim_sheets_discovers_subdirs(sprite_with_anim_subdir):
+    """anim sheets at root discovers and exports subdir animations."""
+    from gridfab.commands.anim_cmd import cmd_anim_sheets
+    # Also add a root-level animation
+    save_animations(sprite_with_anim_subdir,
+                    {"idle": {"frames": [1, 2], "fps": 4, "loop": True}})
+    cmd_anim_sheets(sprite_with_anim_subdir, scale=1)
+    # Root animation exported
+    assert (sprite_with_anim_subdir / "idle_sheet.png").exists()
+    # Subdir animation exported
+    assert (sprite_with_anim_subdir / "burn" / "burn_sheet.png").exists()
+
+
+def test_clean_recurses_into_subdirs(sprite_with_anim_subdir):
+    """clean removes generated files from animation subdirectories too."""
+    from gridfab.commands.edit import cmd_clean_files
+    burn = sprite_with_anim_subdir / "burn"
+    # Create files that clean should remove
+    (burn / "preview.png").write_text("fake")
+    (burn / "output_2x.png").write_text("fake")
+    (sprite_with_anim_subdir / "preview.png").write_text("fake")
+    cmd_clean_files(sprite_with_anim_subdir)
+    assert not (sprite_with_anim_subdir / "preview.png").exists()
+    assert not (burn / "preview.png").exists()
+    assert not (burn / "output_2x.png").exists()
+
+
+# --- Relative path (Path(".")) tests ---
+# These verify that functions relying on directory.parent work correctly
+# when called with Path(".") (the default CLI argument), where
+# Path(".").parent == Path(".") and Path(".").name == "".
+
+def test_is_anim_subdir_with_relative_path(sprite_with_anim_subdir, monkeypatch):
+    """is_anim_subdir works when called with Path('.') from inside a subdir."""
+    from gridfab.core.animation import is_anim_subdir
+    # From inside burn/, Path(".") should be detected as anim subdir
+    monkeypatch.chdir(sprite_with_anim_subdir / "burn")
+    assert is_anim_subdir(Path(".")) is True
+    # From the sprite root, Path(".") should NOT be detected as anim subdir
+    monkeypatch.chdir(sprite_with_anim_subdir)
+    assert is_anim_subdir(Path(".")) is False
+
+
+def test_resolve_palette_path_with_relative_path(sprite_with_anim_subdir, monkeypatch):
+    """resolve_palette_path finds parent palette when called with Path('.')."""
+    from gridfab.core.animation import resolve_palette_path
+    monkeypatch.chdir(sprite_with_anim_subdir / "burn")
+    result = resolve_palette_path(Path("."))
+    assert result.name == "palette.txt"
+    assert result.exists()
+
+
+def test_resolve_frame_path_base_ref_with_relative_path(sprite_with_anim_subdir, monkeypatch):
+    """resolve_frame_path resolves 'base:1' correctly from Path('.')."""
+    from gridfab.core.animation import resolve_frame_path
+    monkeypatch.chdir(sprite_with_anim_subdir / "burn")
+    result = resolve_frame_path("base:1", Path("."))
+    assert result.exists()
+    assert result.name == "frame_001.txt"
+    # Should point to parent's frame, not burn's frame
+    assert result.parent == sprite_with_anim_subdir
+
+
+def test_anim_sheet_with_relative_path(sprite_with_anim_subdir, monkeypatch):
+    """anim sheet works when called with Path('.') from inside a subdir."""
+    monkeypatch.chdir(sprite_with_anim_subdir / "burn")
+    cmd_anim_sheet(Path("."), "burn", scale=1)
+    assert (sprite_with_anim_subdir / "burn" / "burn_sheet.png").exists()
+
+
+def test_anim_gif_with_relative_path(sprite_with_anim_subdir, monkeypatch):
+    """anim gif works when called with Path('.') from inside a subdir."""
+    monkeypatch.chdir(sprite_with_anim_subdir / "burn")
+    cmd_anim_gif(Path("."), "burn", scale=1)
+    assert (sprite_with_anim_subdir / "burn" / "burn.gif").exists()

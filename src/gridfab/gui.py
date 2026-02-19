@@ -15,9 +15,11 @@ from pathlib import Path
 from gridfab.core.grid import Grid, TRANSPARENT, get_grid_dimensions
 from gridfab.core.palette import Palette
 from gridfab.core.animation import (
-    discover_frames, is_animated, frame_path, resolve_grid_path,
+    discover_frames, is_animated, is_anim_subdir, frame_path,
+    resolve_grid_path, resolve_palette_path,
     load_state, save_state, load_animations, save_animations,
     max_frame_number, swap_frame_files, update_animations_after_swap,
+    discover_anim_dirs, load_subdir_animation, ANIM_FILE,
 )
 
 ZOOM_LEVELS = [4, 8, 16, 24, 32, 48]
@@ -278,6 +280,23 @@ def side_by_side_layout(
     return total_w, total_h, offsets
 
 
+def anim_dir_choices(sprite_root: Path) -> list[str]:
+    """Return dropdown choices for animation directory selector.
+
+    Returns ["(Base)"] + sorted names of animation subdirectories.
+    A subdirectory qualifies if it has frame_NNN.txt files or animation.json.
+    """
+    choices = ["(Base)"]
+    if not sprite_root.is_dir():
+        return choices
+    for child in sorted(sprite_root.iterdir(), key=lambda p: p.name):
+        if not child.is_dir():
+            continue
+        if discover_frames(child) or (child / ANIM_FILE).exists():
+            choices.append(child.name)
+    return choices
+
+
 def eyedropper_pick(grid, r: int | None, c: int | None) -> str | None:
     """Return the raw grid value at (r, c), or None if out of bounds."""
     if r is None or c is None:
@@ -300,9 +319,14 @@ class PixelEditor:
     def __init__(self, root: tk.Tk, work_dir: Path):
         self.root = root
         self.work_dir = work_dir
-        self.palette_path = self.work_dir / "palette.txt"
 
-        self.palette = Palette.load(self.palette_path)
+        # Animation subdirectory state
+        self._is_anim_subdir = is_anim_subdir(work_dir)
+        self._sprite_root = work_dir.parent if self._is_anim_subdir else work_dir
+
+        self.palette_path = resolve_palette_path(self.work_dir) if (self.work_dir / "palette.txt").exists() or self._is_anim_subdir else self.work_dir / "palette.txt"
+
+        self.palette = Palette.load(self.palette_path) if self.palette_path.exists() else Palette()
 
         # Animation state
         self._animated = is_animated(self.work_dir)
@@ -430,6 +454,7 @@ class PixelEditor:
             ("New", self.new_grid, "#DDA0DD"),
             ("Import", self.import_image, "#E6E6FA"),
             ("Animate", self._add_frame, "#B0E0E6"),
+            ("NewAnim", self._new_anim_gui, "#C8E6C9"),
         ]
         for i, (text, cmd, bg) in enumerate(action_buttons):
             tk.Button(
@@ -672,6 +697,8 @@ class PixelEditor:
             text += f"  |  Frame {self._active_frame}"
         if len(self._selected_frames) > 1:
             text += f"  |  Selected: {len(self._selected_frames)} frames"
+        if self._is_anim_subdir:
+            text += f"  |  Anim:{self.work_dir.name}"
         if self._side_by_side:
             text += "  |  SBS"
         self.status_var.set(text)
@@ -1347,7 +1374,30 @@ class PixelEditor:
         fps_spin.pack(side=tk.LEFT, padx=2)
         self._frame_strip_buttons.append(fps_spin)
 
-        # Animation selector dropdown
+        # Animation directory selector (Base / burn / extinguish)
+        dir_choices = anim_dir_choices(self._sprite_root)
+        if len(dir_choices) > 1:
+            self._anim_dir_var = tk.StringVar(
+                value=self.work_dir.name if self._is_anim_subdir else "(Base)"
+            )
+            dir_menu = tk.OptionMenu(
+                self.frame_strip, self._anim_dir_var, *dir_choices,
+                command=self._on_anim_dir_select,
+            )
+            dir_menu.config(width=10)
+            dir_menu.pack(side=tk.LEFT, padx=2)
+            self._frame_strip_buttons.append(dir_menu)
+
+        # Add Base ref button (visible when in an animation subdir)
+        if self._is_anim_subdir:
+            btn_base = tk.Button(
+                self.frame_strip, text="+Base", width=5,
+                command=self._add_base_ref_gui, bg="#FFE0B2",
+            )
+            btn_base.pack(side=tk.LEFT, padx=2)
+            self._frame_strip_buttons.append(btn_base)
+
+        # Playback animation selector dropdown
         animations = load_animations(self.work_dir)
         anim_names = ["(All Frames)"] + sorted(animations.keys())
         self._anim_var = tk.StringVar(value=anim_names[0])
@@ -1669,6 +1719,140 @@ class PixelEditor:
         self._rebuild_canvas()
         self._update_status()
 
+    # --- Animation subdirectory management ---
+
+    def _on_anim_dir_select(self, value: str) -> None:
+        """Handle animation directory dropdown selection."""
+        if value == "(Base)":
+            target = self._sprite_root
+        else:
+            target = self._sprite_root / value
+        if target == self.work_dir:
+            return
+        self._switch_to_anim_dir(target)
+
+    def _switch_to_anim_dir(self, target: Path) -> None:
+        """Switch the editor to an animation subdirectory or back to base."""
+        # Save current work
+        if self.modified:
+            self.grid.save(self.grid_path)
+            self._set_modified(False)
+        self._flush_multi_frame_changes()
+
+        # Exit side-by-side if active
+        if self._side_by_side:
+            self._exit_side_by_side()
+
+        # Update state
+        self.work_dir = target
+        self._is_anim_subdir = is_anim_subdir(target)
+        self._sprite_root = target.parent if self._is_anim_subdir else target
+        self.palette_path = resolve_palette_path(self.work_dir)
+
+        # Reload palette and grid
+        self.palette = Palette.load(self.palette_path)
+        self._animated = is_animated(self.work_dir)
+        if self._animated:
+            state = load_state(self.work_dir)
+            frames = discover_frames(self.work_dir)
+            self._active_frame = state.get("active_frame", frames[0] if frames else 1)
+            self.grid_path = frame_path(self.work_dir, self._active_frame)
+        else:
+            self._active_frame = None
+            self.grid_path = self.work_dir / "grid.txt"
+
+        if self.grid_path.exists():
+            self.grid = Grid.load(self.grid_path, palette_path=self.palette_path)
+        else:
+            w, h = get_grid_dimensions(self.work_dir)
+            self.grid = Grid.blank(w, h)
+
+        # Reset undo/redo
+        self.undo_stack.clear()
+        self.redo_stack.clear()
+        self._selected_frames.clear()
+        self._frame_grids.clear()
+        self._frame_modified.clear()
+        self._multi_undo_stack.clear()
+        self._multi_redo_stack.clear()
+        self._play_anim_name = None
+
+        # Rebuild palette and canvas
+        self._rebuild_palette_buttons()
+        if self._animated:
+            if not self.frame_strip.winfo_ismapped():
+                self.frame_strip.pack(side=tk.BOTTOM, fill=tk.X, padx=5, pady=2,
+                                      before=self.status_bar)
+            self._rebuild_frame_strip()
+        else:
+            self.frame_strip.pack_forget()
+        self._rebuild_canvas(resize_viewport=True)
+        self._update_title()
+        self.select_color(TRANSPARENT)
+        print(f"Switched to: {self.work_dir}")
+
+    def _new_anim_gui(self) -> None:
+        """Create a new animation subdirectory via GUI dialog."""
+        name = simpledialog.askstring(
+            "New Animation", "Enter animation name (becomes folder name):",
+            parent=self.root,
+        )
+        if not name:
+            return
+        # Validate name (no special chars)
+        if not name.isidentifier() and not all(c.isalnum() or c in "_-" for c in name):
+            messagebox.showerror("Invalid Name", "Use only letters, numbers, hyphens, underscores.")
+            return
+
+        target_root = self._sprite_root
+        try:
+            from gridfab.commands.anim_cmd import cmd_anim_create
+            cmd_anim_create(target_root, name)
+        except FileExistsError as e:
+            messagebox.showerror("Error", str(e))
+            return
+
+        # Switch to the new animation directory
+        self._switch_to_anim_dir(target_root / name)
+        messagebox.showinfo("Animation Created", f"Animation '{name}' created.\nUse '+' to add frames.")
+
+    def _add_base_ref_gui(self) -> None:
+        """Add a base frame reference to the animation subdir's animation.json."""
+        if not self._is_anim_subdir:
+            return
+        # Get base frames
+        base_frames = discover_frames(self._sprite_root)
+        if not base_frames:
+            messagebox.showwarning("No Base Frames", "No frames in the base sprite directory.")
+            return
+
+        # Ask which base frame to reference
+        frame_str = simpledialog.askstring(
+            "Add Base Frame Reference",
+            f"Available base frames: {base_frames}\n\nEnter frame number:",
+            parent=self.root,
+        )
+        if not frame_str:
+            return
+        try:
+            frame_num = int(frame_str)
+        except ValueError:
+            messagebox.showerror("Invalid", "Frame number must be an integer.")
+            return
+        if frame_num not in base_frames:
+            messagebox.showerror("Invalid", f"Frame {frame_num} not found in base (available: {base_frames}).")
+            return
+
+        # Add "base:N" to animation.json
+        import json
+        anim = load_subdir_animation(self.work_dir)
+        anim["frames"].append(f"base:{frame_num}")
+        anim_path = self.work_dir / "animation.json"
+        with open(anim_path, "w", newline="\n") as f:
+            json.dump(anim, f, indent=2)
+            f.write("\n")
+        print(f"Added base:{frame_num} reference to {self.work_dir.name}/animation.json")
+
     def save(self) -> None:
         self.grid.save(self.grid_path)
         self._flush_multi_frame_changes()
@@ -1887,7 +2071,12 @@ class PixelEditor:
     def _switch_to_dir(self, new_dir: Path) -> None:
         """Switch the editor to a different sprite directory."""
         self.work_dir = new_dir
-        self.palette_path = new_dir / "palette.txt"
+        self._is_anim_subdir = is_anim_subdir(new_dir)
+        self._sprite_root = new_dir.parent if self._is_anim_subdir else new_dir
+        try:
+            self.palette_path = resolve_palette_path(new_dir)
+        except FileNotFoundError:
+            self.palette_path = new_dir / "palette.txt"
 
         # Check animation state
         self._animated = is_animated(new_dir)
