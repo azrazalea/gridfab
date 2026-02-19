@@ -12,6 +12,7 @@ Commands:
     fill <row> <col_start> <col_end> <c>    Fill horizontal span with one color
     rect <r0> <c0> <r1> <c1> <color>        Fill a rectangle with one color
     clear [dir]                              Reset grid to all transparent
+    clean [dir]                              Remove generated files (preview, scaled outputs)
     export [dir]                             Export PNGs at configured scales
     icon [dir]                               Export .ico file (square grids)
     palette [dir]                            Display current palette
@@ -140,6 +141,10 @@ def main() -> None:
     p_clear = sub.add_parser("clear", help="Reset grid to all transparent")
     p_clear.add_argument("directory", nargs="?", default=".", help="Sprite directory")
     p_clear.add_argument("--frame", type=int, default=None, help="Frame number (for animated sprites)")
+
+    # clean
+    p_clean_files = sub.add_parser("clean", help="Remove generated files (preview, scaled outputs)")
+    p_clean_files.add_argument("directory", nargs="?", default=".", help="Sprite directory")
 
     # export
     p_export = sub.add_parser("export", help="Export PNGs at multiple scales")
@@ -292,7 +297,7 @@ def main() -> None:
 
 def _dispatch(args: argparse.Namespace) -> None:
     from gridfab.commands.init import cmd_init
-    from gridfab.commands.edit import cmd_row, cmd_rows, cmd_fill, cmd_rect, cmd_pixel, cmd_pixels, cmd_clear
+    from gridfab.commands.edit import cmd_row, cmd_rows, cmd_fill, cmd_rect, cmd_pixel, cmd_pixels, cmd_clear, cmd_clean_files
     from gridfab.commands.render_cmd import cmd_render
     from gridfab.commands.export_cmd import cmd_export, cmd_palette
     from gridfab.commands.icon_cmd import cmd_icon
@@ -326,6 +331,9 @@ def _dispatch(args: argparse.Namespace) -> None:
 
     elif cmd == "clear":
         cmd_clear(Path(args.directory), frame=args.frame)
+
+    elif cmd == "clean":
+        cmd_clean_files(Path(args.directory))
 
     elif cmd == "export":
         cmd_export(Path(args.directory), frame=args.frame)

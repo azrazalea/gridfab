@@ -569,3 +569,173 @@ class TestCustomFilenames:
             idx = json.load(f)
         assert "s1" in idx["sprites"]
         assert "s2" in idx["sprites"]
+
+
+# ── TestAnimatedAtlas ───────────────────────────────────────────────
+
+
+def _make_animated_sprite(parent: Path, name: str, width: int = 4, height: int = 4) -> Path:
+    """Create an animated sprite dir with frames, animation, and sheet PNGs."""
+    d = parent / name
+    d.mkdir()
+    (d / "palette.txt").write_text("R=#CC3333\n")
+    rows = " ".join(["R"] * width)
+    grid = "\n".join([rows] * height) + "\n"
+    # Write frame files (no grid.txt — animated mode)
+    (d / "frame_001.txt").write_text(grid)
+    (d / "frame_002.txt").write_text(grid)
+    (d / "frame_003.txt").write_text(grid)
+    (d / ".gridfab_state").write_text('{"active_frame": 1}\n')
+    # Create animation.json
+    anim = {"burn": {"frames": [1, 2, 3], "fps": 8, "loop": True}}
+    with open(d / "animation.json", "w") as f:
+        json.dump(anim, f)
+    # Create spritesheet PNG (3 frames side by side = 3*width x height)
+    sheet_img = Image.new("RGBA", (width * 3, height), (204, 51, 51, 255))
+    sheet_img.save(str(d / "burn_sheet.png"))
+    # Create sheet metadata JSON
+    sheet_meta = {
+        "sprite": "burn",
+        "frame_size": {"w": width, "h": height},
+        "animations": {
+            "burn": {
+                "frames": [
+                    {"x": 0, "y": 0, "w": width, "h": height, "duration": 125},
+                    {"x": width, "y": 0, "w": width, "h": height, "duration": 125},
+                    {"x": width * 2, "y": 0, "w": width, "h": height, "duration": 125},
+                ],
+                "loop": True,
+            }
+        },
+    }
+    with open(d / "burn_sheet.json", "w") as f:
+        json.dump(sheet_meta, f)
+    return d
+
+
+class TestResolveAnimatedDirs:
+
+    def test_positional_animated_dir_accepted(self, tmp_path):
+        d = _make_animated_sprite(tmp_path, "fire")
+        result = resolve_sprite_dirs([str(d)], include=None, exclude=None)
+        assert result == [d]
+
+    def test_glob_includes_animated_dirs(self, tmp_path):
+        _make_sprite(tmp_path, "tile_grass")
+        _make_animated_sprite(tmp_path, "tile_fire")
+        result = resolve_sprite_dirs(
+            [], include=[str(tmp_path / "tile_*")], exclude=None,
+        )
+        names = [p.name for p in result]
+        assert "tile_grass" in names
+        assert "tile_fire" in names
+
+    def test_animated_dir_without_sheets_rejected(self, tmp_path):
+        """Animated dir with frames but no sheet PNGs should be rejected."""
+        d = tmp_path / "nosheet"
+        d.mkdir()
+        (d / "palette.txt").write_text("R=#CC3333\n")
+        (d / "frame_001.txt").write_text(". . . .\n. . . .\n. . . .\n. . . .\n")
+        (d / ".gridfab_state").write_text('{"active_frame": 1}\n')
+        with pytest.raises(ValueError, match="no \\*_sheet\\.png"):
+            resolve_sprite_dirs([str(d)], include=None, exclude=None)
+
+
+class TestCmdAtlasAnimated:
+
+    def test_animated_sprite_in_atlas(self, tmp_path):
+        """Animated sprite's sheet PNG should appear in the atlas."""
+        _make_sprite(tmp_path, "static", 4, 4)
+        _make_animated_sprite(tmp_path, "anim", 4, 4)
+        out = tmp_path / "output"
+        cmd_atlas(
+            out,
+            [tmp_path / "static", tmp_path / "anim"],
+            tile_size=(4, 4),
+        )
+        assert (out / "atlas.png").exists()
+        with open(out / "index.json") as f:
+            idx = json.load(f)
+        # Static sprite
+        assert "static" in idx["sprites"]
+        assert "animated" not in idx["sprites"]["static"]
+        # Animated sprite entry named dir/anim
+        assert "anim/burn" in idx["sprites"]
+        entry = idx["sprites"]["anim/burn"]
+        assert entry["animated"] is True
+        assert entry["frame_count"] == 3
+        assert entry["fps"] == 8
+        assert entry["loop"] is True
+        assert entry["tiles_x"] == 3
+        assert entry["tiles_y"] == 1
+
+    def test_animated_atlas_dimensions(self, tmp_path):
+        """Atlas should be large enough to fit the animated sheet."""
+        _make_animated_sprite(tmp_path, "anim", 4, 4)
+        out = tmp_path / "output"
+        cmd_atlas(out, [tmp_path / "anim"], tile_size=(4, 4))
+        img = Image.open(out / "atlas.png")
+        # 3 frames at 4px wide = 12px wide sheet → 3 tiles_x
+        assert img.width >= 3 * 4
+        assert img.height >= 1 * 4
+
+    def test_animated_sheet_pixels_pasted(self, tmp_path):
+        """The actual sheet PNG pixels should be pasted into the atlas."""
+        _make_animated_sprite(tmp_path, "anim", 4, 4)
+        out = tmp_path / "output"
+        cmd_atlas(out, [tmp_path / "anim"], tile_size=(4, 4))
+        atlas = Image.open(out / "atlas.png")
+        with open(out / "index.json") as f:
+            idx = json.load(f)
+        entry = idx["sprites"]["anim/burn"]
+        row, col = entry["row"], entry["col"]
+        # Check a pixel from the pasted region
+        px = atlas.getpixel((col * 4, row * 4))
+        assert px == (204, 51, 51, 255)  # R=#CC3333
+
+    def test_mixed_static_and_animated(self, tmp_path):
+        """Both static and animated sprites should coexist in atlas."""
+        _make_sprite(tmp_path, "grass", 4, 4)
+        _make_sprite(tmp_path, "stone", 4, 4)
+        _make_animated_sprite(tmp_path, "fire", 4, 4)
+        out = tmp_path / "output"
+        cmd_atlas(
+            out,
+            [tmp_path / "grass", tmp_path / "stone", tmp_path / "fire"],
+            tile_size=(4, 4),
+        )
+        with open(out / "index.json") as f:
+            idx = json.load(f)
+        assert "grass" in idx["sprites"]
+        assert "stone" in idx["sprites"]
+        assert "fire/burn" in idx["sprites"]
+        assert idx["sprites"]["fire/burn"]["animated"] is True
+
+    def test_animated_preserves_semantic_fields(self, tmp_path):
+        """Animated entries should preserve semantic fields on rebuild."""
+        _make_animated_sprite(tmp_path, "anim", 4, 4)
+        out = tmp_path / "output"
+        out.mkdir()
+        existing = {
+            "tile_size": [4, 4],
+            "columns": 4,
+            "sprites": {
+                "anim/burn": {
+                    "row": 0, "col": 0, "tiles_x": 3, "tiles_y": 1,
+                    "animated": True,
+                    "frame_count": 3, "fps": 8, "loop": True,
+                    "description": "fire animation",
+                    "tags": ["fire", "effect"],
+                    "tile_type": "effect",
+                },
+            },
+        }
+        with open(out / "index.json", "w") as f:
+            json.dump(existing, f)
+        cmd_atlas(out, [tmp_path / "anim"], tile_size=(4, 4))
+        with open(out / "index.json") as f:
+            idx = json.load(f)
+        entry = idx["sprites"]["anim/burn"]
+        assert entry["description"] == "fire animation"
+        assert entry["tags"] == ["fire", "effect"]
+        assert entry["tile_type"] == "effect"

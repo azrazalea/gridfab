@@ -436,3 +436,99 @@ class TestCmdPaletteRename:
         """Renaming to same alias should raise."""
         with pytest.raises(ValueError, match="same as old"):
             cmd_palette_rename(sprite_dir, "R", "R")
+
+
+# ===================================================================
+# Clean command
+# ===================================================================
+
+from gridfab.commands.edit import cmd_clean_files
+
+
+class TestCmdCleanFiles:
+    def test_removes_preview_png(self, sprite_dir: Path):
+        (sprite_dir / "preview.png").write_bytes(b"fake")
+        cmd_clean_files(sprite_dir)
+        assert not (sprite_dir / "preview.png").exists()
+
+    def test_removes_scaled_outputs(self, sprite_dir: Path):
+        """output_2x.png, output_4x.png should be removed; output.png kept."""
+        (sprite_dir / "output.png").write_bytes(b"fake")
+        (sprite_dir / "output_2x.png").write_bytes(b"fake")
+        (sprite_dir / "output_4x.png").write_bytes(b"fake")
+        cmd_clean_files(sprite_dir)
+        assert (sprite_dir / "output.png").exists()
+        assert not (sprite_dir / "output_2x.png").exists()
+        assert not (sprite_dir / "output_4x.png").exists()
+
+    def test_removes_import_for_deleted_files(self, sprite_dir: Path):
+        """If preview.png is deleted, its .import should be too."""
+        (sprite_dir / "preview.png").write_bytes(b"fake")
+        (sprite_dir / "preview.png.import").write_text("godot import")
+        cmd_clean_files(sprite_dir)
+        assert not (sprite_dir / "preview.png").exists()
+        assert not (sprite_dir / "preview.png.import").exists()
+
+    def test_keeps_import_for_kept_files(self, sprite_dir: Path):
+        """output.png.import should stay since output.png is kept."""
+        (sprite_dir / "output.png").write_bytes(b"fake")
+        (sprite_dir / "output.png.import").write_text("godot import")
+        cmd_clean_files(sprite_dir)
+        assert (sprite_dir / "output.png").exists()
+        assert (sprite_dir / "output.png.import").exists()
+
+    def test_keeps_source_files(self, sprite_dir: Path):
+        """grid.txt, palette.txt, gridfab.json should never be removed."""
+        (sprite_dir / "gridfab.json").write_text("{}")
+        (sprite_dir / "preview.png").write_bytes(b"fake")
+        cmd_clean_files(sprite_dir)
+        assert (sprite_dir / "grid.txt").exists()
+        assert (sprite_dir / "palette.txt").exists()
+        assert (sprite_dir / "gridfab.json").exists()
+
+    def test_keeps_animation_files(self, sprite_dir: Path):
+        """frame_NNN.txt, animation.json, .gridfab_state, sheets, gifs kept."""
+        (sprite_dir / "frame_001.txt").write_text(". . . .\n")
+        (sprite_dir / "animation.json").write_text("{}")
+        (sprite_dir / ".gridfab_state").write_text("{}")
+        (sprite_dir / "walk_sheet.png").write_bytes(b"fake")
+        (sprite_dir / "walk_sheet.json").write_text("{}")
+        (sprite_dir / "walk.gif").write_bytes(b"fake")
+        (sprite_dir / "preview.png").write_bytes(b"fake")
+        cmd_clean_files(sprite_dir)
+        assert (sprite_dir / "frame_001.txt").exists()
+        assert (sprite_dir / "animation.json").exists()
+        assert (sprite_dir / ".gridfab_state").exists()
+        assert (sprite_dir / "walk_sheet.png").exists()
+        assert (sprite_dir / "walk_sheet.json").exists()
+        assert (sprite_dir / "walk.gif").exists()
+
+    def test_keeps_icon_files(self, sprite_dir: Path):
+        (sprite_dir / "icon.ico").write_bytes(b"fake")
+        (sprite_dir / "icon.icns").write_bytes(b"fake")
+        (sprite_dir / "preview.png").write_bytes(b"fake")
+        cmd_clean_files(sprite_dir)
+        assert (sprite_dir / "icon.ico").exists()
+        assert (sprite_dir / "icon.icns").exists()
+
+    def test_prints_removed_files(self, sprite_dir: Path, capsys):
+        (sprite_dir / "preview.png").write_bytes(b"fake")
+        (sprite_dir / "output_2x.png").write_bytes(b"fake")
+        cmd_clean_files(sprite_dir)
+        captured = capsys.readouterr()
+        assert "preview.png" in captured.out
+        assert "output_2x.png" in captured.out
+
+    def test_nothing_to_clean(self, sprite_dir: Path, capsys):
+        """No removable files → print a message."""
+        cmd_clean_files(sprite_dir)
+        captured = capsys.readouterr()
+        assert "nothing to clean" in captured.out.lower()
+
+    def test_removes_scaled_import_files(self, sprite_dir: Path):
+        """output_2x.png.import should be removed with output_2x.png."""
+        (sprite_dir / "output_2x.png").write_bytes(b"fake")
+        (sprite_dir / "output_2x.png.import").write_text("godot import")
+        cmd_clean_files(sprite_dir)
+        assert not (sprite_dir / "output_2x.png").exists()
+        assert not (sprite_dir / "output_2x.png.import").exists()

@@ -195,7 +195,8 @@ gridfab export potion
 | `gridfab palette rename <old> <new> [dir]` | Rename alias across palette + grids |
 | `gridfab show [dir]` | Display grid contents |
 | `gridfab import <image> [output] [opts]` | Import image to grid.txt format (single, tile, or tilesheet) |
-| `gridfab atlas <output> [sprites...] [opts]` | Pack sprites into spritesheet (atlas.png + index.json) |
+| `gridfab atlas <output> [sprites...] [opts]` | Pack sprites into spritesheet (atlas.png + index.json); supports animated dirs |
+| `gridfab clean [dir]` | Remove generated files (preview.png, scaled outputs), keep source + 1x exports |
 
 ## Palette Alias Rules
 

@@ -7,6 +7,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 ## [Unreleased]
 
 ### Added
+- `atlas` animated sprite support: animated sprite directories with `*_sheet.png` files are now included in the atlas, each sheet becoming a `{dir}/{anim}` entry with `animated`, `frame_count`, `fps`, and `loop` metadata in the index
+- `clean` command: remove generated/intermediate files (preview.png, scaled output PNGs like output_2x.png) and their `.import` files, keeping source files and 1x exports
+- Atlas columns auto-expand to fit the widest sprite entry (prevents infinite loop with wide spritesheets)
 - Dot-padded grid columns: all cell values in grid.txt are now padded to 2 characters with `.` for visual alignment (e.g. `R` → `R.`, `.` → `..`, `SK` → `SK`)
 - `palette rename <old> <new>` command: rename a palette alias across palette.txt and all grid/frame files
 - `palette show` subcommand: explicit way to display palette (bare `palette` still works)

@@ -393,6 +393,18 @@ Reset all pixels in the grid to transparent, preserving grid dimensions.
 gridfab clear [directory]
 ```
 
+### gridfab clean
+
+Remove generated/intermediate files from a sprite directory, keeping source files and final exports.
+
+```
+gridfab clean [directory]
+```
+
+**Removed:** `preview.png`, scaled output PNGs (`output_2x.png`, `output_4x.png`, etc.), and their corresponding `.import` files.
+
+**Kept:** `grid.txt`, `frame_NNN.txt`, `palette.txt`, `gridfab.json`, `animation.json`, `.gridfab_state`, `output.png` (1x export), `icon.*`, `*_sheet.png`, `*_sheet.json`, `*.gif`, and `.import` files for kept files.
+
 ### gridfab frame
 
 Manage animation frames. A sprite becomes animated when `frame_NNN.txt` files exist. All frames share the same `palette.txt`. The first `frame add` on a grid.txt-only sprite converts it to animated mode by renaming `grid.txt` to `frame_001.txt`.
@@ -648,6 +660,8 @@ gridfab atlas <output_dir> [sprites...] [--include GLOB] [--exclude GLOB]
 - `--atlas-name FILE` — Output atlas filename (default: `atlas.png`)
 - `--index-name FILE` — Output index filename (default: `index.json`)
 
+**Sprite types:** Atlas accepts both static sprites (directories with `grid.txt`) and animated sprites (directories with `frame_NNN.txt` and pre-rendered `*_sheet.png` files). Run `gridfab anim sheets` to generate sheet PNGs before atlas packing.
+
 **Multi-tile sprites:** Sprite grids must be exact multiples of the base tile size. A 64x64 sprite on a 32x32 tile grid spans 2x2 tiles. Non-multiple sprites are skipped with a warning.
 
 **Stable ordering:** When an existing index.json is present, existing sprites keep their positions and new sprites fill available gaps. Use `--reorder` to reset all positions.
@@ -692,6 +706,12 @@ gridfab atlas <output_dir> [sprites...] [--include GLOB] [--exclude GLOB]
 | `sprites.*.description` | Human-readable description of the sprite (default: empty). Edit the index to fill this in. |
 | `sprites.*.tags` | List of searchable tags for the sprite (default: empty). Edit the index to fill this in. |
 | `sprites.*.tile_type` | Category/type of the sprite, e.g. "terrain", "prop", "character" (default: empty). Edit the index to fill this in. |
+| `sprites.*.animated` | `true` for animated sprite entries (only present on animated entries). |
+| `sprites.*.frame_count` | Number of animation frames (only present on animated entries). |
+| `sprites.*.fps` | Frames per second (only present on animated entries). |
+| `sprites.*.loop` | Whether the animation loops (only present on animated entries). |
+
+**Animated sprites:** Each `*_sheet.png` in an animated directory becomes a separate atlas entry named `{dir_name}/{anim_name}` (e.g. `fire/burn`). The sheet is pasted directly into the atlas at its tile span. Animation metadata (`frame_count`, `fps`, `loop`) is read from the corresponding `*_sheet.json`.
 
 **Semantic fields:** New sprites are created with empty `description`, `tags`, and `tile_type`. These fields are preserved when rebuilding, reordering, or adding sprites — so you can safely fill them in by editing index.json and they won't be lost on the next atlas rebuild. These fields help LLMs and game engines find sprites by meaning rather than just by name.
 
@@ -783,7 +803,8 @@ You are helping create pixel art using GridFab. The artwork is stored as plain t
 - `gridfab import <image> [output_dir]` — Import image to grid.txt format (single image, tile, or tilesheet)
 - `gridfab gui [directory]` — Launch the GUI editor
 - `gridfab tag <tileset.png>` — Interactive tileset tagger with AI-assisted naming
-- `gridfab atlas <output_dir> [sprites...]` — Pack sprites into a spritesheet (atlas.png + index.json)
+- `gridfab atlas <output_dir> [sprites...]` — Pack sprites into a spritesheet (atlas.png + index.json); supports both static and animated sprite directories
+- `gridfab clean [directory]` — Remove generated files (preview.png, scaled outputs) keeping source and 1x exports
 
 All coordinates are 0-indexed. All rows must have the same width. After making changes, tell the user to click Refresh in the GUI to see your edits.
 

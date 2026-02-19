@@ -1,4 +1,4 @@
-"""Edit commands: row, rows, fill, rect — modify grid.txt contents."""
+"""Edit commands: row, rows, fill, rect, clean — modify grid.txt contents."""
 
 import re
 from pathlib import Path
@@ -173,3 +173,38 @@ def cmd_pixels(directory: Path, specs: list[str], frame: int | None = None) -> N
 
     grid.save(grid_path)
     print(f"{len(placements)} pixel(s) set.")
+
+
+# Regex matching scaled output PNGs: output_2x.png, output_4x.png, etc.
+_SCALED_OUTPUT_RE = re.compile(r"^output_\d+x\.png$")
+
+
+def cmd_clean_files(directory: Path) -> None:
+    """Remove generated/intermediate files, keeping source and final exports."""
+    removed = []
+
+    # Files to remove: preview.png and scaled outputs (output_Nx.png where N>1)
+    candidates = []
+    preview = directory / "preview.png"
+    if preview.exists():
+        candidates.append(preview)
+
+    for p in directory.iterdir():
+        if _SCALED_OUTPUT_RE.match(p.name):
+            candidates.append(p)
+
+    # Remove candidates and their .import files
+    for p in candidates:
+        p.unlink()
+        removed.append(p.name)
+        import_file = directory / f"{p.name}.import"
+        if import_file.exists():
+            import_file.unlink()
+            removed.append(import_file.name)
+
+    if removed:
+        for name in removed:
+            print(f"  Removed: {name}")
+        print(f"Cleaned {len(removed)} file(s).")
+    else:
+        print("Nothing to clean.")
