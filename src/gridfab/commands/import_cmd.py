@@ -6,23 +6,7 @@ from pathlib import Path
 from PIL import Image
 
 from gridfab.core.grid import _pad_cell
-
-
-def generate_alias_sequence():
-    """Yield alias strings: A-Z, 0-9, AA-ZZ (712 total).
-
-    Uses uppercase only to avoid case-insensitive collisions.
-    """
-    # Single uppercase letters
-    for c in range(ord("A"), ord("Z") + 1):
-        yield chr(c)
-    # Single digits
-    for d in range(10):
-        yield str(d)
-    # Two-char uppercase
-    for c1 in range(ord("A"), ord("Z") + 1):
-        for c2 in range(ord("A"), ord("Z") + 1):
-            yield chr(c1) + chr(c2)
+from gridfab.core.palette import generate_alias_sequence
 
 
 def image_to_grid_and_palette(

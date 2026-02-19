@@ -3,7 +3,7 @@
 import pytest
 from pathlib import Path
 
-from gridfab.core.palette import Palette, validate_hex_color, hex_to_rgb
+from gridfab.core.palette import Palette, validate_hex_color, hex_to_rgb, generate_alias_sequence
 
 
 class TestHexColor:
@@ -159,3 +159,28 @@ class TestPaletteEdgeCases:
             Palette._validate_alias("A.")
         with pytest.raises(ValueError, match="reserved"):
             Palette._validate_alias(".A")
+
+
+class TestNextAvailableAlias:
+    def test_empty_palette(self):
+        palette = Palette()
+        assert palette.next_available_alias() == "A"
+
+    def test_skips_used(self):
+        palette = Palette({"A": "#FF0000", "B": "#00FF00"})
+        assert palette.next_available_alias() == "C"
+
+    def test_case_insensitive_skip(self):
+        """If 'a' is in palette (lowercase), 'A' should be skipped."""
+        palette = Palette({"a": "#FF0000"})
+        assert palette.next_available_alias() == "B"
+
+
+class TestGenerateAliasSequence:
+    def test_starts_with_A(self):
+        seq = generate_alias_sequence()
+        assert next(seq) == "A"
+
+    def test_total_count(self):
+        aliases = list(generate_alias_sequence())
+        assert len(aliases) == 712

@@ -9,7 +9,7 @@ Alias rules:
 - No case-insensitive duplicates (can't have both SK and sk)
 - Extended ASCII only (printable, ord <= 255)
 - Cannot start with '#'
-- '.' and '..' are reserved for transparent
+- Cannot contain '.' (reserved for transparent and grid padding)
 """
 
 from __future__ import annotations
@@ -169,6 +169,31 @@ class Palette:
             result.append(resolved)
         return result
 
+    def next_available_alias(self) -> str:
+        """Return the next unused alias from the standard sequence."""
+        used = {a.lower() for a in self.entries if a != TRANSPARENT}
+        for alias in generate_alias_sequence():
+            if alias.lower() not in used:
+                return alias
+        raise ValueError("all 712 aliases exhausted")
+
     def __repr__(self) -> str:
         count = len(self.entries) - 1  # exclude transparent
         return f"Palette({count} colors)"
+
+
+def generate_alias_sequence():
+    """Yield alias strings: A-Z, 0-9, AA-ZZ (712 total).
+
+    Uses uppercase only to avoid case-insensitive collisions.
+    """
+    # Single uppercase letters
+    for c in range(ord("A"), ord("Z") + 1):
+        yield chr(c)
+    # Single digits
+    for d in range(10):
+        yield str(d)
+    # Two-char uppercase
+    for c1 in range(ord("A"), ord("Z") + 1):
+        for c2 in range(ord("A"), ord("Z") + 1):
+            yield chr(c1) + chr(c2)

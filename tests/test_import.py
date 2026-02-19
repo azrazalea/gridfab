@@ -6,8 +6,8 @@ import pytest
 from pathlib import Path
 from PIL import Image
 
+from gridfab.core.palette import generate_alias_sequence
 from gridfab.commands.import_cmd import (
-    generate_alias_sequence,
     image_to_grid_and_palette,
     import_single,
     import_tilesheet,
