@@ -85,10 +85,17 @@ class TestCmdFill:
         grid = Grid.load(sprite_dir / "grid.txt")
         assert grid.data[0] == [".", "R", "R", "."]
 
-    def test_hex_color(self, sprite_dir: Path):
+    def test_hex_auto_alias(self, sprite_dir: Path):
+        """Hex color should auto-generate an alias instead of writing hex to grid."""
         cmd_fill(sprite_dir, 0, 0, 0, "#FF0000")
         grid = Grid.load(sprite_dir / "grid.txt")
-        assert grid.data[0][0] == "#FF0000"
+        # Should be an alias, not raw hex
+        assert not grid.data[0][0].startswith("#")
+        assert len(grid.data[0][0]) <= 2
+        # Palette should contain the new color
+        from gridfab.core.palette import Palette
+        palette = Palette.load(sprite_dir / "palette.txt")
+        assert palette.resolve(grid.data[0][0]) == "#FF0000"
 
     def test_invalid_color(self, sprite_dir: Path):
         with pytest.raises(ValueError, match="unknown palette alias"):
@@ -117,10 +124,14 @@ class TestCmdPixel:
         assert grid.get(0, 0) == "."
         assert grid.get(2, 2) == "."
 
-    def test_hex_color(self, sprite_dir: Path):
+    def test_hex_auto_alias(self, sprite_dir: Path):
+        """Hex color should auto-generate an alias."""
         cmd_pixel(sprite_dir, 0, 0, "#AABBCC")
         grid = Grid.load(sprite_dir / "grid.txt")
-        assert grid.get(0, 0) == "#AABBCC"
+        assert not grid.get(0, 0).startswith("#")
+        from gridfab.core.palette import Palette
+        palette = Palette.load(sprite_dir / "palette.txt")
+        assert palette.resolve(grid.get(0, 0)) == "#AABBCC"
 
     def test_invalid_color(self, sprite_dir: Path):
         with pytest.raises(ValueError, match="unknown palette alias"):
@@ -149,11 +160,16 @@ class TestCmdPixels:
         assert grid.get(1, 1) == "B"
         assert grid.get(2, 2) == "G"
 
-    def test_hex_colors(self, sprite_dir: Path):
+    def test_hex_auto_alias(self, sprite_dir: Path):
+        """Hex colors should auto-generate aliases."""
         cmd_pixels(sprite_dir, ["0,0,#FF0000", "1,1,#00FF00"])
         grid = Grid.load(sprite_dir / "grid.txt")
-        assert grid.get(0, 0) == "#FF0000"
-        assert grid.get(1, 1) == "#00FF00"
+        assert not grid.get(0, 0).startswith("#")
+        assert not grid.get(1, 1).startswith("#")
+        from gridfab.core.palette import Palette
+        palette = Palette.load(sprite_dir / "palette.txt")
+        assert palette.resolve(grid.get(0, 0)) == "#FF0000"
+        assert palette.resolve(grid.get(1, 1)) == "#00FF00"
 
     def test_bad_spec_too_few_parts(self, sprite_dir: Path):
         with pytest.raises(ValueError, match="expected row,col,color"):
@@ -187,6 +203,25 @@ class TestCmdPixels:
         cmd_pixels(sprite_dir, ["3,3,B"])
         grid = Grid.load(sprite_dir / "grid.txt")
         assert grid.get(3, 3) == "B"
+
+
+class TestHexAutoAlias:
+    def test_reuses_existing_color(self, sprite_dir: Path):
+        """If hex color already in palette, use the existing alias."""
+        # sprite_dir has R=#CC3333
+        cmd_pixel(sprite_dir, 0, 0, "#CC3333")
+        grid = Grid.load(sprite_dir / "grid.txt")
+        assert grid.get(0, 0) == "R"
+
+    def test_generates_new_alias(self, sprite_dir: Path):
+        """New hex color gets a new alias added to palette."""
+        cmd_pixel(sprite_dir, 0, 0, "#123456")
+        grid = Grid.load(sprite_dir / "grid.txt")
+        alias = grid.get(0, 0)
+        assert not alias.startswith("#")
+        from gridfab.core.palette import Palette
+        palette = Palette.load(sprite_dir / "palette.txt")
+        assert palette.resolve(alias) == "#123456"
 
 
 class TestCmdClear:

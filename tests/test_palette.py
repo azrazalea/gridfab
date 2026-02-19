@@ -41,9 +41,11 @@ class TestPaletteLoad:
         palette = Palette.load(sample_palette / "palette.txt")
         assert palette.resolve(".") is None
 
-    def test_inline_hex(self, sample_palette: Path):
+    def test_inline_hex_rejected(self, sample_palette: Path):
+        """Inline hex is no longer accepted by resolve()."""
         palette = Palette.load(sample_palette / "palette.txt")
-        assert palette.resolve("#112233") == "#112233"
+        with pytest.raises(ValueError, match="unknown palette alias"):
+            palette.resolve("#112233")
 
     def test_unknown_alias(self, sample_palette: Path):
         palette = Palette.load(sample_palette / "palette.txt")

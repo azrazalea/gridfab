@@ -242,10 +242,13 @@ class TestGridAutoRepair:
         captured = capsys.readouterr()
         assert "replaced invalid value '#ZZZZZZ'" in captured.err
 
-    def test_keeps_valid_hex(self, tmp_path: Path):
+    def test_replaces_valid_hex_without_palette(self, tmp_path: Path, capsys):
+        """Hex in grid without palette_path is now invalid — replaced with '.'."""
         (tmp_path / "grid.txt").write_text("#FF0000 . . .\n. . . .\n")
         grid = Grid.load(tmp_path / "grid.txt")
-        assert grid.data[0][0] == "#FF0000"
+        assert grid.data[0][0] == "."
+        captured = capsys.readouterr()
+        assert "replaced invalid value '#FF0000'" in captured.err
 
     def test_saves_repaired_file(self, tmp_path: Path):
         (tmp_path / "grid.txt").write_text("R R\nR R R EXTRA\n")
@@ -296,6 +299,10 @@ class TestIsValidCell:
 
     def test_two_char_alias(self):
         assert _is_valid_cell("SK") is True
+
+    def test_hex_rejected(self):
+        """Inline hex is no longer allowed in grids."""
+        assert _is_valid_cell("#FF0000") is False
 
     def test_too_long_alias(self):
         assert _is_valid_cell("ABC") is False
@@ -406,3 +413,46 @@ class TestPaddedOutput:
         grid = Grid.load(tmp_path / "grid.txt")
         assert grid.data[0] == ["R", "SK", "."]
         assert grid.data[1] == [".", "R", "B"]
+
+
+class TestHexMigration:
+    def test_migrates_hex_to_alias(self, tmp_path: Path, capsys):
+        """Hex values in grid are migrated to aliases when palette_path given."""
+        (tmp_path / "palette.txt").write_text("R=#CC3333\n")
+        (tmp_path / "grid.txt").write_text("#FF0000 R . .\n. . . .\n")
+        palette_path = tmp_path / "palette.txt"
+        grid = Grid.load(tmp_path / "grid.txt", palette_path=palette_path)
+        # Hex should be replaced with a generated alias
+        assert grid.data[0][0] != "#FF0000"
+        assert grid.data[0][0] != "."
+        assert len(grid.data[0][0]) <= 2
+        # Palette should have the new alias
+        from gridfab.core.palette import Palette
+        palette = Palette.load(palette_path)
+        assert palette.resolve(grid.data[0][0]) == "#FF0000"
+        captured = capsys.readouterr()
+        assert "HEX MIGRATION" in captured.err
+
+    def test_reuses_existing_alias_for_same_color(self, tmp_path: Path):
+        """If a hex color already has an alias, reuse it."""
+        (tmp_path / "palette.txt").write_text("R=#FF0000\n")
+        (tmp_path / "grid.txt").write_text("#FF0000 . . .\n. . . .\n")
+        grid = Grid.load(tmp_path / "grid.txt", palette_path=tmp_path / "palette.txt")
+        assert grid.data[0][0] == "R"
+
+    def test_multiple_hex_values(self, tmp_path: Path):
+        """Multiple different hex values get unique aliases."""
+        (tmp_path / "palette.txt").write_text("")
+        (tmp_path / "grid.txt").write_text("#FF0000 #00FF00\n#0000FF .\n")
+        grid = Grid.load(tmp_path / "grid.txt", palette_path=tmp_path / "palette.txt")
+        aliases = {grid.data[0][0], grid.data[0][1], grid.data[1][0]}
+        assert len(aliases) == 3  # all different
+        assert "." not in aliases
+
+    def test_no_migration_without_palette_path(self, tmp_path: Path, capsys):
+        """Without palette_path, hex values are treated as invalid and repaired."""
+        (tmp_path / "grid.txt").write_text("#FF0000 . . .\n. . . .\n")
+        grid = Grid.load(tmp_path / "grid.txt")
+        assert grid.data[0][0] == "."
+        captured = capsys.readouterr()
+        assert "replaced invalid value '#FF0000'" in captured.err

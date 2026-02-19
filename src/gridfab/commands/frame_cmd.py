@@ -46,7 +46,8 @@ def cmd_frame_add(
 
     if blank:
         # Load any existing frame to get dimensions
-        src = Grid.load(frame_path(directory, frames[0]))
+        src = Grid.load(frame_path(directory, frames[0]),
+                        palette_path=directory / "palette.txt")
         new_grid = Grid.blank(src.width, src.height)
         new_grid.save(new_path)
     elif from_frame is not None:
@@ -56,13 +57,14 @@ def cmd_frame_add(
                 f"frame {from_frame} does not exist "
                 f"(available: {frames})"
             )
-        src = Grid.load(src_path)
+        src = Grid.load(src_path, palette_path=directory / "palette.txt")
         src.save(new_path)
     else:
         # Copy active frame
         state = load_state(directory)
         active = state.get("active_frame", frames[0])
-        src = Grid.load(frame_path(directory, active))
+        src = Grid.load(frame_path(directory, active),
+                        palette_path=directory / "palette.txt")
         src.save(new_path)
 
     save_state(directory, {"active_frame": new_num})

@@ -78,10 +78,11 @@ def _load_anim_frames(directory: Path, name: str) -> tuple[list[list[list[str | 
         raise ValueError(f"animation '{name}' not found")
 
     anim = anims[name]
-    palette = Palette.load(directory / "palette.txt")
+    palette_path = directory / "palette.txt"
+    palette = Palette.load(palette_path)
     frames_colors = []
     for f in anim["frames"]:
-        grid = Grid.load(frame_path(directory, f))
+        grid = Grid.load(frame_path(directory, f), palette_path=palette_path)
         colors = palette.resolve_grid(grid.data)
         frames_colors.append(colors)
     return frames_colors, anim
@@ -100,7 +101,8 @@ def cmd_anim_sheet(
     frames_colors, anim = _load_anim_frames(directory, name)
 
     # Get dimensions from first frame
-    grid = Grid.load(frame_path(directory, anim["frames"][0]))
+    grid = Grid.load(frame_path(directory, anim["frames"][0]),
+                     palette_path=directory / "palette.txt")
     fps = anim.get("fps", 8)
     loop = anim.get("loop", True)
 
@@ -148,7 +150,8 @@ def cmd_anim_gif(
 
     frames_colors, anim = _load_anim_frames(directory, name)
 
-    grid = Grid.load(frame_path(directory, anim["frames"][0]))
+    grid = Grid.load(frame_path(directory, anim["frames"][0]),
+                     palette_path=directory / "palette.txt")
     fps = anim.get("fps", 8)
     loop = anim.get("loop", True)
 

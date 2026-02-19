@@ -316,7 +316,7 @@ class PixelEditor:
         self.grid_path = resolve_grid_path(self.work_dir) if self._animated or (self.work_dir / "grid.txt").exists() else self.work_dir / "grid.txt"
 
         if self.grid_path.exists():
-            self.grid = Grid.load(self.grid_path)
+            self.grid = Grid.load(self.grid_path, palette_path=self.palette_path)
         else:
             w, h = get_grid_dimensions(self.work_dir)
             self.grid = Grid.blank(w, h)
@@ -970,7 +970,7 @@ class PixelEditor:
             if f == self._active_frame:
                 self._frame_grids[f] = self.grid
             else:
-                self._frame_grids[f] = Grid.load(frame_path(self.work_dir, f))
+                self._frame_grids[f] = Grid.load(frame_path(self.work_dir, f), palette_path=self.palette_path)
             self._frame_modified.setdefault(f, False)
 
         # Ensure active frame is in selection
@@ -1200,7 +1200,7 @@ class PixelEditor:
             self._prev_frame_colors = None
             return
         prev_num = frames[idx - 1]
-        prev_grid = Grid.load(frame_path(self.work_dir, prev_num))
+        prev_grid = Grid.load(frame_path(self.work_dir, prev_num), palette_path=self.palette_path)
         self._prev_frame_colors = self.palette.resolve_grid(prev_grid.data)
 
     # --- Playback ---
@@ -1265,7 +1265,7 @@ class PixelEditor:
         """Switch frame display without rebuilding the frame strip (for playback)."""
         self._active_frame = frame_num
         self.grid_path = frame_path(self.work_dir, frame_num)
-        self.grid = Grid.load(self.grid_path)
+        self.grid = Grid.load(self.grid_path, palette_path=self.palette_path)
         self._redraw()
         self._update_status()
 
@@ -1402,7 +1402,7 @@ class PixelEditor:
             self._active_frame = frame_num
             save_state(self.work_dir, {"active_frame": frame_num})
             self.grid_path = frame_path(self.work_dir, frame_num)
-            self.grid = self._frame_grids.get(frame_num) or Grid.load(self.grid_path)
+            self.grid = self._frame_grids.get(frame_num) or Grid.load(self.grid_path, palette_path=self.palette_path)
             self._frame_grids[frame_num] = self.grid
             self.undo_stack.clear()
             self.redo_stack.clear()
@@ -1425,7 +1425,7 @@ class PixelEditor:
         self.grid_path = frame_path(self.work_dir, frame_num)
 
         # Load new frame
-        self.grid = Grid.load(self.grid_path)
+        self.grid = Grid.load(self.grid_path, palette_path=self.palette_path)
 
         # Clear undo/redo (simple approach)
         self.undo_stack.clear()
@@ -1480,7 +1480,7 @@ class PixelEditor:
                 if f == self._active_frame:
                     self._frame_grids[f] = self.grid
                 else:
-                    self._frame_grids[f] = Grid.load(frame_path(self.work_dir, f))
+                    self._frame_grids[f] = Grid.load(frame_path(self.work_dir, f), palette_path=self.palette_path)
                 self._frame_modified.setdefault(f, False)
 
     def _flush_multi_frame_changes(self) -> None:
@@ -1525,7 +1525,7 @@ class PixelEditor:
         state = load_state(self.work_dir)
         self._active_frame = state.get("active_frame", 1)
         self.grid_path = frame_path(self.work_dir, self._active_frame)
-        self.grid = Grid.load(self.grid_path)
+        self.grid = Grid.load(self.grid_path, palette_path=self.palette_path)
         self.undo_stack.clear()
         self.redo_stack.clear()
         if not self.frame_strip.winfo_ismapped():
@@ -1548,7 +1548,7 @@ class PixelEditor:
         state = load_state(self.work_dir)
         self._active_frame = state.get("active_frame", 1)
         self.grid_path = frame_path(self.work_dir, self._active_frame)
-        self.grid = Grid.load(self.grid_path)
+        self.grid = Grid.load(self.grid_path, palette_path=self.palette_path)
         self.undo_stack.clear()
         self.redo_stack.clear()
         self._rebuild_frame_strip()
@@ -1571,7 +1571,7 @@ class PixelEditor:
         state = load_state(self.work_dir)
         self._active_frame = state.get("active_frame", 1)
         self.grid_path = frame_path(self.work_dir, self._active_frame)
-        self.grid = Grid.load(self.grid_path)
+        self.grid = Grid.load(self.grid_path, palette_path=self.palette_path)
         self.undo_stack.clear()
         self.redo_stack.clear()
         self._rebuild_frame_strip()
@@ -1598,7 +1598,7 @@ class PixelEditor:
         new_frame = state.get("active_frame", 1)
         self._active_frame = new_frame
         self.grid_path = frame_path(self.work_dir, new_frame)
-        new_grid = Grid.load(self.grid_path)
+        new_grid = Grid.load(self.grid_path, palette_path=self.palette_path)
         new_grid.restore(self._copied_frame_data)
         new_grid.save(self.grid_path)
         self.grid = new_grid
@@ -1632,7 +1632,7 @@ class PixelEditor:
         self._active_frame = prev_num
         save_state(self.work_dir, {"active_frame": prev_num})
         self.grid_path = frame_path(self.work_dir, prev_num)
-        self.grid = Grid.load(self.grid_path)
+        self.grid = Grid.load(self.grid_path, palette_path=self.palette_path)
         self.undo_stack.clear()
         self.redo_stack.clear()
         self._rebuild_frame_strip()
@@ -1662,7 +1662,7 @@ class PixelEditor:
         self._active_frame = next_num
         save_state(self.work_dir, {"active_frame": next_num})
         self.grid_path = frame_path(self.work_dir, next_num)
-        self.grid = Grid.load(self.grid_path)
+        self.grid = Grid.load(self.grid_path, palette_path=self.palette_path)
         self.undo_stack.clear()
         self.redo_stack.clear()
         self._rebuild_frame_strip()
@@ -1682,7 +1682,7 @@ class PixelEditor:
         self.redo_stack.clear()
         self.palette = Palette.load(self.palette_path)
         if self.grid_path.exists():
-            self.grid = Grid.load(self.grid_path)
+            self.grid = Grid.load(self.grid_path, palette_path=self.palette_path)
         self._rebuild_palette_buttons()
         self.select_color(self.selected)
         self._redraw()
@@ -1903,7 +1903,7 @@ class PixelEditor:
         # Reload palette and grid
         self.palette = Palette.load(self.palette_path)
         if self.grid_path.exists():
-            self.grid = Grid.load(self.grid_path)
+            self.grid = Grid.load(self.grid_path, palette_path=self.palette_path)
         else:
             w, h = get_grid_dimensions(self.work_dir)
             self.grid = Grid.blank(w, h)

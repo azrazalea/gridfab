@@ -12,8 +12,9 @@ from gridfab.render.export import render_export
 def cmd_export(directory: Path, frame: int | None = None) -> None:
     """Export final PNGs at configured scales with true transparency."""
     grid_path = resolve_grid_path(directory, frame)
-    grid = Grid.load(grid_path)
-    palette = Palette.load(directory / "palette.txt")
+    palette_path = directory / "palette.txt"
+    grid = Grid.load(grid_path, palette_path=palette_path)
+    palette = Palette.load(palette_path)
     colors = palette.resolve_grid(grid.data)
 
     config = load_config(directory)

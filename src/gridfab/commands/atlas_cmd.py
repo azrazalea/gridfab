@@ -177,8 +177,9 @@ def cmd_atlas(
     # Load all grids to determine sizes
     sprite_data: list[tuple[str, Path, Grid, Palette]] = []
     for d in sprite_dirs:
-        grid = Grid.load(d / "grid.txt")
-        palette = Palette.load(d / "palette.txt")
+        palette_path = d / "palette.txt"
+        grid = Grid.load(d / "grid.txt", palette_path=palette_path)
+        palette = Palette.load(palette_path)
         sprite_data.append((d.name, d, grid, palette))
 
     if not sprite_data:

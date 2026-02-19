@@ -120,19 +120,15 @@ class Palette:
         Accepts:
         - "." -> None (transparent)
         - A palette alias -> its hex color
-        - An inline "#RRGGBB" -> itself
         """
         if value == TRANSPARENT:
             return None
         if value in self.entries:
             return self.entries[value]
-        if value.startswith("#"):
-            validate_hex_color(value, context)
-            return value
         ctx = f" at {context}" if context else ""
         raise ValueError(
             f"unknown palette alias '{value}'{ctx} — "
-            f"define it in palette.txt or use #RRGGBB"
+            f"define it in palette.txt"
         )
 
     @staticmethod

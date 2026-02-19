@@ -9,8 +9,9 @@ from gridfab.render.ico import render_ico, DEFAULT_ICO_SIZES
 
 def cmd_icon(directory: Path) -> None:
     """Export icon.ico and icon.icns from a square sprite."""
-    grid = Grid.load(directory / "grid.txt")
-    palette = Palette.load(directory / "palette.txt")
+    palette_path = directory / "palette.txt"
+    grid = Grid.load(directory / "grid.txt", palette_path=palette_path)
+    palette = Palette.load(palette_path)
     colors = palette.resolve_grid(grid.data)
 
     images = render_ico(colors, grid.width, grid.height)

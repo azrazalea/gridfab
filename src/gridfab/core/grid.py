@@ -70,16 +70,20 @@ class Grid:
         return cls(width, height, data)
 
     @classmethod
-    def load(cls, path: Path) -> Grid:
+    def load(cls, path: Path, palette_path: Path | None = None) -> Grid:
         """Load a grid from a text file, auto-repairing malformed data.
 
         The file format is one row per line, with space-separated values.
         Grid dimensions are inferred from the file contents.
 
+        If palette_path is provided, any inline #RRGGBB hex values are
+        automatically migrated to palette aliases.
+
         Structural issues are automatically repaired and loud warnings are
         printed to stderr so LLMs don't miss them. Repaired issues include:
         - Blank lines (skipped)
         - Rows with wrong column count (trimmed or padded)
+        - Inline hex colors (migrated to aliases if palette available)
         - Invalid cell values (replaced with transparent '.')
         """
         if not path.exists():
@@ -99,6 +103,10 @@ class Grid:
 
         width = len(raw_rows[0][1])
         repairs: list[str] = []
+
+        # Migrate hex values to aliases if palette is available
+        if palette_path is not None:
+            _migrate_hex(raw_rows, palette_path, repairs)
 
         # Repair each row
         repaired_rows: list[list[str]] = []
@@ -258,12 +266,73 @@ def _is_valid_cell(value: str) -> bool:
     if value == TRANSPARENT:
         return True
     if value.startswith("#"):
-        return bool(_HEX_COLOR_RE.match(value))
+        return False
     if "." in value:
         return False
     if len(value) < 1 or len(value) > 2:
         return False
     return all(ch.isprintable() and ord(ch) <= 255 for ch in value)
+
+
+def _migrate_hex(
+    raw_rows: list[tuple[int, list[str]]],
+    palette_path: Path,
+    repairs: list[str],
+) -> None:
+    """Replace inline #RRGGBB values with palette aliases.
+
+    Modifies raw_rows in place. Adds new aliases to palette and saves it.
+    """
+    from gridfab.core.palette import Palette
+
+    # Collect unique hex values
+    hex_values: set[str] = set()
+    for _line_num, values in raw_rows:
+        for v in values:
+            if _HEX_COLOR_RE.match(v):
+                hex_values.add(v.upper())
+
+    if not hex_values:
+        return
+
+    palette = Palette.load(palette_path)
+
+    # Build reverse lookup: hex → existing alias
+    color_to_alias: dict[str, str] = {}
+    for alias, color in palette.entries.items():
+        if color is not None:
+            color_to_alias[color.upper()] = alias
+
+    # Assign aliases for hex values
+    new_aliases: dict[str, str] = {}  # hex → alias
+    for hex_val in sorted(hex_values):
+        upper = hex_val.upper()
+        if upper in color_to_alias:
+            new_aliases[hex_val] = color_to_alias[upper]
+        else:
+            alias = palette.next_available_alias()
+            palette.entries[alias] = upper
+            color_to_alias[upper] = alias
+            new_aliases[hex_val] = alias
+
+    # Replace hex values in grid data
+    for _line_num, values in raw_rows:
+        for i, v in enumerate(values):
+            if _HEX_COLOR_RE.match(v):
+                values[i] = new_aliases[v]
+
+    # Save updated palette
+    palette.save(palette_path)
+
+    # Report migration
+    border = "!" * 60
+    print(f"\n{border}", file=sys.stderr)
+    print(f"!! HEX MIGRATION: {len(hex_values)} inline hex color(s) "
+          f"converted to aliases", file=sys.stderr)
+    print(border, file=sys.stderr)
+    for hex_val, alias in sorted(new_aliases.items()):
+        print(f"!!  {hex_val} → {alias}", file=sys.stderr)
+    print(f"{border}\n", file=sys.stderr)
 
 
 def _print_repair_report(path: Path, repairs: list[str], grid: Grid) -> None:
