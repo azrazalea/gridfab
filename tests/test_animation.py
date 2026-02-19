@@ -220,7 +220,7 @@ def test_frame_add_copies_active_frame(sprite_dir):
     cmd_frame_add(sprite_dir)
     # frame_002 should be copy of frame_001 (which was grid.txt)
     content = (sprite_dir / "frame_002.txt").read_text()
-    assert content == "R R\nB B\n"
+    assert content == "R. R.\nB. B.\n"
 
 
 def test_frame_add_blank(sprite_dir):
@@ -229,9 +229,9 @@ def test_frame_add_blank(sprite_dir):
     cmd_frame_add(sprite_dir, blank=True)
     content = (sprite_dir / "frame_003.txt").read_text()
     lines = [line for line in content.strip().split("\n") if line]
-    # all cells should be transparent
+    # all cells should be transparent (padded as "..")
     for line in lines:
-        assert all(v == "." for v in line.split())
+        assert all(v == ".." for v in line.split())
 
 
 def test_frame_add_from_specific_frame(sprite_dir):
@@ -241,7 +241,7 @@ def test_frame_add_from_specific_frame(sprite_dir):
     (sprite_dir / "frame_001.txt").write_text("R R R R\n. . . .\n. . . .\n. . . .\n")
     cmd_frame_add(sprite_dir, from_frame=1)  # frame 3 copies from 1
     content = (sprite_dir / "frame_003.txt").read_text()
-    assert content.startswith("R R R R\n")
+    assert content.startswith("R. R. R. R.\n")
 
 
 def test_frame_add_updates_state(sprite_dir):

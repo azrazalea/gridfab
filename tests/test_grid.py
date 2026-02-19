@@ -4,7 +4,7 @@ import json
 import pytest
 from pathlib import Path
 
-from gridfab.core.grid import Grid, TRANSPARENT, _is_valid_cell, load_config, get_grid_dimensions
+from gridfab.core.grid import Grid, TRANSPARENT, _is_valid_cell, _pad_cell, _unpad_cell, load_config, get_grid_dimensions
 
 
 class TestGridBlank:
@@ -252,7 +252,7 @@ class TestGridAutoRepair:
         Grid.load(tmp_path / "grid.txt")
         # Reloading should find no issues (file was auto-saved)
         content = (tmp_path / "grid.txt").read_text()
-        assert content == "R R\nR R\n"
+        assert content == "R. R.\nR. R.\n"
 
     def test_no_repairs_no_output(self, tmp_path: Path, capsys):
         (tmp_path / "grid.txt").write_text(". R\nR .\n")
@@ -297,9 +297,6 @@ class TestIsValidCell:
     def test_two_char_alias(self):
         assert _is_valid_cell("SK") is True
 
-    def test_valid_hex(self):
-        assert _is_valid_cell("#FF0000") is True
-
     def test_too_long_alias(self):
         assert _is_valid_cell("ABC") is False
 
@@ -311,6 +308,11 @@ class TestIsValidCell:
 
     def test_empty_string(self):
         assert _is_valid_cell("") is False
+
+    def test_dot_in_alias_rejected(self):
+        """'.' is reserved for padding — aliases containing it are invalid."""
+        assert _is_valid_cell("A.") is False
+        assert _is_valid_cell(".A") is False
 
 
 class TestLoadConfig:
@@ -338,3 +340,69 @@ class TestGetGridDimensions:
         w, h = get_grid_dimensions(tmp_path)
         assert w == 8
         assert h == 16
+
+
+class TestPadCell:
+    def test_single_char_alias(self):
+        assert _pad_cell("R") == "R."
+
+    def test_transparent(self):
+        assert _pad_cell(".") == ".."
+
+    def test_two_char_alias(self):
+        assert _pad_cell("SK") == "SK"
+
+    def test_already_two_chars(self):
+        assert _pad_cell("AB") == "AB"
+
+
+class TestUnpadCell:
+    def test_padded_single_char(self):
+        assert _unpad_cell("R.") == "R"
+
+    def test_padded_transparent(self):
+        assert _unpad_cell("..") == "."
+
+    def test_two_char_alias(self):
+        assert _unpad_cell("SK") == "SK"
+
+    def test_unpadded_single_char(self):
+        """Backward compat: old files without padding."""
+        assert _unpad_cell("R") == "R"
+
+    def test_unpadded_transparent(self):
+        """Backward compat: old files without padding."""
+        assert _unpad_cell(".") == "."
+
+
+class TestPaddedOutput:
+    def test_save_pads_cells(self, tmp_path: Path):
+        grid = Grid.blank(3, 2)
+        grid.data[0] = ["R", "SK", "."]
+        grid.data[1] = [".", "R", "B"]
+        grid.save(tmp_path / "grid.txt")
+        content = (tmp_path / "grid.txt").read_text()
+        assert content == "R. SK ..\n.. R. B.\n"
+
+    def test_round_trip_padded(self, tmp_path: Path):
+        """Save padded, load back — data should be identical."""
+        grid = Grid.blank(3, 2)
+        grid.data[0] = ["R", "SK", "."]
+        grid.data[1] = [".", "R", "B"]
+        grid.save(tmp_path / "grid.txt")
+        reloaded = Grid.load(tmp_path / "grid.txt")
+        assert reloaded.data == grid.data
+
+    def test_load_old_unpadded_file(self, tmp_path: Path):
+        """Old unpadded grid.txt files should load correctly."""
+        (tmp_path / "grid.txt").write_text("R SK .\n. R B\n")
+        grid = Grid.load(tmp_path / "grid.txt")
+        assert grid.data[0] == ["R", "SK", "."]
+        assert grid.data[1] == [".", "R", "B"]
+
+    def test_load_mixed_padded_unpadded(self, tmp_path: Path):
+        """Mix of padded and unpadded values should all load correctly."""
+        (tmp_path / "grid.txt").write_text("R. SK .\n.. R B.\n")
+        grid = Grid.load(tmp_path / "grid.txt")
+        assert grid.data[0] == ["R", "SK", "."]
+        assert grid.data[1] == [".", "R", "B"]

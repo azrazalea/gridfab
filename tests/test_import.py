@@ -207,7 +207,7 @@ class TestSaveSprite:
         save_sprite(grid_data, palette_entries, out, width=2, height=2)
 
         content = (out / "grid.txt").read_text()
-        assert content == "A B\n. A\n"
+        assert content == "A. B.\n.. A.\n"
 
     def test_palette_content(self, tmp_path):
         out = tmp_path / "sprite"
@@ -280,10 +280,10 @@ class TestImportSingle:
 
         content = (out / "grid.txt").read_text()
         lines = content.strip().split("\n")
-        # Bottom-right 2x2 should be transparent
+        # Bottom-right 2x2 should be transparent (padded as "..")
         last_row = lines[3].split()
-        assert last_row[2] == "."
-        assert last_row[3] == "."
+        assert last_row[2] == ".."
+        assert last_row[3] == ".."
 
     def test_output_dir_already_has_grid(self, tmp_path):
         """Should raise if output dir already contains grid.txt."""

@@ -146,7 +146,7 @@ class Palette:
             )
         if alias.startswith("#"):
             raise ValueError(f"{ctx}alias cannot start with '#': '{alias}'")
-        if alias in (".", ".."):
+        if "." in alias:
             raise ValueError(f"{ctx}'{alias}' is reserved")
         for ch in alias:
             if ord(ch) > 255 or not ch.isprintable():

@@ -146,3 +146,16 @@ class TestPaletteEdgeCases:
         # To actually test the _validate_alias #-check, call it directly.
         with pytest.raises(ValueError, match="cannot start with '#'"):
             Palette._validate_alias("#X")
+
+    def test_dot_in_alias_rejected(self, tmp_path: Path):
+        """Alias containing '.' should be rejected (used for padding)."""
+        (tmp_path / "palette.txt").write_text("A.=#FF0000\n")
+        with pytest.raises(ValueError, match="reserved"):
+            Palette.load(tmp_path / "palette.txt")
+
+    def test_dot_in_alias_direct(self):
+        """Direct validation: '.' anywhere in alias is rejected."""
+        with pytest.raises(ValueError, match="reserved"):
+            Palette._validate_alias("A.")
+        with pytest.raises(ValueError, match="reserved"):
+            Palette._validate_alias(".A")

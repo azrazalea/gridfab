@@ -3,7 +3,6 @@
 A Grid is a 2D array of string values where each cell is either:
 - "." for transparent
 - A 1-2 character palette alias (e.g. "R", "SK")
-- An inline "#RRGGBB" hex color
 """
 
 from __future__ import annotations
@@ -20,6 +19,18 @@ DEFAULT_HEIGHT = 32
 
 # Pattern for valid inline hex colors
 _HEX_COLOR_RE = re.compile(r"^#[0-9a-fA-F]{6}$")
+
+
+def _pad_cell(value: str) -> str:
+    """Pad a cell value to 2 chars with '.' for aligned output."""
+    return value.ljust(2, ".")
+
+
+def _unpad_cell(value: str) -> str:
+    """Strip trailing '.' padding from a cell value."""
+    if len(value) == 2 and value[1] == "." and value[0] != "#":
+        return value[0]  # "A." → "A", ".." → "."
+    return value
 
 
 def load_config(directory: Path) -> dict:
@@ -80,7 +91,7 @@ class Grid:
                 line = raw_line.rstrip("\n")
                 if line.strip() == "":
                     continue  # skip blank lines silently
-                values = line.split()
+                values = [_unpad_cell(v) for v in line.split()]
                 raw_rows.append((line_num, values))
 
         if not raw_rows:
@@ -134,7 +145,7 @@ class Grid:
         """Save the grid to a text file."""
         with open(path, "w", newline="\n") as f:
             for row in self.data:
-                f.write(" ".join(row) + "\n")
+                f.write(" ".join(_pad_cell(v) for v in row) + "\n")
 
     def get(self, row: int, col: int) -> str:
         """Get the value at (row, col)."""
@@ -242,13 +253,14 @@ def _is_valid_cell(value: str) -> bool:
 
     Valid values:
     - '.' (transparent)
-    - 1-2 printable ASCII chars not starting with '#' (potential alias)
-    - '#RRGGBB' inline hex color
+    - 1-2 printable ASCII chars not starting with '#', no '.' (potential alias)
     """
     if value == TRANSPARENT:
         return True
     if value.startswith("#"):
         return bool(_HEX_COLOR_RE.match(value))
+    if "." in value:
+        return False
     if len(value) < 1 or len(value) > 2:
         return False
     return all(ch.isprintable() and ord(ch) <= 255 for ch in value)

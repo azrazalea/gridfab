@@ -5,6 +5,8 @@ from pathlib import Path
 
 from PIL import Image
 
+from gridfab.core.grid import _pad_cell
+
 
 def generate_alias_sequence():
     """Yield alias strings: A-Z, 0-9, AA-ZZ (712 total).
@@ -98,7 +100,7 @@ def save_sprite(
     # grid.txt
     with open(directory / "grid.txt", "w", newline="\n") as f:
         for row in grid_data:
-            f.write(" ".join(row) + "\n")
+            f.write(" ".join(_pad_cell(v) for v in row) + "\n")
 
     # palette.txt
     with open(directory / "palette.txt", "w", newline="\n") as f:
