@@ -2,7 +2,7 @@
 
 ## What This Is
 
-GridFab is a pixel art editor where artwork is stored as plain text (`grid.txt` + `palette.txt`). It has a CLI for LLMs and a tkinter GUI for humans, both operating on the same files.
+GridFab is a pixel art editor where artwork is stored as plain text (`grid.txt` + `palette.txt`). It has a CLI for LLMs and a CustomTkinter GUI for humans, both operating on the same files.
 
 ## Architecture
 
@@ -16,7 +16,13 @@ GridFab is a pixel art editor where artwork is stored as plain text (`grid.txt` 
 ```
 src/gridfab/          # Python package (src layout)
   cli.py              # CLI entry point (argparse)
-  gui.py              # tkinter GUI
+  gui/                # CustomTkinter GUI (dark theme)
+    __init__.py       # Facade: re-exports pure functions + lazy PixelEditor/main
+    pure.py           # Pure functions + constants (zero tkinter imports)
+    app.py            # PixelEditor class + main() entry point
+    tokens.py         # Design tokens (colors, fonts, spacing)
+    frames/           # UI panels: toolbar, palette, canvas, frame strip, status bar
+    widgets/          # Reusable widgets: tooltip, menu bar
   core/               # Grid + Palette data structures
   render/             # Image rendering (Pillow)
   commands/           # CLI command implementations
@@ -40,7 +46,7 @@ tests/                # pytest test suite
 1. **Never break backward compatibility with grid.txt format.** Space-separated values, one row per line, `.` for transparent.
 2. **Palette aliases are 1-2 characters**, case sensitive, no case-insensitive duplicates, extended ASCII only, cannot start with `#`.
 3. **Fail loudly** with clear error messages including line numbers and context. LLMs need good errors to self-correct.
-4. **Minimal dependencies**: Python 3.10+ stdlib + Pillow. No numpy, no web frameworks, no databases.
+4. **Minimal dependencies**: Python 3.10+ stdlib + Pillow + CustomTkinter (GUI only). No numpy, no web frameworks, no databases.
 5. **No unnecessary files**: Don't add docstrings/comments/types to code you didn't change.
 6. **Update CHANGELOG.md before every commit.** Add entries under `[Unreleased]` using Keep a Changelog categories: Added, Changed, Deprecated, Removed, Fixed, Security.
 7. **Update INSTRUCTIONS.md when user-facing behavior changes.** Any new or modified CLI commands, GUI features, file format changes, or config options must be reflected in INSTRUCTIONS.md. This includes the suggested LLM prompt section if CLI commands change.

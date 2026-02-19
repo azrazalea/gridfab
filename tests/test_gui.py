@@ -1,6 +1,8 @@
 """Tests for gridfab.gui — pure functions only (no tkinter event loop)."""
 
 import pytest
+from pathlib import Path
+from unittest.mock import patch, MagicMock
 from gridfab.gui import (
     checker_color, cell_display_color, _contrast_color,
     format_status_text, grid_line_config,
@@ -620,3 +622,35 @@ class TestAnimDirChoices:
         (burn / "animation.json").write_text('{"frames": []}')
         result = anim_dir_choices(tmp_path)
         assert result == ["(Base)", "burn"]
+
+
+class TestMainWorkDirCoercion:
+    """main() must accept both str and Path for work_dir."""
+
+    def test_main_accepts_string_work_dir(self, sprite_dir):
+        """main() should coerce string work_dir to Path without error."""
+        mock_ctk = MagicMock()
+        mock_root = MagicMock()
+        mock_ctk.CTk.return_value = mock_root
+        with patch.dict("sys.modules", {"customtkinter": mock_ctk}):
+            with patch("gridfab.gui.app.PixelEditor") as mock_editor:
+                from gridfab.gui.app import main
+                # Pass a string — this was the bug
+                main(str(sprite_dir))
+                # PixelEditor should receive a Path, not a string
+                args = mock_editor.call_args
+                work_dir_arg = args[0][1]  # second positional arg
+                assert isinstance(work_dir_arg, Path)
+
+    def test_main_accepts_path_work_dir(self, sprite_dir):
+        """main() should accept Path work_dir without error."""
+        mock_ctk = MagicMock()
+        mock_root = MagicMock()
+        mock_ctk.CTk.return_value = mock_root
+        with patch.dict("sys.modules", {"customtkinter": mock_ctk}):
+            with patch("gridfab.gui.app.PixelEditor") as mock_editor:
+                from gridfab.gui.app import main
+                main(sprite_dir)
+                args = mock_editor.call_args
+                work_dir_arg = args[0][1]
+                assert isinstance(work_dir_arg, Path)

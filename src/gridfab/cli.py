@@ -477,11 +477,8 @@ def _dispatch(args: argparse.Namespace) -> None:
             cmd_anim_gif(Path(args.directory), args.name, scale=args.scale)
 
     elif cmd == "gui":
-        import tkinter as tk
-        from gridfab.gui import PixelEditor
-        root = tk.Tk()
-        PixelEditor(root, Path(args.directory))
-        root.mainloop()
+        from gridfab.gui import main as gui_main
+        gui_main(Path(args.directory))
 
     elif cmd == "import":
         from gridfab.commands.import_cmd import cmd_import

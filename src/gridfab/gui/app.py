@@ -9,7 +9,11 @@ Usage: gridfab-gui [directory]
 import sys
 import subprocess
 import tkinter as tk
-from tkinter import simpledialog, messagebox, filedialog, colorchooser
+from tkinter import filedialog, colorchooser
+from gridfab.gui.widgets.dialogs import (
+    ask_string, show_info, show_warning, show_error,
+    ask_yes_no, ask_yes_no_cancel, ask_ok_cancel,
+)
 from pathlib import Path
 
 from gridfab.core.grid import Grid, TRANSPARENT, get_grid_dimensions
@@ -21,298 +25,17 @@ from gridfab.core.animation import (
     max_frame_number, swap_frame_files, update_animations_after_swap,
     discover_anim_dirs, load_subdir_animation, ANIM_FILE,
 )
-
-ZOOM_LEVELS = [4, 8, 16, 24, 32, 48]
-DEFAULT_CELL_SIZE = 16
-CHECKER_LIGHT = "#DCDCDC"
-CHECKER_DARK = "#B4B4B4"
-
-
-TOOL_BRUSH = "Brush"
-TOOL_EYEDROPPER = "Eyedropper"
-TOOL_FILL = "Fill"
-
-SWATCH_COLS = 3
-
-
-def checker_color(r: int, c: int) -> str:
-    """Return checkerboard color for a transparent cell."""
-    return CHECKER_LIGHT if (r // 2 + c // 2) % 2 == 0 else CHECKER_DARK
-
-
-def _contrast_color(hex_color: str) -> str:
-    """Return black or white for readable text on the given background."""
-    r = int(hex_color[1:3], 16)
-    g = int(hex_color[3:5], 16)
-    b = int(hex_color[5:7], 16)
-    luminance = 0.299 * r + 0.587 * g + 0.114 * b
-    return "#000000" if luminance > 128 else "#FFFFFF"
-
-
-def format_status_text(
-    cursor_pos: tuple[int, int] | None,
-    selected: str,
-    selected_hex: str | None,
-    grid_w: int,
-    grid_h: int,
-    modified: bool,
-    tool_name: str,
-    zoom_pct: int,
-    file_path: str,
-) -> str:
-    """Build the status bar text from current editor state (pure function)."""
-    parts: list[str] = []
-    if cursor_pos is not None:
-        parts.append(f"({cursor_pos[0]}, {cursor_pos[1]})")
-    if selected == TRANSPARENT:
-        parts.append("Transparent")
-    else:
-        color_str = selected
-        if selected_hex:
-            color_str += f" {selected_hex}"
-        parts.append(color_str)
-    parts.append(f"{grid_w}x{grid_h}")
-    parts.append(f"{zoom_pct}%")
-    parts.append(tool_name)
-    if modified:
-        parts.append("[Modified]")
-    parts.append(file_path)
-    return "  |  ".join(parts)
-
-
-def grid_line_config(visible: bool) -> dict:
-    """Return canvas rectangle outline/width settings for grid lines."""
-    if visible:
-        return {"outline": "#333333", "width": 0.5}
-    return {"outline": "", "width": 0}
-
-
-def zoom_step(current: int, direction: int) -> int:
-    """Return the next zoom level in the given direction (+1 or -1)."""
-    try:
-        idx = ZOOM_LEVELS.index(current)
-    except ValueError:
-        idx = ZOOM_LEVELS.index(DEFAULT_CELL_SIZE)
-    new_idx = max(0, min(len(ZOOM_LEVELS) - 1, idx + direction))
-    return ZOOM_LEVELS[new_idx]
-
-
-def cell_at_coords(
-    x: int, y: int, cell_size: int, w: int, h: int,
-) -> tuple[int | None, int | None]:
-    """Convert pixel coordinates to grid (row, col), or (None, None) if out of bounds."""
-    if x < 0 or y < 0:
-        return None, None
-    c = x // cell_size
-    r = y // cell_size
-    if 0 <= r < h and 0 <= c < w:
-        return r, c
-    return None, None
-
-
-def fit_zoom_level(grid_w: int, grid_h: int, viewport_w: int, viewport_h: int) -> int:
-    """Find the largest zoom level that fits the grid in the viewport."""
-    best = ZOOM_LEVELS[0]
-    for level in ZOOM_LEVELS:
-        if grid_w * level <= viewport_w and grid_h * level <= viewport_h:
-            best = level
-    return best
-
-
-def cursor_preview_color(selected: str, palette: Palette) -> str:
-    """Return the border color for the cursor preview rectangle."""
-    if selected == TRANSPARENT:
-        return "#FF6666"
-    if selected in palette.entries and palette.entries[selected]:
-        return palette.entries[selected]
-    if selected.startswith("#") and len(selected) == 7:
-        return selected
-    return "#FF00FF"
-
-
-def palette_key_to_index(key: str) -> int | None:
-    """Convert a keyboard key (1-9, 0) to a 0-based palette index."""
-    if key in "123456789":
-        return int(key) - 1
-    if key == "0":
-        return 9
-    return None
-
-
-def palette_index_to_alias(index: int, aliases: list[str]) -> str | None:
-    """Return the palette alias at the given index, or None if out of range."""
-    if 0 <= index < len(aliases):
-        return aliases[index]
-    return None
-
-
-def render_frame_thumbnail(
-    grid_data: list[list[str]], palette: Palette,
-) -> list[list[str | None]]:
-    """Resolve grid data to hex colors for a frame thumbnail."""
-    return palette.resolve_grid(grid_data)
-
-
-def frame_strip_layout(num_frames: int, thumb_size: int = 32, padding: int = 4) -> list[int]:
-    """Compute x positions for frame thumbnails in the strip."""
-    return [padding + i * (thumb_size + padding) for i in range(num_frames)]
-
-
-def blend_hex_colors(fg: str, bg: str, alpha: float) -> str:
-    """Alpha-blend two hex colors. Returns #RRGGBB."""
-    fr, fg_g, fb = int(fg[1:3], 16), int(fg[3:5], 16), int(fg[5:7], 16)
-    br, bg_g, bb = int(bg[1:3], 16), int(bg[3:5], 16), int(bg[5:7], 16)
-    r = round(fr * alpha + br * (1 - alpha))
-    g = round(fg_g * alpha + bg_g * (1 - alpha))
-    b = round(fb * alpha + bb * (1 - alpha))
-    return f"#{r:02X}{g:02X}{b:02X}"
-
-
-def onion_skin_color(
-    prev_color: str | None, cur_color: str | None, opacity: float,
-) -> str | None:
-    """Compute display color with onion skin overlay.
-
-    Blends previous frame's color over current frame's display color.
-    Returns None only if both are transparent.
-    """
-    if prev_color is None and cur_color is None:
-        return None
-    if prev_color is None:
-        return cur_color
-    if cur_color is None:
-        # Blend prev over a neutral gray checkerboard color
-        return blend_hex_colors(prev_color, CHECKER_LIGHT, opacity)
-    return blend_hex_colors(prev_color, cur_color, opacity)
-
-
-def playback_frame_sequence(
-    animations: dict, anim_name: str | None, all_frames: list[int],
-) -> list[int]:
-    """Return the frame sequence for playback.
-
-    If anim_name matches a named animation, return its frame list.
-    Otherwise return all_frames.
-    """
-    if anim_name is not None and anim_name in animations:
-        return animations[anim_name].get("frames", all_frames)
-    return list(all_frames)
-
-
-def frame_interval_ms(fps: int) -> int:
-    """Convert FPS to millisecond interval between frames."""
-    if fps <= 0:
-        fps = 1
-    return round(1000 / fps)
-
-
-def frame_cell_at_coords(
-    x: int, y: int, cell_size: int, grid_w: int, grid_h: int,
-    num_frames: int, gap: int, viewport_w: int = 0,
-) -> tuple[int | None, int | None, int | None]:
-    """Map canvas pixel to (frame_idx, row, col) in side-by-side layout.
-
-    When *viewport_w* > 0 the layout wraps frames into multiple rows.
-    Returns (None, None, None) for gaps between frames or out-of-bounds.
-    """
-    if x < 0 or y < 0:
-        return None, None, None
-    frame_pixel_w = grid_w * cell_size
-    frame_pixel_h = grid_h * cell_size
-    col_stride = frame_pixel_w + gap
-    row_stride = frame_pixel_h + gap
-    if col_stride == 0 or row_stride == 0:
-        return None, None, None
-
-    if viewport_w > 0 and col_stride > 0:
-        cols_per_row = max(1, viewport_w // col_stride)
-    else:
-        cols_per_row = num_frames if num_frames > 0 else 1
-
-    frame_col = x // col_stride
-    frame_row = y // row_stride
-    if frame_col >= cols_per_row:
-        return None, None, None
-    frame_idx = frame_row * cols_per_row + frame_col
-    if frame_idx >= num_frames:
-        return None, None, None
-
-    local_x = x - frame_col * col_stride
-    local_y = y - frame_row * row_stride
-    if local_x >= frame_pixel_w or local_y >= frame_pixel_h:
-        # In a gap (horizontal or vertical)
-        return None, None, None
-    c = local_x // cell_size
-    r = local_y // cell_size
-    return frame_idx, r, c
-
-
-def side_by_side_layout(
-    num_frames: int, grid_w: int, grid_h: int, cell_size: int, gap: int,
-    viewport_w: int = 0,
-) -> tuple[int, int, list[tuple[int, int]]]:
-    """Compute total canvas dimensions and per-frame (x, y) offsets for SBS view.
-
-    Frames wrap into rows when *viewport_w* is positive and narrower than a
-    single row would need.  With ``viewport_w=0`` (default) all frames sit in
-    one row — preserving the old behaviour.
-    """
-    if num_frames == 0:
-        return 0, 0, []
-    frame_pixel_w = grid_w * cell_size
-    frame_pixel_h = grid_h * cell_size
-    stride = frame_pixel_w + gap
-
-    if viewport_w > 0 and stride > 0:
-        cols_per_row = max(1, viewport_w // stride)
-    else:
-        cols_per_row = num_frames  # single row
-
-    num_rows = (num_frames + cols_per_row - 1) // cols_per_row
-    total_w = min(num_frames, cols_per_row) * stride - gap
-    total_h = num_rows * (frame_pixel_h + gap) - gap
-
-    offsets: list[tuple[int, int]] = []
-    for i in range(num_frames):
-        col = i % cols_per_row
-        row = i // cols_per_row
-        offsets.append((col * stride, row * (frame_pixel_h + gap)))
-    return total_w, total_h, offsets
-
-
-def anim_dir_choices(sprite_root: Path) -> list[str]:
-    """Return dropdown choices for animation directory selector.
-
-    Returns ["(Base)"] + sorted names of animation subdirectories.
-    A subdirectory qualifies if it has frame_NNN.txt files or animation.json.
-    """
-    choices = ["(Base)"]
-    if not sprite_root.is_dir():
-        return choices
-    for child in sorted(sprite_root.iterdir(), key=lambda p: p.name):
-        if not child.is_dir():
-            continue
-        if discover_frames(child) or (child / ANIM_FILE).exists():
-            choices.append(child.name)
-    return choices
-
-
-def eyedropper_pick(grid, r: int | None, c: int | None) -> str | None:
-    """Return the raw grid value at (r, c), or None if out of bounds."""
-    if r is None or c is None:
-        return None
-    return grid.data[r][c]
-
-
-def cell_display_color(val: str, palette: Palette, r: int, c: int) -> str:
-    """Resolve a grid value to a display color string for tkinter."""
-    if val == TRANSPARENT:
-        return checker_color(r, c)
-    if val in palette.entries and palette.entries[val] is not None:
-        return palette.entries[val]
-    if val.startswith("#") and len(val) == 7:
-        return val
-    return "#FF00FF"  # unknown = magenta
+from gridfab.gui.pure import (
+    ZOOM_LEVELS, DEFAULT_CELL_SIZE, CHECKER_LIGHT, CHECKER_DARK,
+    TOOL_BRUSH, TOOL_EYEDROPPER, TOOL_FILL, SWATCH_COLS,
+    checker_color, _contrast_color, format_status_text, grid_line_config,
+    zoom_step, cell_at_coords, fit_zoom_level, cursor_preview_color,
+    palette_key_to_index, palette_index_to_alias, render_frame_thumbnail,
+    frame_strip_layout, blend_hex_colors, onion_skin_color,
+    playback_frame_sequence, frame_interval_ms, frame_cell_at_coords,
+    side_by_side_layout, anim_dir_choices, eyedropper_pick,
+    cell_display_color,
+)
 
 
 class PixelEditor:
@@ -397,7 +120,7 @@ class PixelEditor:
         self._update_title()
 
         # Set window icon
-        icon_path = Path(__file__).parent / "assets" / "icon.ico"
+        icon_path = Path(__file__).parent.parent / "assets" / "icon.ico"
         if icon_path.exists():
             try:
                 if sys.platform == "win32":
@@ -411,65 +134,129 @@ class PixelEditor:
             except Exception:
                 pass  # Icon is cosmetic — fail silently
 
-        # Status bar (pack first so it stays at bottom)
-        self.status_var = tk.StringVar()
-        self.status_bar = tk.Label(
-            root, textvariable=self.status_var, anchor=tk.W,
-            relief=tk.SUNKEN, padx=5, font=("Consolas", 9),
-        )
-        self.status_bar.pack(side=tk.BOTTOM, fill=tk.X)
+        # Window close handler
+        root.protocol("WM_DELETE_WINDOW", self._on_close)
 
-        # Frame strip (above status bar, below canvas)
-        self.frame_strip = tk.Frame(root, height=50)
-        self._frame_strip_buttons: list[tk.Button] = []
+        # ── Top-level grid layout ────────────────────────────────────
+        # row 0: toolbar placeholder (future)
+        # row 1: main content area (expands)
+        # row 2: frame strip (conditional, grid_remove when hidden)
+        # row 3: status bar (fixed height)
+        root.grid_columnconfigure(0, weight=1)
+        root.grid_rowconfigure(1, weight=1)
+
+        # Toolbar (row 0)
+        from gridfab.gui.frames.toolbar import ToolbarFrame
+        self.toolbar = ToolbarFrame(root, callbacks={
+            "set_tool": lambda t: self._set_tool(t),
+            "save": self.save,
+            "render": self.render,
+            "export": self._export,
+            "toggle_grid": self._toggle_grid_lines,
+            "zoom_in": lambda: self._zoom(1),
+            "zoom_out": lambda: self._zoom(-1),
+        })
+        self.toolbar.grid(row=0, column=0, sticky="ew")
+
+        # Menu bar
+        from gridfab.gui.widgets.menu_bar import create_menu_bar
+        self._menu_bar = create_menu_bar(root, callbacks={
+            "save": self.save,
+            "open": self.open_sprite,
+            "refresh": self.refresh,
+            "render": self.render,
+            "export": self._export,
+            "import_image": self.import_image,
+            "new": self.new_grid,
+            "exit": self._on_close,
+            "undo": self.undo,
+            "redo": self.redo,
+            "clear": self.clear_grid,
+            "flip_h": self._flip_horizontal,
+            "flip_v": self._flip_vertical,
+            "toggle_grid": self._toggle_grid_lines,
+            "zoom_in": lambda: self._zoom(1),
+            "zoom_out": lambda: self._zoom(-1),
+            "side_by_side": self._toggle_side_by_side,
+            "onion_skin": self._toggle_onion_skin,
+            "add_frame": self._add_frame,
+            "duplicate_frame": self._duplicate_frame,
+            "delete_frame": self._delete_frame_gui,
+            "copy_frame": self._copy_frame,
+            "paste_frame": self._paste_frame,
+            "play_stop": self._toggle_playback,
+            "prev_frame": self._prev_frame,
+            "next_frame": self._next_frame,
+            "new_anim": self._new_anim_gui,
+            "show_shortcuts": self._show_shortcuts,
+            "about": self._show_about,
+        })
+
+        # Main content area (row 1)
+        main = tk.Frame(root)
+        main.grid(row=1, column=0, sticky="nsew")
+
+        # Frame strip (row 2)
+        from gridfab.gui.frames.frame_strip import FrameStrip
+        self.frame_strip = FrameStrip(root, callbacks={
+            "add_frame": self._add_frame,
+            "duplicate": self._duplicate_frame,
+            "delete": self._delete_frame_gui,
+            "copy": self._copy_frame,
+            "paste": self._paste_frame,
+            "move_left": self._move_frame_left,
+            "move_right": self._move_frame_right,
+            "toggle_playback": self._toggle_playback,
+            "on_fps_change": lambda fps: setattr(self, "_play_fps", fps),
+            "on_anim_select": self._on_anim_select,
+            "switch_frame": self._switch_frame,
+            "toggle_frame_selection": self._toggle_frame_selection,
+            "range_select_frames": self._range_select_frames,
+            "on_anim_dir_select": self._on_anim_dir_select,
+            "add_base_ref": self._add_base_ref_gui,
+        })
+        self._frame_strip_buttons: list[tk.Button] = []  # legacy compat
         if self._animated:
-            self.frame_strip.pack(side=tk.BOTTOM, fill=tk.X, padx=5, pady=2)
+            self.frame_strip.grid(row=2, column=0, sticky="ew", padx=5, pady=2)
             self._rebuild_frame_strip()
 
-        # Main layout
-        main = tk.Frame(root)
-        main.pack(fill=tk.BOTH, expand=True)
+        # Status bar (row 3)
+        from gridfab.gui.frames.status_bar import StatusBar
+        self._status_bar = StatusBar(root)
+        self._status_bar.grid(row=3, column=0, sticky="ew")
+        self.status_var = self._status_bar.var
 
-        # Palette panel
-        self.palette_frame = palette_frame = tk.Frame(main, padx=5, pady=5)
-        palette_frame.pack(side=tk.LEFT, fill=tk.Y)
-        tk.Label(palette_frame, text="Palette", font=("Arial", 10, "bold")).pack()
+        # Palette panel (inside main, uses pack — separate parent)
+        from gridfab.gui.frames.palette_panel import PalettePanel
+        self.palette_panel = PalettePanel(main, callbacks={
+            "select_color": self.select_color,
+            "edit_color": self._edit_color,
+            "add_color": self._add_color,
+            "remove_color": self._remove_color,
+            "copy_hex": self._copy_to_clipboard,
+            "open": self.open_sprite,
+            "refresh": self.refresh,
+            "clear": self.clear_grid,
+            "new": self.new_grid,
+            "import_image": self.import_image,
+            "animate": self._add_frame,
+            "new_anim": self._new_anim_gui,
+        })
+        self.palette_panel.pack(side=tk.LEFT, fill=tk.Y)
+        self.palette_panel.rebuild(self.palette, self.selected)
 
+        # Legacy aliases used by internal code
         self.palette_buttons: dict[str, tk.Button] = {}
+        self.swatch_frame = self.palette_panel._swatch_frame
+        self.palette_frame = self.palette_panel
 
-        # Swatch grid frame
-        self.swatch_frame = tk.Frame(palette_frame)
-        self.swatch_frame.pack(pady=2)
-        self._rebuild_palette_buttons()
-
-        # Action buttons frame (2-column grid)
-        action_frame = tk.Frame(palette_frame)
-        action_frame.pack(pady=(10, 0))
-        action_buttons = [
-            ("Save", self.save, "#90EE90"),
-            ("Render", self.render, "#ADD8E6"),
-            ("Open", self.open_sprite, "#B0C4DE"),
-            ("Refresh", self.refresh, "#FFD700"),
-            ("Clear", self.clear_grid, "#FFA07A"),
-            ("New", self.new_grid, "#DDA0DD"),
-            ("Import", self.import_image, "#E6E6FA"),
-            ("Animate", self._add_frame, "#B0E0E6"),
-            ("NewAnim", self._new_anim_gui, "#C8E6C9"),
-        ]
-        for i, (text, cmd, bg) in enumerate(action_buttons):
-            tk.Button(
-                action_frame, text=text, width=6, command=cmd, bg=bg,
-            ).grid(row=i // 2, column=i % 2, padx=2, pady=2)
-
-        # Canvas
+        # Canvas (inside main, uses pack — separate parent)
         canvas_w = self.grid.width * self.cell_size
         canvas_h = self.grid.height * self.cell_size
-        self.canvas = tk.Canvas(
-            main, width=min(canvas_w, 800), height=min(canvas_h, 600),
-            highlightthickness=0,
-            scrollregion=(0, 0, canvas_w, canvas_h),
-        )
-        self.canvas.pack(side=tk.LEFT, padx=5, pady=5, fill=tk.BOTH, expand=True)
+        from gridfab.gui.frames.canvas_area import CanvasArea
+        self.canvas_area = CanvasArea(main, canvas_w, canvas_h)
+        self.canvas_area.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        self.canvas = self.canvas_area.canvas  # alias for all internal code
 
         # Draw cells
         self.cells: list[list[int]] = []
@@ -508,6 +295,7 @@ class PixelEditor:
 
         # Keyboard bindings
         root.bind("<Control-s>", lambda e: self.save())
+        root.bind("<Control-o>", lambda e: self.open_sprite())
         root.bind("<Control-z>", lambda e: self.undo())
         root.bind("<Control-y>", lambda e: self.redo())
         root.bind("<Control-Shift-Z>", lambda e: self.redo())
@@ -537,12 +325,9 @@ class PixelEditor:
         self._update_status()
 
     def select_color(self, alias: str) -> None:
-        for a, btn in self.palette_buttons.items():
-            if a == alias:
-                btn.config(relief=tk.SOLID, borderwidth=3)
-            else:
-                btn.config(relief=tk.RAISED, borderwidth=1)
         self.selected = alias
+        if hasattr(self, "palette_panel"):
+            self.palette_panel.set_selected(alias)
         self._update_status()
 
     def _set_tool(self, tool: str) -> None:
@@ -553,6 +338,8 @@ class PixelEditor:
             TOOL_FILL: "plus",
         }
         self.canvas.config(cursor=cursors.get(tool, ""))
+        if hasattr(self, "toolbar"):
+            self.toolbar.set_active_tool(tool)
         self._update_status()
 
     def _select_palette_by_key(self, key: str) -> None:
@@ -725,6 +512,7 @@ class PixelEditor:
                 self._rebuild_canvas_sbs()
             else:
                 self._rebuild_canvas()
+            self._sync_zoom_label()
             self._update_status()
 
     def _on_pan_start(self, event: tk.Event) -> None:
@@ -741,7 +529,13 @@ class PixelEditor:
                 self._rebuild_canvas_sbs()
             else:
                 self._rebuild_canvas()
+            self._sync_zoom_label()
             self._update_status()
+
+    def _sync_zoom_label(self) -> None:
+        if hasattr(self, "toolbar"):
+            pct = round(self.cell_size / DEFAULT_CELL_SIZE * 100)
+            self.toolbar.update_zoom(pct)
 
     def cell_at(self, event: tk.Event) -> tuple[int | None, int | None]:
         x = int(self.canvas.canvasx(event.x))
@@ -1296,13 +1090,6 @@ class PixelEditor:
         self._redraw()
         self._update_status()
 
-    def _on_fps_change(self) -> None:
-        """Handle FPS spinner change."""
-        try:
-            self._play_fps = self._fps_var.get()
-        except (tk.TclError, ValueError):
-            pass
-
     def _on_anim_select(self, value: str) -> None:
         """Handle animation dropdown selection."""
         if value == "(All Frames)":
@@ -1317,122 +1104,27 @@ class PixelEditor:
     # --- Frame strip and navigation ---
 
     def _rebuild_frame_strip(self) -> None:
-        """Recreate frame strip thumbnails for all frames."""
-        for btn in self._frame_strip_buttons:
-            btn.destroy()
-        self._frame_strip_buttons.clear()
-
-        # Control buttons
-        btn_add = tk.Button(self.frame_strip, text="+", width=3, command=self._add_frame)
-        btn_add.pack(side=tk.LEFT, padx=2)
-        self._frame_strip_buttons.append(btn_add)
-
-        btn_dup = tk.Button(self.frame_strip, text="Dup", width=3, command=self._duplicate_frame)
-        btn_dup.pack(side=tk.LEFT, padx=2)
-        self._frame_strip_buttons.append(btn_dup)
-
-        btn_del = tk.Button(self.frame_strip, text="Del", width=3, command=self._delete_frame_gui)
-        btn_del.pack(side=tk.LEFT, padx=2)
-        self._frame_strip_buttons.append(btn_del)
-
-        btn_copy = tk.Button(self.frame_strip, text="Cp", width=2, command=self._copy_frame)
-        btn_copy.pack(side=tk.LEFT, padx=2)
-        self._frame_strip_buttons.append(btn_copy)
-
-        btn_paste = tk.Button(self.frame_strip, text="Ps", width=2, command=self._paste_frame)
-        btn_paste.pack(side=tk.LEFT, padx=2)
-        self._frame_strip_buttons.append(btn_paste)
-
-        btn_left = tk.Button(self.frame_strip, text="\u25C0", width=2, command=self._move_frame_left)
-        btn_left.pack(side=tk.LEFT, padx=2)
-        self._frame_strip_buttons.append(btn_left)
-
-        btn_right = tk.Button(self.frame_strip, text="\u25B6", width=2, command=self._move_frame_right)
-        btn_right.pack(side=tk.LEFT, padx=2)
-        self._frame_strip_buttons.append(btn_right)
-
-        sep = tk.Frame(self.frame_strip, width=4)
-        sep.pack(side=tk.LEFT)
-        self._frame_strip_buttons.append(sep)
-
-        # Play/Pause button
-        play_text = "Stop" if self._playing else "Play"
-        btn_play = tk.Button(self.frame_strip, text=play_text, width=4, command=self._toggle_playback)
-        btn_play.pack(side=tk.LEFT, padx=2)
-        self._frame_strip_buttons.append(btn_play)
-
-        # FPS spinner
-        fps_label = tk.Label(self.frame_strip, text="FPS:")
-        fps_label.pack(side=tk.LEFT, padx=(4, 0))
-        self._frame_strip_buttons.append(fps_label)
-
-        self._fps_var = tk.IntVar(value=self._play_fps)
-        fps_spin = tk.Spinbox(
-            self.frame_strip, from_=1, to=60, width=3,
-            textvariable=self._fps_var, command=self._on_fps_change,
-        )
-        fps_spin.pack(side=tk.LEFT, padx=2)
-        self._frame_strip_buttons.append(fps_spin)
-
-        # Animation directory selector (Base / burn / extinguish)
-        dir_choices = anim_dir_choices(self._sprite_root)
-        if len(dir_choices) > 1:
-            self._anim_dir_var = tk.StringVar(
-                value=self.work_dir.name if self._is_anim_subdir else "(Base)"
-            )
-            dir_menu = tk.OptionMenu(
-                self.frame_strip, self._anim_dir_var, *dir_choices,
-                command=self._on_anim_dir_select,
-            )
-            dir_menu.config(width=10)
-            dir_menu.pack(side=tk.LEFT, padx=2)
-            self._frame_strip_buttons.append(dir_menu)
-
-        # Add Base ref button (visible when in an animation subdir)
-        if self._is_anim_subdir:
-            btn_base = tk.Button(
-                self.frame_strip, text="+Base", width=5,
-                command=self._add_base_ref_gui, bg="#FFE0B2",
-            )
-            btn_base.pack(side=tk.LEFT, padx=2)
-            self._frame_strip_buttons.append(btn_base)
-
-        # Playback animation selector dropdown
+        """Recreate frame strip via the FrameStrip widget."""
+        frames = discover_frames(self.work_dir)
         animations = load_animations(self.work_dir)
         anim_names = ["(All Frames)"] + sorted(animations.keys())
-        self._anim_var = tk.StringVar(value=anim_names[0])
-        if self._play_anim_name and self._play_anim_name in animations:
-            self._anim_var.set(self._play_anim_name)
-        anim_menu = tk.OptionMenu(
-            self.frame_strip, self._anim_var, *anim_names,
-            command=self._on_anim_select,
+        dir_choices = anim_dir_choices(self._sprite_root)
+        current_dir = self.work_dir.name if self._is_anim_subdir else "(Base)"
+
+        self.frame_strip.rebuild(
+            frames=frames,
+            active_frame=self._active_frame,
+            selected_frames=self._selected_frames,
+            playing=self._playing,
+            fps=self._play_fps,
+            anim_dir_choices=dir_choices,
+            current_anim_dir=current_dir,
+            is_anim_subdir=self._is_anim_subdir,
+            anim_names=anim_names,
+            play_anim_name=self._play_anim_name,
         )
-        anim_menu.config(width=10)
-        anim_menu.pack(side=tk.LEFT, padx=2)
-        self._frame_strip_buttons.append(anim_menu)
-
-        sep2 = tk.Frame(self.frame_strip, width=4)
-        sep2.pack(side=tk.LEFT)
-        self._frame_strip_buttons.append(sep2)
-
-        frames = discover_frames(self.work_dir)
-        for f in frames:
-            is_active = f == self._active_frame
-            is_selected = f in self._selected_frames
-            relief = tk.SUNKEN if is_active else tk.RAISED
-            border = 3 if is_active else 1
-            bg = "#AADDFF" if is_selected and not is_active else "#D0D0D0" if is_active else None
-            btn = tk.Button(
-                self.frame_strip, text=str(f), width=4, height=1,
-                relief=relief, borderwidth=border,
-                command=lambda num=f: self._switch_frame(num),
-            )
-            if bg:
-                btn.config(bg=bg)
-            btn.bind("<Control-Button-1>", lambda e, num=f: self._toggle_frame_selection(num))
-            btn.bind("<Shift-Button-1>", lambda e, num=f: self._range_select_frames(num))
-            btn.pack(side=tk.LEFT, padx=2, pady=2)
-            self._frame_strip_buttons.append(btn)
+        # Keep _fps_var alias for playback code
+        self._fps_var = self.frame_strip.fps_var
 
     def _switch_frame(self, frame_num: int) -> None:
         """Switch to a different frame. Clears multi-selection unless in SBS mode."""
@@ -1579,8 +1271,7 @@ class PixelEditor:
         self.undo_stack.clear()
         self.redo_stack.clear()
         if not self.frame_strip.winfo_ismapped():
-            self.frame_strip.pack(side=tk.BOTTOM, fill=tk.X, padx=5, pady=2,
-                                  before=self.status_bar)
+            self.frame_strip.grid(row=2, column=0, sticky="ew", padx=5, pady=2)
         self._rebuild_frame_strip()
         self._rebuild_canvas()
         self._update_title()
@@ -1612,9 +1303,9 @@ class PixelEditor:
             return
         frames = discover_frames(self.work_dir)
         if len(frames) <= 1:
-            messagebox.showwarning("Cannot Delete", "Cannot delete the only frame.")
+            show_warning(self.root, "Cannot Delete", "Cannot delete the only frame.")
             return
-        if not messagebox.askyesno("Delete Frame", f"Delete frame {self._active_frame}?"):
+        if not ask_yes_no(self.root, "Delete Frame", f"Delete frame {self._active_frame}?"):
             return
         from gridfab.commands.frame_cmd import cmd_frame_delete
         cmd_frame_delete(self.work_dir, self._active_frame)
@@ -1781,11 +1472,10 @@ class PixelEditor:
         self._rebuild_palette_buttons()
         if self._animated:
             if not self.frame_strip.winfo_ismapped():
-                self.frame_strip.pack(side=tk.BOTTOM, fill=tk.X, padx=5, pady=2,
-                                      before=self.status_bar)
+                self.frame_strip.grid(row=2, column=0, sticky="ew", padx=5, pady=2)
             self._rebuild_frame_strip()
         else:
-            self.frame_strip.pack_forget()
+            self.frame_strip.grid_remove()
         self._rebuild_canvas(resize_viewport=True)
         self._update_title()
         self.select_color(TRANSPARENT)
@@ -1793,15 +1483,12 @@ class PixelEditor:
 
     def _new_anim_gui(self) -> None:
         """Create a new animation subdirectory via GUI dialog."""
-        name = simpledialog.askstring(
-            "New Animation", "Enter animation name (becomes folder name):",
-            parent=self.root,
-        )
+        name = ask_string(self.root, "New Animation", "Enter animation name (becomes folder name):")
         if not name:
             return
         # Validate name (no special chars)
         if not name.isidentifier() and not all(c.isalnum() or c in "_-" for c in name):
-            messagebox.showerror("Invalid Name", "Use only letters, numbers, hyphens, underscores.")
+            show_error(self.root, "Invalid Name", "Use only letters, numbers, hyphens, underscores.")
             return
 
         target_root = self._sprite_root
@@ -1809,12 +1496,12 @@ class PixelEditor:
             from gridfab.commands.anim_cmd import cmd_anim_create
             cmd_anim_create(target_root, name)
         except FileExistsError as e:
-            messagebox.showerror("Error", str(e))
+            show_error(self.root, "Error", str(e))
             return
 
         # Switch to the new animation directory
         self._switch_to_anim_dir(target_root / name)
-        messagebox.showinfo("Animation Created", f"Animation '{name}' created.\nUse '+' to add frames.")
+        show_info(self.root, "Animation Created", f"Animation '{name}' created.\nUse '+' to add frames.")
 
     def _add_base_ref_gui(self) -> None:
         """Add a base frame reference to the animation subdir's animation.json."""
@@ -1823,24 +1510,23 @@ class PixelEditor:
         # Get base frames
         base_frames = discover_frames(self._sprite_root)
         if not base_frames:
-            messagebox.showwarning("No Base Frames", "No frames in the base sprite directory.")
+            show_warning(self.root, "No Base Frames", "No frames in the base sprite directory.")
             return
 
         # Ask which base frame to reference
-        frame_str = simpledialog.askstring(
-            "Add Base Frame Reference",
+        frame_str = ask_string(
+            self.root, "Add Base Frame Reference",
             f"Available base frames: {base_frames}\n\nEnter frame number:",
-            parent=self.root,
         )
         if not frame_str:
             return
         try:
             frame_num = int(frame_str)
         except ValueError:
-            messagebox.showerror("Invalid", "Frame number must be an integer.")
+            show_error(self.root, "Invalid", "Frame number must be an integer.")
             return
         if frame_num not in base_frames:
-            messagebox.showerror("Invalid", f"Frame {frame_num} not found in base (available: {base_frames}).")
+            show_error(self.root, "Invalid", f"Frame {frame_num} not found in base (available: {base_frames}).")
             return
 
         # Add "base:N" to animation.json
@@ -1873,7 +1559,7 @@ class PixelEditor:
         print("Refreshed from disk")
 
     def clear_grid(self) -> None:
-        if not messagebox.askyesno("Clear Grid", "Reset all pixels to transparent?"):
+        if not ask_yes_no(self.root, "Clear Grid", "Reset all pixels to transparent?"):
             return
         self.undo_stack.append(self.grid.snapshot())
         if len(self.undo_stack) > self.max_undo:
@@ -1890,13 +1576,13 @@ class PixelEditor:
         has_sprite = self.grid_path.exists()
 
         if has_sprite:
-            choice = messagebox.askquestion(
-                "New",
+            choice = ask_yes_no(
+                self.root, "New",
                 "Create a new grid in the current folder?\n\n"
                 "Yes = Resize current grid here\n"
                 "No = Create a new sprite in another folder",
             )
-            if choice == "yes":
+            if choice:
                 self._new_grid_here()
                 return
             else:
@@ -1906,26 +1592,23 @@ class PixelEditor:
             self._new_sprite()
 
     def _new_grid_here(self) -> None:
-        size_str = simpledialog.askstring(
-            "New Grid", "Enter size as WxH (e.g. 16x16, 32x32):",
-            parent=self.root,
-        )
+        size_str = ask_string(self.root, "New Grid", "Enter size as WxH (e.g. 16x16, 32x32):")
         if not size_str:
             return
         parts = size_str.lower().split("x")
         if len(parts) != 2:
-            messagebox.showerror("Invalid Size", "Size must be WxH (e.g. 32x32)")
+            show_error(self.root, "Invalid Size", "Size must be WxH (e.g. 32x32)")
             return
         try:
             w, h = int(parts[0]), int(parts[1])
         except ValueError:
-            messagebox.showerror("Invalid Size", "Width and height must be integers")
+            show_error(self.root, "Invalid Size", "Width and height must be integers")
             return
         if w < 1 or h < 1:
-            messagebox.showerror("Invalid Size", "Width and height must be positive")
+            show_error(self.root, "Invalid Size", "Width and height must be positive")
             return
-        if not messagebox.askyesno(
-            "New Grid",
+        if not ask_yes_no(
+            self.root, "New Grid",
             f"Create new {w}x{h} grid? This will replace the current grid.",
         ):
             return
@@ -1946,30 +1629,24 @@ class PixelEditor:
         if not parent:
             return
 
-        name = simpledialog.askstring(
-            "Sprite Name", "Enter sprite name (becomes folder name):",
-            parent=self.root,
-        )
+        name = ask_string(self.root, "Sprite Name", "Enter sprite name (becomes folder name):")
         if not name:
             return
 
-        size_str = simpledialog.askstring(
-            "Grid Size", "Enter size as WxH (e.g. 16x16, 32x32):",
-            parent=self.root,
-        )
+        size_str = ask_string(self.root, "Grid Size", "Enter size as WxH (e.g. 16x16, 32x32):")
         if not size_str:
             return
         parts = size_str.lower().split("x")
         if len(parts) != 2:
-            messagebox.showerror("Invalid Size", "Size must be WxH (e.g. 32x32)")
+            show_error(self.root, "Invalid Size", "Size must be WxH (e.g. 32x32)")
             return
         try:
             w, h = int(parts[0]), int(parts[1])
         except ValueError:
-            messagebox.showerror("Invalid Size", "Width and height must be integers")
+            show_error(self.root, "Invalid Size", "Width and height must be integers")
             return
         if w < 1 or h < 1:
-            messagebox.showerror("Invalid Size", "Width and height must be positive")
+            show_error(self.root, "Invalid Size", "Width and height must be positive")
             return
 
         new_dir = Path(parent) / name
@@ -1977,7 +1654,7 @@ class PixelEditor:
             from gridfab.commands.init import cmd_init
             cmd_init(new_dir, w, h)
         except FileExistsError as e:
-            messagebox.showerror("Error", str(e))
+            show_error(self.root, "Error", str(e))
             return
 
         self._switch_to_dir(new_dir)
@@ -1993,8 +1670,8 @@ class PixelEditor:
 
         folder_path = Path(folder)
         if not (folder_path / "grid.txt").exists() and not is_animated(folder_path):
-            messagebox.showerror(
-                "Not a Sprite",
+            show_error(
+                self.root, "Not a Sprite",
                 f"No grid.txt or frame files found in {folder_path.name}\n\n"
                 "Select a folder containing grid.txt and palette.txt.",
             )
@@ -2019,18 +1696,14 @@ class PixelEditor:
         if not image_path:
             return
 
-        name = simpledialog.askstring(
-            "Sprite Name", "Enter sprite name (becomes folder name):",
-            parent=self.root,
-        )
+        name = ask_string(self.root, "Sprite Name", "Enter sprite name (becomes folder name):")
         if not name:
             return
 
-        tile_str = simpledialog.askstring(
-            "Tilesheet?",
+        tile_str = ask_string(
+            self.root, "Tilesheet?",
             "If this is a tilesheet, enter tile size as WxH.\n"
             "Leave blank for single image import.",
-            parent=self.root,
         )
 
         new_dir = self.work_dir / name
@@ -2040,21 +1713,20 @@ class PixelEditor:
 
             if tile_str and tile_str.strip():
                 tile_size = parse_size(tile_str.strip())
-                tile_coord = simpledialog.askstring(
-                    "Tile Position",
+                tile_coord = ask_string(
+                    self.root, "Tile Position",
                     "Enter tile coordinate as COL,ROW (0-indexed):",
-                    parent=self.root,
                 )
                 if not tile_coord:
                     return
                 parts = tile_coord.split(",")
                 if len(parts) != 2:
-                    messagebox.showerror("Invalid", "Must be COL,ROW (e.g. 3,2)")
+                    show_error(self.root, "Invalid", "Must be COL,ROW (e.g. 3,2)")
                     return
                 try:
                     tile_pos = (int(parts[0]), int(parts[1]))
                 except ValueError:
-                    messagebox.showerror("Invalid", "Coordinates must be integers")
+                    show_error(self.root, "Invalid", "Coordinates must be integers")
                     return
                 cmd_import(
                     Path(image_path), new_dir,
@@ -2064,9 +1736,9 @@ class PixelEditor:
                 cmd_import(Path(image_path), new_dir)
 
             self._switch_to_dir(new_dir)
-            messagebox.showinfo("Import Complete", f"Imported to {new_dir.name}")
+            show_info(self.root, "Import Complete", f"Imported to {new_dir.name}")
         except (ValueError, FileExistsError, FileNotFoundError) as e:
-            messagebox.showerror("Import Error", str(e))
+            show_error(self.root, "Import Error", str(e))
 
     def _switch_to_dir(self, new_dir: Path) -> None:
         """Switch the editor to a different sprite directory."""
@@ -2108,11 +1780,10 @@ class PixelEditor:
         # Frame strip
         if self._animated:
             if not self.frame_strip.winfo_ismapped():
-                self.frame_strip.pack(side=tk.BOTTOM, fill=tk.X, padx=5, pady=2,
-                                      before=self.status_bar)
+                self.frame_strip.grid(row=2, column=0, sticky="ew", padx=5, pady=2)
             self._rebuild_frame_strip()
         else:
-            self.frame_strip.pack_forget()
+            self.frame_strip.grid_remove()
 
         # Rebuild canvas
         self._rebuild_canvas(resize_viewport=True)
@@ -2122,40 +1793,9 @@ class PixelEditor:
         self.select_color(TRANSPARENT)
 
     def _rebuild_palette_buttons(self) -> None:
-        """Remove old swatch buttons and create new ones in a grid layout."""
-        for widget in self.swatch_frame.winfo_children():
-            widget.destroy()
-        self.palette_buttons.clear()
-
-        # Build items: transparent first, then sorted palette colors
-        items: list[tuple[str, str]] = [(TRANSPARENT, "#FFFFFF")]
-        for alias, color in sorted(self.palette.colors.items()):
-            items.append((alias, color if color else "#FFFFFF"))
-
-        for i, (alias, color) in enumerate(items):
-            fg = _contrast_color(color)
-            text = "." if alias == TRANSPARENT else alias
-            btn = tk.Button(
-                self.swatch_frame, text=text, width=4, height=2,
-                bg=color, fg=fg, borderwidth=1,
-                command=lambda a=alias: self.select_color(a),
-            )
-            btn.grid(row=i // SWATCH_COLS, column=i % SWATCH_COLS, padx=1, pady=1)
-            if alias != TRANSPARENT:
-                btn.bind("<Double-Button-1>", lambda e, a=alias: self._edit_color(a))
-            btn.bind("<Button-3>", lambda e, a=alias: self._swatch_context_menu(e, a))
-            self.palette_buttons[alias] = btn
-
-        # "+" add-color button at the end
-        add_pos = len(items)
-        add_btn = tk.Button(
-            self.swatch_frame, text="+", width=4, height=2,
-            command=self._add_color,
-        )
-        add_btn.grid(
-            row=add_pos // SWATCH_COLS, column=add_pos % SWATCH_COLS,
-            padx=1, pady=1,
-        )
+        """Rebuild palette panel swatches."""
+        if hasattr(self, "palette_panel"):
+            self.palette_panel.rebuild(self.palette, self.selected)
 
     def _add_color(self) -> None:
         """Open color picker and add a new color to the palette."""
@@ -2164,16 +1804,14 @@ class PixelEditor:
             return
         hex_color = result[1].upper()
 
-        alias = simpledialog.askstring(
-            "Alias", "Enter alias (1-2 characters):", parent=self.root,
-        )
+        alias = ask_string(self.root, "Alias", "Enter alias (1-2 characters):")
         if not alias:
             return
 
         try:
             Palette._validate_alias(alias)
         except ValueError as e:
-            messagebox.showerror("Invalid Alias", str(e))
+            show_error(self.root, "Invalid Alias", str(e))
             return
 
         # Check case-insensitive duplicates
@@ -2181,8 +1819,8 @@ class PixelEditor:
             if existing == TRANSPARENT:
                 continue
             if existing.lower() == alias.lower():
-                messagebox.showerror(
-                    "Duplicate Alias",
+                show_error(
+                    self.root, "Duplicate Alias",
                     f"Alias '{alias}' conflicts with existing alias '{existing}' "
                     f"(case-insensitive duplicates not allowed)",
                 )
@@ -2209,28 +1847,6 @@ class PixelEditor:
         self.select_color(alias)
         self._redraw()
 
-    def _swatch_context_menu(self, event: tk.Event, alias: str) -> None:
-        """Show right-click context menu for a swatch button."""
-        menu = tk.Menu(self.root, tearoff=0)
-        if alias == TRANSPARENT:
-            menu.add_command(label="Transparent (no actions)", state=tk.DISABLED)
-        else:
-            hex_color = self.palette.entries.get(alias, "")
-            menu.add_command(
-                label=f"Copy Hex ({hex_color})",
-                command=lambda: self._copy_to_clipboard(hex_color),
-            )
-            menu.add_command(
-                label="Edit Color...",
-                command=lambda: self._edit_color(alias),
-            )
-            menu.add_separator()
-            menu.add_command(
-                label="Remove Color",
-                command=lambda: self._remove_color(alias),
-            )
-        menu.tk_popup(event.x_root, event.y_root)
-
     def _copy_to_clipboard(self, text: str) -> None:
         """Copy text to the system clipboard."""
         self.root.clipboard_clear()
@@ -2238,8 +1854,8 @@ class PixelEditor:
 
     def _remove_color(self, alias: str) -> None:
         """Remove a color from the palette after confirmation."""
-        if not messagebox.askyesno(
-            "Remove Color",
+        if not ask_yes_no(
+            self.root, "Remove Color",
             f"Remove '{alias}' from the palette?\n\n"
             f"Cells using this color will show as magenta (unknown).",
         ):
@@ -2251,6 +1867,58 @@ class PixelEditor:
         self._rebuild_palette_buttons()
         self.select_color(self.selected)
         self._redraw()
+
+    def _on_close(self) -> None:
+        """Handle window close with unsaved-changes prompt."""
+        if self.modified:
+            result = ask_yes_no_cancel(
+                self.root, "Unsaved Changes",
+                "You have unsaved changes. Save before closing?",
+            )
+            if result is None:  # Cancel
+                return
+            if result:  # Yes — save first
+                self.save()
+        self.root.destroy()
+
+    def _show_shortcuts(self) -> None:
+        """Show keyboard shortcuts dialog."""
+        shortcuts = (
+            "B — Brush tool\n"
+            "I — Eyedropper tool\n"
+            "F — Fill tool\n"
+            "G — Toggle grid lines\n"
+            "H — Flip horizontal\n"
+            "V — Flip vertical\n"
+            "R — Render preview\n"
+            "E — Export PNGs\n"
+            "O — Toggle onion skin\n"
+            "M — Toggle side-by-side\n"
+            "[ / ] — Zoom out / in\n"
+            "< / > — Previous / next frame\n"
+            "Space — Play / stop animation\n"
+            "Ctrl+S — Save\n"
+            "Ctrl+O — Open\n"
+            "Ctrl+Z — Undo\n"
+            "Ctrl+Y — Redo\n"
+            "Ctrl+C — Copy frame\n"
+            "Ctrl+V — Paste frame\n"
+            "1-9 — Select palette color"
+        )
+        show_info(self.root, "Keyboard Shortcuts", shortcuts)
+
+    def _show_about(self) -> None:
+        """Show about dialog."""
+        import gridfab
+        version = getattr(gridfab, "__version__", "unknown")
+        show_info(
+            self.root, "About GridFab",
+            f"GridFab v{version}\n\n"
+            "A pixel art editor where artwork\n"
+            "is stored as plain text.\n\n"
+            "grid.txt + palette.txt = art\n\n"
+            "Licensed under AGPLv3",
+        )
 
     def _rebuild_canvas(self, resize_viewport: bool = False) -> None:
         """Rebuild the canvas for a new grid size."""
@@ -2290,10 +1958,17 @@ class PixelEditor:
             print(f"Render failed: {result.stderr.strip()}")
 
 
-def main() -> None:
-    work_dir = sys.argv[1] if len(sys.argv) > 1 else "."
-    root = tk.Tk()
-    PixelEditor(root, Path(work_dir))
+def main(work_dir=None) -> None:
+    import customtkinter as ctk
+    ctk.set_appearance_mode("dark")
+    ctk.set_default_color_theme("dark-blue")
+    if work_dir is None:
+        work_dir = Path(sys.argv[1] if len(sys.argv) > 1 else ".")
+    work_dir = Path(work_dir)
+    root = ctk.CTk()
+    root.geometry("1024x768")
+    root.minsize(800, 600)
+    PixelEditor(root, work_dir)
     root.mainloop()
 
 

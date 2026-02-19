@@ -5,7 +5,7 @@ description = "Human-AI collaborative pixel art editor — artwork stored as pla
 readme = "README.md"
 license = {text = "AGPL-3.0-or-later"}
 requires-python = ">=3.10"
-dependencies = ["Pillow>=10.0"]
+dependencies = ["Pillow>=10.0", "customtkinter>=5.2"]
 keywords = ["pixel-art", "sprite", "editor", "gamedev", "ai", "cli", "tkinter"]
 classifiers = [
     "Development Status :: 3 - Alpha",

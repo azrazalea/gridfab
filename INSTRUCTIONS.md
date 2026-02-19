@@ -159,6 +159,29 @@ Use `gridfab anim create <name>` to create an animation subdirectory. All CLI co
 
 Launch with `gridfab-gui [directory]` (defaults to current directory). On Windows, double-click `gridfab-gui.exe`.
 
+The GUI uses a dark theme inspired by VS Code Dark+. It requires `customtkinter` (installed automatically with `pip install gridfab`).
+
+### Menu Bar
+
+The menu bar provides access to all major actions:
+
+- **File** — Save (Ctrl+S), Open (Ctrl+O), Refresh, Render (R), Export (E), Import, New Sprite, Exit
+- **Edit** — Undo (Ctrl+Z), Redo (Ctrl+Y), Clear Grid, Flip Horizontal (H), Flip Vertical (V)
+- **View** — Grid Lines (G), Zoom In (]), Zoom Out ([), Side-by-Side (M), Onion Skin (O)
+- **Animation** — Add/Duplicate/Delete Frame, Copy/Paste, Play/Stop (Space), Prev/Next Frame, New Animation
+- **Help** — Keyboard Shortcuts, About GridFab
+
+### Toolbar
+
+The toolbar at the top of the window provides quick access to:
+
+- **Tool buttons** — Brush (B), Eyedropper (I), Fill (F). The active tool is highlighted.
+- **Action buttons** — Save, Render, Export
+- **Grid toggle** — Show/hide grid lines
+- **Zoom controls** — Zoom out/in with percentage display
+
+All toolbar buttons have tooltips showing the action name and keyboard shortcut.
+
 ### Status Bar
 
 The bottom of the window shows a status bar with:
@@ -198,8 +221,8 @@ Removing a color deletes it from palette.txt. Any cells using that alias will sh
 
 ### Action Buttons
 
-- **Save** — Write the current grid to grid.txt (Ctrl+S)
-- **Render** — Save and generate preview.png with a checkerboard background
+The palette sidebar contains action buttons for common operations:
+
 - **Open** — Open an existing sprite folder by browsing. Switches the editor to the selected directory.
 - **Refresh** — Reload grid.txt and palette.txt from disk, updating both the canvas and the palette sidebar. **Click this after an LLM or script makes changes** to see their edits in the GUI.
 - **Clear** — Reset all pixels to transparent (with confirmation). Undoable.
@@ -208,11 +231,14 @@ Removing a color deletes it from palette.txt. Any cells using that alias will sh
 - **Animate** — Add a frame to the current sprite. On a non-animated sprite (grid.txt only), this converts it to animated mode and reveals the frame strip with all animation controls.
 - **NewAnim** — Create a new animation subdirectory. Prompts for a name, creates the folder with `animation.json`, and switches to it.
 
+Save, Render, and Export are available in the toolbar at the top of the window.
+
 ### Keyboard Shortcuts
 
 | Shortcut | Action |
 |----------|--------|
 | Ctrl+S | Save grid.txt |
+| Ctrl+O | Open sprite folder |
 | Ctrl+Z | Undo (up to 512 steps) |
 | Ctrl+Y | Redo |
 | Ctrl+Shift+Z | Redo (alternative) |

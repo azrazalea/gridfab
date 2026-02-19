@@ -6,6 +6,25 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## [Unreleased]
 
+### Added
+- Dark theme GUI using CustomTkinter (VS Code Dark+ inspired color scheme)
+- Menu bar with File, Edit, View, Animation, and Help menus with keyboard shortcut accelerators
+- Toolbar with tool buttons (Brush, Eyedropper, Fill), action buttons (Save, Render, Export), grid toggle, and zoom controls with tooltips
+- Keyboard Shortcuts dialog (Help menu)
+- About dialog showing version and license info (Help menu)
+- Ctrl+O keyboard shortcut to open a sprite folder
+- Unsaved changes prompt on window close (Save / Don't Save / Cancel)
+
+### Changed
+- GUI refactored from monolithic `gui.py` (2,301 lines) into modular `gui/` package with separate modules for tokens, pure functions, toolbar, palette panel, canvas area, frame strip, status bar, menu bar, and tooltips
+- GUI now requires `customtkinter>=5.2` (added to dependencies)
+- All GUI panels use dark backgrounds (BG_BASE #1E1E1E, BG_SURFACE #252526, BG_ELEVATED #2D2D30)
+- Palette sidebar styled with dark theme, colored swatch buttons, and accent selection highlight
+- Frame strip styled with dark theme buttons and accent/selection state colors
+- Status bar styled with dark elevated background and monospace font
+- Context menus styled dark to match the overall theme
+- Save, Render, and Export buttons moved from palette sidebar to toolbar for better discoverability
+
 ## [0.4.0]
 
 ### Added
