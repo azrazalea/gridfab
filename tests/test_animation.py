@@ -21,6 +21,7 @@ from gridfab.commands.frame_cmd import (
     cmd_frame_delete,
     cmd_frame_select,
     cmd_frame_list,
+    cmd_frame_copy_rect,
 )
 from gridfab.commands.anim_cmd import (
     cmd_anim_add,
@@ -740,3 +741,33 @@ def test_animated_sprite_dir_fixture(animated_sprite_dir):
     assert anims["walk"]["frames"] == [1, 2, 3]
     assert anims["walk"]["fps"] == 8
     assert anims["walk"]["loop"] is True
+
+
+# --- cmd_frame_copy_rect ---
+
+def test_frame_copy_rect_copies_region(animated_3_frames):
+    """copy-rect copies a rectangular region from one frame to another."""
+    g1 = Grid.load(frame_path(animated_3_frames, 1))
+    g1.set(0, 0, "R")
+    g1.set(0, 1, "B")
+    g1.set(1, 0, "G")
+    g1.set(1, 1, "R")
+    g1.save(frame_path(animated_3_frames, 1))
+
+    g2 = Grid.load(frame_path(animated_3_frames, 2))
+    assert g2.data[0][0] == "."
+
+    cmd_frame_copy_rect(animated_3_frames, 0, 0, 1, 1, src_frame=1, dst_frame=2)
+
+    g2 = Grid.load(frame_path(animated_3_frames, 2))
+    assert g2.data[0][0] == "R"
+    assert g2.data[0][1] == "B"
+    assert g2.data[1][0] == "G"
+    assert g2.data[1][1] == "R"
+    assert g2.data[0][2] == "."
+
+
+def test_frame_copy_rect_nonexistent_frame_errors(animated_3_frames):
+    """copy-rect with non-existent frame raises ValueError."""
+    with pytest.raises(ValueError, match="does not exist"):
+        cmd_frame_copy_rect(animated_3_frames, 0, 0, 1, 1, src_frame=1, dst_frame=99)

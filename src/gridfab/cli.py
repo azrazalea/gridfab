@@ -225,6 +225,15 @@ def main() -> None:
     p_frame_list = frame_sub.add_parser("list", help="List all frames")
     p_frame_list.add_argument("directory", nargs="?", default=".", help="Sprite directory")
 
+    p_frame_cp = frame_sub.add_parser("copy-rect", help="Copy rectangle from one frame to another")
+    p_frame_cp.add_argument("r0", type=int, help="Top-left row")
+    p_frame_cp.add_argument("c0", type=int, help="Top-left column")
+    p_frame_cp.add_argument("r1", type=int, help="Bottom-right row")
+    p_frame_cp.add_argument("c1", type=int, help="Bottom-right column")
+    p_frame_cp.add_argument("--from", type=int, required=True, dest="src_frame", help="Source frame number")
+    p_frame_cp.add_argument("--to", type=int, required=True, dest="dst_frame", help="Destination frame number")
+    p_frame_cp.add_argument("directory", nargs="?", default=".", help="Sprite directory")
+
     # anim
     p_anim = sub.add_parser("anim", help="Manage named animations")
     anim_sub = p_anim.add_subparsers(dest="anim_command")
@@ -383,6 +392,7 @@ def _dispatch(args: argparse.Namespace) -> None:
     elif cmd == "frame":
         from gridfab.commands.frame_cmd import (
             cmd_frame_add, cmd_frame_delete, cmd_frame_select, cmd_frame_list,
+            cmd_frame_copy_rect,
         )
 
         fcmd = args.frame_command
@@ -402,6 +412,13 @@ def _dispatch(args: argparse.Namespace) -> None:
             cmd_frame_select(Path(args.directory), args.frame_num)
         elif fcmd == "list":
             cmd_frame_list(Path(args.directory))
+        elif fcmd == "copy-rect":
+            cmd_frame_copy_rect(
+                Path(args.directory),
+                args.r0, args.c0, args.r1, args.c1,
+                src_frame=args.src_frame,
+                dst_frame=args.dst_frame,
+            )
 
     elif cmd == "anim":
         from gridfab.commands.anim_cmd import (

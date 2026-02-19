@@ -143,6 +143,42 @@ def cmd_frame_select(directory: Path, frame_num: int) -> None:
     print(f"Active frame set to {frame_num}.")
 
 
+def cmd_frame_copy_rect(
+    directory: Path,
+    r0: int, c0: int, r1: int, c1: int,
+    src_frame: int,
+    dst_frame: int,
+) -> None:
+    """Copy a rectangular region from one frame to another."""
+    frames = discover_frames(directory)
+    for f in (src_frame, dst_frame):
+        if f not in frames:
+            raise ValueError(
+                f"frame {f} does not exist (available: {frames})"
+            )
+
+    palette_path = directory / "palette.txt"
+    src = Grid.load(frame_path(directory, src_frame), palette_path=palette_path)
+    dst = Grid.load(frame_path(directory, dst_frame), palette_path=palette_path)
+
+    # Validate bounds against source grid
+    for label, r, c in [("r0", r0, c0), ("r1", r1, c1)]:
+        if r < 0 or r >= src.height or c < 0 or c >= src.width:
+            raise ValueError(f"{label} ({r},{c}) out of bounds for {src.width}x{src.height} grid")
+
+    if dst.width != src.width or dst.height != src.height:
+        raise ValueError("source and destination frames have different dimensions")
+
+    for r in range(r0, r1 + 1):
+        for c in range(c0, c1 + 1):
+            dst.data[r][c] = src.data[r][c]
+
+    dst.save(frame_path(directory, dst_frame))
+    w = c1 - c0 + 1
+    h = r1 - r0 + 1
+    print(f"Copied {w}x{h} rect ({r0},{c0})-({r1},{c1}) from frame {src_frame} to frame {dst_frame}.")
+
+
 def cmd_frame_list(directory: Path) -> None:
     """Print all frames with active marker."""
     frames = discover_frames(directory)
