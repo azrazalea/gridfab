@@ -14,7 +14,7 @@ from gridfab.commands.edit import (
 )
 from gridfab.commands.frame_cmd import cmd_frame_add
 from gridfab.commands.render_cmd import cmd_render
-from gridfab.commands.export_cmd import cmd_export, cmd_palette
+from gridfab.commands.export_cmd import cmd_export, cmd_palette, cmd_palette_rename
 from gridfab.commands.icon_cmd import cmd_icon
 
 
@@ -382,3 +382,57 @@ class TestFrameAwareExport:
         (animated_sprite / "gridfab.json").write_text(json.dumps(config))
         cmd_export(animated_sprite, frame=1)
         assert (animated_sprite / "output.png").exists()
+
+
+# ===================================================================
+# Palette rename
+# ===================================================================
+
+class TestCmdPaletteRename:
+    def test_renames_alias_in_palette(self, sprite_dir: Path):
+        """Rename R→RD in palette."""
+        cmd_pixel(sprite_dir, 0, 0, "R")
+        cmd_palette_rename(sprite_dir, "R", "RD")
+        from gridfab.core.palette import Palette
+        palette = Palette.load(sprite_dir / "palette.txt")
+        assert "RD" in palette.entries
+        assert "R" not in palette.entries
+        assert palette.resolve("RD") == "#CC3333"
+
+    def test_renames_alias_in_grid(self, sprite_dir: Path):
+        """Grid should have new alias after rename."""
+        cmd_pixel(sprite_dir, 0, 0, "R")
+        cmd_palette_rename(sprite_dir, "R", "RD")
+        grid = Grid.load(sprite_dir / "grid.txt")
+        assert grid.get(0, 0) == "RD"
+
+    def test_renames_in_frame_files(self, sprite_dir: Path):
+        """Rename should update frame_NNN.txt files too."""
+        cmd_pixel(sprite_dir, 0, 0, "R")
+        cmd_frame_add(sprite_dir)  # converts to animated
+        cmd_palette_rename(sprite_dir, "R", "RD")
+        grid = Grid.load(sprite_dir / "frame_001.txt")
+        assert grid.get(0, 0) == "RD"
+
+    def test_rejects_nonexistent_alias(self, sprite_dir: Path):
+        with pytest.raises(ValueError, match="not found"):
+            cmd_palette_rename(sprite_dir, "X", "Y")
+
+    def test_rejects_invalid_new_alias(self, sprite_dir: Path):
+        with pytest.raises(ValueError, match="reserved"):
+            cmd_palette_rename(sprite_dir, "R", "A.")
+
+    def test_rejects_too_long_alias(self, sprite_dir: Path):
+        with pytest.raises(ValueError, match="1-2 characters"):
+            cmd_palette_rename(sprite_dir, "R", "ABC")
+
+    def test_rejects_case_insensitive_collision(self, sprite_dir: Path):
+        """Can't rename to alias that collides case-insensitively with existing."""
+        # sprite_dir has R, B, G
+        with pytest.raises(ValueError, match="conflicts"):
+            cmd_palette_rename(sprite_dir, "R", "b")
+
+    def test_same_alias_noop(self, sprite_dir: Path):
+        """Renaming to same alias should raise."""
+        with pytest.raises(ValueError, match="same as old"):
+            cmd_palette_rename(sprite_dir, "R", "R")

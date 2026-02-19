@@ -116,7 +116,7 @@ class TestMainDispatch:
         assert (sprite_dir_with_config / "output.png").exists()
 
     def test_palette_dispatches(self, sprite_dir: Path):
-        with patch.object(sys, "argv", ["gridfab", "palette", str(sprite_dir)]):
+        with patch.object(sys, "argv", ["gridfab", "palette", "show", str(sprite_dir)]):
             main()
 
     def test_icon_dispatches(self, sprite_dir_with_config: Path):

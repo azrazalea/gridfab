@@ -151,8 +151,19 @@ def main() -> None:
     p_icon.add_argument("directory", nargs="?", default=".", help="Sprite directory")
 
     # palette
-    p_palette = sub.add_parser("palette", help="Display current palette")
-    p_palette.add_argument("directory", nargs="?", default=".", help="Sprite directory")
+    p_palette = sub.add_parser("palette", help="Display or manage palette")
+    palette_sub = p_palette.add_subparsers(dest="palette_command")
+
+    p_palette_show = palette_sub.add_parser("show", help="Display current palette")
+    p_palette_show.add_argument("directory", nargs="?", default=".", help="Sprite directory")
+
+    p_palette_rename = palette_sub.add_parser("rename", help="Rename a palette alias")
+    p_palette_rename.add_argument("old_alias", help="Existing alias to rename")
+    p_palette_rename.add_argument("new_alias", help="New alias name")
+    p_palette_rename.add_argument("directory", nargs="?", default=".", help="Sprite directory")
+
+    # Allow bare "palette [dir]" for backward compat
+    p_palette.add_argument("--dir", default=".", help="Sprite directory")
 
     # tag
     p_tag = sub.add_parser("tag", help="Interactive tileset tagger with AI naming")
@@ -314,7 +325,15 @@ def _dispatch(args: argparse.Namespace) -> None:
         cmd_icon(Path(args.directory))
 
     elif cmd == "palette":
-        cmd_palette(Path(args.directory))
+        from gridfab.commands.export_cmd import cmd_palette_rename
+        pcmd = args.palette_command
+        if pcmd == "rename":
+            cmd_palette_rename(Path(args.directory), args.old_alias, args.new_alias)
+        elif pcmd == "show":
+            cmd_palette(Path(args.directory))
+        else:
+            # Bare "palette" without subcommand — show palette
+            cmd_palette(Path(args.dir))
 
     elif cmd == "tag":
         from gridfab.tagger.app import TaggerApp
