@@ -48,6 +48,12 @@ jobs:
       - name: Install dependencies
         run: pip install .
 
+      - name: Verify locale .mo is up to date
+        run: |
+          pip install babel
+          python -m babel.messages.frontend compile -d src/gridfab/locale -D gridfab
+          git diff --exit-code src/gridfab/locale/ || (echo "ERROR: .mo file is stale — run 'python -m babel.messages.frontend compile -d src/gridfab/locale -D gridfab' and commit" && exit 1)
+
       - name: Install test deps and run tests
         run: |
           pip install pytest
