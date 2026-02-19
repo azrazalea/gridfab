@@ -16,6 +16,7 @@ except ImportError:
     _Entry = tk.Entry
     _Frame = tk.Frame
 
+from gridfab.gui.i18n import _
 from gridfab.gui.tokens import (
     BG_ELEVATED, TEXT_PRIMARY, TEXT_SECONDARY, ACCENT, ACCENT_HOVER,
     HOVER_BUTTON, BORDER, BG_WIDGET, FONT_BODY, FONT_SMALL,
@@ -87,13 +88,13 @@ class DarkInputDialog(_DarkDialog):
         btn_frame.pack(fill="x", padx=16, pady=(0, 10))
 
         _Button(
-            btn_frame, text="OK", width=100, height=28, font=FONT_BODY,
+            btn_frame, text=_("OK"), width=100, height=28, font=FONT_BODY,
             fg_color=ACCENT, hover_color=ACCENT_HOVER,
             text_color="#FFFFFF", command=self._on_ok,
         ).pack(side="left", expand=True, padx=(0, 4))
 
         _Button(
-            btn_frame, text="Cancel", width=100, height=28, font=FONT_BODY,
+            btn_frame, text=_("Cancel"), width=100, height=28, font=FONT_BODY,
             fg_color="transparent", hover_color=HOVER_BUTTON,
             text_color=TEXT_PRIMARY, command=self._on_cancel,
         ).pack(side="left", expand=True, padx=(4, 0))
@@ -145,45 +146,45 @@ class DarkMessageDialog(_DarkDialog):
 
         if buttons == "ok":
             _Button(
-                btn_frame, text="OK", width=100, height=28, font=FONT_BODY,
+                btn_frame, text=_("OK"), width=100, height=28, font=FONT_BODY,
                 fg_color=ACCENT, hover_color=ACCENT_HOVER,
                 text_color="#FFFFFF", command=lambda: self._respond(True),
             ).pack(side="right")
         elif buttons == "yesno":
             _Button(
-                btn_frame, text="No", width=80, height=28, font=FONT_BODY,
+                btn_frame, text=_("No"), width=80, height=28, font=FONT_BODY,
                 fg_color="transparent", hover_color=HOVER_BUTTON,
                 text_color=TEXT_PRIMARY, command=lambda: self._respond(False),
             ).pack(side="right", padx=(4, 0))
             _Button(
-                btn_frame, text="Yes", width=80, height=28, font=FONT_BODY,
+                btn_frame, text=_("Yes"), width=80, height=28, font=FONT_BODY,
                 fg_color=ACCENT, hover_color=ACCENT_HOVER,
                 text_color="#FFFFFF", command=lambda: self._respond(True),
             ).pack(side="right")
         elif buttons == "yesnocancel":
             _Button(
-                btn_frame, text="Cancel", width=80, height=28, font=FONT_BODY,
+                btn_frame, text=_("Cancel"), width=80, height=28, font=FONT_BODY,
                 fg_color="transparent", hover_color=HOVER_BUTTON,
                 text_color=TEXT_PRIMARY, command=lambda: self._respond(None),
             ).pack(side="right", padx=(4, 0))
             _Button(
-                btn_frame, text="No", width=80, height=28, font=FONT_BODY,
+                btn_frame, text=_("No"), width=80, height=28, font=FONT_BODY,
                 fg_color="transparent", hover_color=HOVER_BUTTON,
                 text_color=TEXT_PRIMARY, command=lambda: self._respond(False),
             ).pack(side="right", padx=(4, 0))
             _Button(
-                btn_frame, text="Yes", width=80, height=28, font=FONT_BODY,
+                btn_frame, text=_("Yes"), width=80, height=28, font=FONT_BODY,
                 fg_color=ACCENT, hover_color=ACCENT_HOVER,
                 text_color="#FFFFFF", command=lambda: self._respond(True),
             ).pack(side="right")
         elif buttons == "okcancel":
             _Button(
-                btn_frame, text="Cancel", width=80, height=28, font=FONT_BODY,
+                btn_frame, text=_("Cancel"), width=80, height=28, font=FONT_BODY,
                 fg_color="transparent", hover_color=HOVER_BUTTON,
                 text_color=TEXT_PRIMARY, command=lambda: self._respond(False),
             ).pack(side="right", padx=(4, 0))
             _Button(
-                btn_frame, text="OK", width=80, height=28, font=FONT_BODY,
+                btn_frame, text=_("OK"), width=80, height=28, font=FONT_BODY,
                 fg_color=ACCENT, hover_color=ACCENT_HOVER,
                 text_color="#FFFFFF", command=lambda: self._respond(True),
             ).pack(side="right")

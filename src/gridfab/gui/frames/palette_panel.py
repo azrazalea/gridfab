@@ -12,6 +12,7 @@ except ImportError:
 
 from gridfab.core.grid import TRANSPARENT
 from gridfab.core.palette import Palette
+from gridfab.gui.i18n import _
 from gridfab.gui.pure import _contrast_color, SWATCH_COLS
 from gridfab.gui.tokens import (
     BG_SURFACE, BG_ELEVATED, TEXT_PRIMARY, TEXT_SECONDARY,
@@ -45,7 +46,7 @@ class PalettePanel(_Frame):
 
         # ── PALETTE header ───────────────────────────────────────────
         header = tk.Label(
-            self, text="PALETTE", font=FONT_HEADER,
+            self, text=_("PALETTE"), font=FONT_HEADER,
             bg=BG_SURFACE, fg=TEXT_SECONDARY, anchor=tk.W,
         )
         header.pack(fill=tk.X, padx=PAD_MD, pady=(PAD_MD, PAD_SM))
@@ -60,7 +61,7 @@ class PalettePanel(_Frame):
 
         # ── ACTIONS header ───────────────────────────────────────────
         actions_header = tk.Label(
-            self, text="ACTIONS", font=FONT_HEADER,
+            self, text=_("ACTIONS"), font=FONT_HEADER,
             bg=BG_SURFACE, fg=TEXT_SECONDARY, anchor=tk.W,
         )
         actions_header.pack(fill=tk.X, padx=PAD_MD, pady=(0, PAD_SM))
@@ -70,13 +71,13 @@ class PalettePanel(_Frame):
         self._action_frame.pack(fill=tk.X, padx=PAD_MD)
 
         action_items = [
-            ("Open", callbacks.get("open"), "Open sprite folder (Ctrl+O)"),
-            ("Refresh", callbacks.get("refresh"), "Reload files from disk"),
-            ("Clear", callbacks.get("clear"), "Reset all pixels to transparent"),
-            ("New", callbacks.get("new"), "Create a new sprite"),
-            ("Import", callbacks.get("import_image"), "Import an image as a sprite"),
-            ("Animate", callbacks.get("animate"), "Add animation frames"),
-            ("+ Anim", callbacks.get("new_anim"), "Create animation subdirectory"),
+            (_("Open"), callbacks.get("open"), _("Open sprite folder (Ctrl+O)")),
+            (_("Refresh"), callbacks.get("refresh"), _("Reload files from disk")),
+            (_("Clear"), callbacks.get("clear"), _("Reset all pixels to transparent")),
+            (_("New"), callbacks.get("new"), _("Create a new sprite")),
+            (_("Import"), callbacks.get("import_image"), _("Import an image as a sprite")),
+            (_("Animate"), callbacks.get("animate"), _("Add animation frames")),
+            (_("+ Anim"), callbacks.get("new_anim"), _("Create animation subdirectory")),
         ]
         for i, (text, cmd, tip) in enumerate(action_items):
             btn = _Button(
@@ -168,7 +169,7 @@ class PalettePanel(_Frame):
             disabledforeground=MENU_DISABLED_FG,
         )
         if alias == TRANSPARENT:
-            menu.add_command(label="Transparent (no actions)", state=tk.DISABLED)
+            menu.add_command(label=_("Transparent (no actions)"), state=tk.DISABLED)
         else:
             cb_copy = self._callbacks.get("copy_hex")
             cb_edit = self._callbacks.get("edit_color")
@@ -182,16 +183,16 @@ class PalettePanel(_Frame):
                 except Exception:
                     pass
             menu.add_command(
-                label=f"Copy Hex ({hex_color})",
+                label=_("Copy Hex ({hex_color})").format(hex_color=hex_color),
                 command=lambda: cb_copy(hex_color) if cb_copy else None,
             )
             menu.add_command(
-                label="Edit Color...",
+                label=_("Edit Color..."),
                 command=lambda: cb_edit(alias) if cb_edit else None,
             )
             menu.add_separator()
             menu.add_command(
-                label="Remove Color",
+                label=_("Remove Color"),
                 command=lambda: cb_remove(alias) if cb_remove else None,
             )
         menu.tk_popup(event.x_root, event.y_root)

@@ -7,6 +7,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 ## [Unreleased]
 
 ### Added
+- Internationalization (i18n) support for GUI using Python gettext — all user-facing strings wrapped in `_()`, `.pot` template and English `.po`/`.mo` generated with Babel
 - Dark theme GUI using CustomTkinter (VS Code Dark+ inspired color scheme)
 - Menu bar with File, Edit, View, Animation, and Help menus with keyboard shortcut accelerators
 - Toolbar with tool buttons (Brush, Eyedropper, Fill), action buttons (Save, Render, Export), grid toggle, and zoom controls with tooltips

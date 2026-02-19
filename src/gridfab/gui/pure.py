@@ -5,6 +5,7 @@ from pathlib import Path
 from gridfab.core.grid import TRANSPARENT
 from gridfab.core.palette import Palette
 from gridfab.core.animation import discover_frames, ANIM_FILE
+from gridfab.gui.i18n import _
 
 ZOOM_LEVELS = [4, 8, 16, 24, 32, 48]
 DEFAULT_CELL_SIZE = 16
@@ -48,7 +49,7 @@ def format_status_text(
     if cursor_pos is not None:
         parts.append(f"({cursor_pos[0]}, {cursor_pos[1]})")
     if selected == TRANSPARENT:
-        parts.append("Transparent")
+        parts.append(_("Transparent"))
     else:
         color_str = selected
         if selected_hex:
@@ -58,7 +59,7 @@ def format_status_text(
     parts.append(f"{zoom_pct}%")
     parts.append(tool_name)
     if modified:
-        parts.append("[Modified]")
+        parts.append(_("[Modified]"))
     parts.append(file_path)
     return "  |  ".join(parts)
 

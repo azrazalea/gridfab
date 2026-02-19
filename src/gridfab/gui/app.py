@@ -10,6 +10,7 @@ import sys
 import subprocess
 import tkinter as tk
 from tkinter import filedialog, colorchooser
+from gridfab.gui.i18n import _
 from gridfab.gui.widgets.dialogs import (
     ask_string, show_info, show_warning, show_error,
     ask_yes_no, ask_yes_no_cancel, ask_ok_cancel,
@@ -476,18 +477,18 @@ class PixelEditor:
             file_path=self.work_dir.resolve().name,
         )
         if self._playing:
-            text += "  |  Playing"
+            text += "  |  " + _("Playing")
         if self.onion_skin_enabled:
             pct = round(self.onion_skin_opacity * 100)
-            text += f"  |  Onion:{pct}%"
+            text += "  |  " + _("Onion:{pct}%").format(pct=pct)
         if self._animated and self._active_frame is not None:
-            text += f"  |  Frame {self._active_frame}"
+            text += "  |  " + _("Frame {n}").format(n=self._active_frame)
         if len(self._selected_frames) > 1:
-            text += f"  |  Selected: {len(self._selected_frames)} frames"
+            text += "  |  " + _("Selected: {n} frames").format(n=len(self._selected_frames))
         if self._is_anim_subdir:
-            text += f"  |  Anim:{self.work_dir.name}"
+            text += "  |  " + _("Anim:{name}").format(name=self.work_dir.name)
         if self._side_by_side:
-            text += "  |  SBS"
+            text += "  |  " + _("SBS")
         self.status_var.set(text)
 
     def _toggle_grid_lines(self) -> None:
@@ -1092,7 +1093,7 @@ class PixelEditor:
 
     def _on_anim_select(self, value: str) -> None:
         """Handle animation dropdown selection."""
-        if value == "(All Frames)":
+        if value == _("(All Frames)"):
             self._play_anim_name = None
         else:
             self._play_anim_name = value
@@ -1107,7 +1108,7 @@ class PixelEditor:
         """Recreate frame strip via the FrameStrip widget."""
         frames = discover_frames(self.work_dir)
         animations = load_animations(self.work_dir)
-        anim_names = ["(All Frames)"] + sorted(animations.keys())
+        anim_names = [_("(All Frames)")] + sorted(animations.keys())
         dir_choices = anim_dir_choices(self._sprite_root)
         current_dir = self.work_dir.name if self._is_anim_subdir else "(Base)"
 
@@ -1303,9 +1304,9 @@ class PixelEditor:
             return
         frames = discover_frames(self.work_dir)
         if len(frames) <= 1:
-            show_warning(self.root, "Cannot Delete", "Cannot delete the only frame.")
+            show_warning(self.root, _("Cannot Delete"), _("Cannot delete the only frame."))
             return
-        if not ask_yes_no(self.root, "Delete Frame", f"Delete frame {self._active_frame}?"):
+        if not ask_yes_no(self.root, _("Delete Frame"), _("Delete frame {n}?").format(n=self._active_frame)):
             return
         from gridfab.commands.frame_cmd import cmd_frame_delete
         cmd_frame_delete(self.work_dir, self._active_frame)
@@ -1483,12 +1484,12 @@ class PixelEditor:
 
     def _new_anim_gui(self) -> None:
         """Create a new animation subdirectory via GUI dialog."""
-        name = ask_string(self.root, "New Animation", "Enter animation name (becomes folder name):")
+        name = ask_string(self.root, _("New Animation"), _("Enter animation name (becomes folder name):"))
         if not name:
             return
         # Validate name (no special chars)
         if not name.isidentifier() and not all(c.isalnum() or c in "_-" for c in name):
-            show_error(self.root, "Invalid Name", "Use only letters, numbers, hyphens, underscores.")
+            show_error(self.root, _("Invalid Name"), _("Use only letters, numbers, hyphens, underscores."))
             return
 
         target_root = self._sprite_root
@@ -1496,12 +1497,13 @@ class PixelEditor:
             from gridfab.commands.anim_cmd import cmd_anim_create
             cmd_anim_create(target_root, name)
         except FileExistsError as e:
-            show_error(self.root, "Error", str(e))
+            show_error(self.root, _("Error"), str(e))
             return
 
         # Switch to the new animation directory
         self._switch_to_anim_dir(target_root / name)
-        show_info(self.root, "Animation Created", f"Animation '{name}' created.\nUse '+' to add frames.")
+        show_info(self.root, _("Animation Created"),
+                  _("Animation '{name}' created.\nUse '+' to add frames.").format(name=name))
 
     def _add_base_ref_gui(self) -> None:
         """Add a base frame reference to the animation subdir's animation.json."""
@@ -1510,23 +1512,24 @@ class PixelEditor:
         # Get base frames
         base_frames = discover_frames(self._sprite_root)
         if not base_frames:
-            show_warning(self.root, "No Base Frames", "No frames in the base sprite directory.")
+            show_warning(self.root, _("No Base Frames"), _("No frames in the base sprite directory."))
             return
 
         # Ask which base frame to reference
         frame_str = ask_string(
-            self.root, "Add Base Frame Reference",
-            f"Available base frames: {base_frames}\n\nEnter frame number:",
+            self.root, _("Add Base Frame Reference"),
+            _("Available base frames: {frames}\n\nEnter frame number:").format(frames=base_frames),
         )
         if not frame_str:
             return
         try:
             frame_num = int(frame_str)
         except ValueError:
-            show_error(self.root, "Invalid", "Frame number must be an integer.")
+            show_error(self.root, _("Invalid"), _("Frame number must be an integer."))
             return
         if frame_num not in base_frames:
-            show_error(self.root, "Invalid", f"Frame {frame_num} not found in base (available: {base_frames}).")
+            show_error(self.root, _("Invalid"),
+                       _("Frame {n} not found in base (available: {frames}).").format(n=frame_num, frames=base_frames))
             return
 
         # Add "base:N" to animation.json
@@ -1559,7 +1562,7 @@ class PixelEditor:
         print("Refreshed from disk")
 
     def clear_grid(self) -> None:
-        if not ask_yes_no(self.root, "Clear Grid", "Reset all pixels to transparent?"):
+        if not ask_yes_no(self.root, _("Clear Grid"), _("Reset all pixels to transparent?")):
             return
         self.undo_stack.append(self.grid.snapshot())
         if len(self.undo_stack) > self.max_undo:
@@ -1577,10 +1580,10 @@ class PixelEditor:
 
         if has_sprite:
             choice = ask_yes_no(
-                self.root, "New",
-                "Create a new grid in the current folder?\n\n"
-                "Yes = Resize current grid here\n"
-                "No = Create a new sprite in another folder",
+                self.root, _("New"),
+                _("Create a new grid in the current folder?\n\n"
+                  "Yes = Resize current grid here\n"
+                  "No = Create a new sprite in another folder"),
             )
             if choice:
                 self._new_grid_here()
@@ -1592,24 +1595,24 @@ class PixelEditor:
             self._new_sprite()
 
     def _new_grid_here(self) -> None:
-        size_str = ask_string(self.root, "New Grid", "Enter size as WxH (e.g. 16x16, 32x32):")
+        size_str = ask_string(self.root, _("New Grid"), _("Enter size as WxH (e.g. 16x16, 32x32):"))
         if not size_str:
             return
         parts = size_str.lower().split("x")
         if len(parts) != 2:
-            show_error(self.root, "Invalid Size", "Size must be WxH (e.g. 32x32)")
+            show_error(self.root, _("Invalid Size"), _("Size must be WxH (e.g. 32x32)"))
             return
         try:
             w, h = int(parts[0]), int(parts[1])
         except ValueError:
-            show_error(self.root, "Invalid Size", "Width and height must be integers")
+            show_error(self.root, _("Invalid Size"), _("Width and height must be integers"))
             return
         if w < 1 or h < 1:
-            show_error(self.root, "Invalid Size", "Width and height must be positive")
+            show_error(self.root, _("Invalid Size"), _("Width and height must be positive"))
             return
         if not ask_yes_no(
-            self.root, "New Grid",
-            f"Create new {w}x{h} grid? This will replace the current grid.",
+            self.root, _("New Grid"),
+            _("Create new {w}x{h} grid? This will replace the current grid.").format(w=w, h=h),
         ):
             return
         self.undo_stack.append(self.grid.snapshot())
@@ -1623,30 +1626,30 @@ class PixelEditor:
 
     def _new_sprite(self) -> None:
         parent = filedialog.askdirectory(
-            title="Choose parent folder for new sprite",
+            title=_("Choose parent folder for new sprite"),
             parent=self.root,
         )
         if not parent:
             return
 
-        name = ask_string(self.root, "Sprite Name", "Enter sprite name (becomes folder name):")
+        name = ask_string(self.root, _("Sprite Name"), _("Enter sprite name (becomes folder name):"))
         if not name:
             return
 
-        size_str = ask_string(self.root, "Grid Size", "Enter size as WxH (e.g. 16x16, 32x32):")
+        size_str = ask_string(self.root, _("Grid Size"), _("Enter size as WxH (e.g. 16x16, 32x32):"))
         if not size_str:
             return
         parts = size_str.lower().split("x")
         if len(parts) != 2:
-            show_error(self.root, "Invalid Size", "Size must be WxH (e.g. 32x32)")
+            show_error(self.root, _("Invalid Size"), _("Size must be WxH (e.g. 32x32)"))
             return
         try:
             w, h = int(parts[0]), int(parts[1])
         except ValueError:
-            show_error(self.root, "Invalid Size", "Width and height must be integers")
+            show_error(self.root, _("Invalid Size"), _("Width and height must be integers"))
             return
         if w < 1 or h < 1:
-            show_error(self.root, "Invalid Size", "Width and height must be positive")
+            show_error(self.root, _("Invalid Size"), _("Width and height must be positive"))
             return
 
         new_dir = Path(parent) / name
@@ -1654,7 +1657,7 @@ class PixelEditor:
             from gridfab.commands.init import cmd_init
             cmd_init(new_dir, w, h)
         except FileExistsError as e:
-            show_error(self.root, "Error", str(e))
+            show_error(self.root, _("Error"), str(e))
             return
 
         self._switch_to_dir(new_dir)
@@ -1662,7 +1665,7 @@ class PixelEditor:
 
     def open_sprite(self) -> None:
         folder = filedialog.askdirectory(
-            title="Open sprite folder",
+            title=_("Open sprite folder"),
             parent=self.root,
         )
         if not folder:
@@ -1671,9 +1674,9 @@ class PixelEditor:
         folder_path = Path(folder)
         if not (folder_path / "grid.txt").exists() and not is_animated(folder_path):
             show_error(
-                self.root, "Not a Sprite",
-                f"No grid.txt or frame files found in {folder_path.name}\n\n"
-                "Select a folder containing grid.txt and palette.txt.",
+                self.root, _("Not a Sprite"),
+                _("No grid.txt or frame files found in {name}\n\n"
+                  "Select a folder containing grid.txt and palette.txt.").format(name=folder_path.name),
             )
             return
 
@@ -1682,28 +1685,28 @@ class PixelEditor:
 
     def import_image(self) -> None:
         image_path = filedialog.askopenfilename(
-            title="Select image to import",
+            title=_("Select image to import"),
             filetypes=[
-                ("Image files",
+                (_("Image files"),
                  "*.png *.bmp *.dib *.gif *.tiff *.tif *.webp *.jpg *.jpeg *.jpe "
                  "*.jp2 *.jpx *.j2k *.ico *.icns *.tga *.pcx *.ppm *.pbm *.pgm *.pnm "
                  "*.sgi *.xbm *.dds *.eps *.qoi *.psd *.cur *.fli *.flc *.xpm "
                  "*.wmf *.emf *.fits *.msp *.blp *.avif"),
-                ("All files", "*.*"),
+                (_("All files"), "*.*"),
             ],
             parent=self.root,
         )
         if not image_path:
             return
 
-        name = ask_string(self.root, "Sprite Name", "Enter sprite name (becomes folder name):")
+        name = ask_string(self.root, _("Sprite Name"), _("Enter sprite name (becomes folder name):"))
         if not name:
             return
 
         tile_str = ask_string(
-            self.root, "Tilesheet?",
-            "If this is a tilesheet, enter tile size as WxH.\n"
-            "Leave blank for single image import.",
+            self.root, _("Tilesheet?"),
+            _("If this is a tilesheet, enter tile size as WxH.\n"
+              "Leave blank for single image import."),
         )
 
         new_dir = self.work_dir / name
@@ -1714,19 +1717,19 @@ class PixelEditor:
             if tile_str and tile_str.strip():
                 tile_size = parse_size(tile_str.strip())
                 tile_coord = ask_string(
-                    self.root, "Tile Position",
-                    "Enter tile coordinate as COL,ROW (0-indexed):",
+                    self.root, _("Tile Position"),
+                    _("Enter tile coordinate as COL,ROW (0-indexed):"),
                 )
                 if not tile_coord:
                     return
                 parts = tile_coord.split(",")
                 if len(parts) != 2:
-                    show_error(self.root, "Invalid", "Must be COL,ROW (e.g. 3,2)")
+                    show_error(self.root, _("Invalid"), _("Must be COL,ROW (e.g. 3,2)"))
                     return
                 try:
                     tile_pos = (int(parts[0]), int(parts[1]))
                 except ValueError:
-                    show_error(self.root, "Invalid", "Coordinates must be integers")
+                    show_error(self.root, _("Invalid"), _("Coordinates must be integers"))
                     return
                 cmd_import(
                     Path(image_path), new_dir,
@@ -1736,9 +1739,9 @@ class PixelEditor:
                 cmd_import(Path(image_path), new_dir)
 
             self._switch_to_dir(new_dir)
-            show_info(self.root, "Import Complete", f"Imported to {new_dir.name}")
+            show_info(self.root, _("Import Complete"), _("Imported to {name}").format(name=new_dir.name))
         except (ValueError, FileExistsError, FileNotFoundError) as e:
-            show_error(self.root, "Import Error", str(e))
+            show_error(self.root, _("Import Error"), str(e))
 
     def _switch_to_dir(self, new_dir: Path) -> None:
         """Switch the editor to a different sprite directory."""
@@ -1799,19 +1802,19 @@ class PixelEditor:
 
     def _add_color(self) -> None:
         """Open color picker and add a new color to the palette."""
-        result = colorchooser.askcolor(parent=self.root, title="Choose a color")
+        result = colorchooser.askcolor(parent=self.root, title=_("Choose a color"))
         if result[1] is None:
             return
         hex_color = result[1].upper()
 
-        alias = ask_string(self.root, "Alias", "Enter alias (1-2 characters):")
+        alias = ask_string(self.root, _("Alias"), _("Enter alias (1-2 characters):"))
         if not alias:
             return
 
         try:
             Palette._validate_alias(alias)
         except ValueError as e:
-            show_error(self.root, "Invalid Alias", str(e))
+            show_error(self.root, _("Invalid Alias"), str(e))
             return
 
         # Check case-insensitive duplicates
@@ -1820,9 +1823,9 @@ class PixelEditor:
                 continue
             if existing.lower() == alias.lower():
                 show_error(
-                    self.root, "Duplicate Alias",
-                    f"Alias '{alias}' conflicts with existing alias '{existing}' "
-                    f"(case-insensitive duplicates not allowed)",
+                    self.root, _("Duplicate Alias"),
+                    _("Alias '{alias}' conflicts with existing alias '{existing}' "
+                      "(case-insensitive duplicates not allowed)").format(alias=alias, existing=existing),
                 )
                 return
 
@@ -1837,7 +1840,7 @@ class PixelEditor:
             return
         current = self.palette.entries.get(alias, "#FFFFFF")
         result = colorchooser.askcolor(
-            initialcolor=current, parent=self.root, title=f"Edit color: {alias}",
+            initialcolor=current, parent=self.root, title=_("Edit color: {alias}").format(alias=alias),
         )
         if result[1] is None:
             return
@@ -1855,9 +1858,9 @@ class PixelEditor:
     def _remove_color(self, alias: str) -> None:
         """Remove a color from the palette after confirmation."""
         if not ask_yes_no(
-            self.root, "Remove Color",
-            f"Remove '{alias}' from the palette?\n\n"
-            f"Cells using this color will show as magenta (unknown).",
+            self.root, _("Remove Color"),
+            _("Remove '{alias}' from the palette?\n\n"
+              "Cells using this color will show as magenta (unknown).").format(alias=alias),
         ):
             return
         del self.palette.entries[alias]
@@ -1872,8 +1875,8 @@ class PixelEditor:
         """Handle window close with unsaved-changes prompt."""
         if self.modified:
             result = ask_yes_no_cancel(
-                self.root, "Unsaved Changes",
-                "You have unsaved changes. Save before closing?",
+                self.root, _("Unsaved Changes"),
+                _("You have unsaved changes. Save before closing?"),
             )
             if result is None:  # Cancel
                 return
@@ -1884,40 +1887,40 @@ class PixelEditor:
     def _show_shortcuts(self) -> None:
         """Show keyboard shortcuts dialog."""
         shortcuts = (
-            "B — Brush tool\n"
-            "I — Eyedropper tool\n"
-            "F — Fill tool\n"
-            "G — Toggle grid lines\n"
-            "H — Flip horizontal\n"
-            "V — Flip vertical\n"
-            "R — Render preview\n"
-            "E — Export PNGs\n"
-            "O — Toggle onion skin\n"
-            "M — Toggle side-by-side\n"
-            "[ / ] — Zoom out / in\n"
-            "< / > — Previous / next frame\n"
-            "Space — Play / stop animation\n"
-            "Ctrl+S — Save\n"
-            "Ctrl+O — Open\n"
-            "Ctrl+Z — Undo\n"
-            "Ctrl+Y — Redo\n"
-            "Ctrl+C — Copy frame\n"
-            "Ctrl+V — Paste frame\n"
-            "1-9 — Select palette color"
+            _("B — Brush tool") + "\n"
+            + _("I — Eyedropper tool") + "\n"
+            + _("F — Fill tool") + "\n"
+            + _("G — Toggle grid lines") + "\n"
+            + _("H — Flip horizontal") + "\n"
+            + _("V — Flip vertical") + "\n"
+            + _("R — Render preview") + "\n"
+            + _("E — Export PNGs") + "\n"
+            + _("O — Toggle onion skin") + "\n"
+            + _("M — Toggle side-by-side") + "\n"
+            + _("[ / ] — Zoom out / in") + "\n"
+            + _("< / > — Previous / next frame") + "\n"
+            + _("Space — Play / stop animation") + "\n"
+            + _("Ctrl+S — Save") + "\n"
+            + _("Ctrl+O — Open") + "\n"
+            + _("Ctrl+Z — Undo") + "\n"
+            + _("Ctrl+Y — Redo") + "\n"
+            + _("Ctrl+C — Copy frame") + "\n"
+            + _("Ctrl+V — Paste frame") + "\n"
+            + _("1-9 — Select palette color")
         )
-        show_info(self.root, "Keyboard Shortcuts", shortcuts)
+        show_info(self.root, _("Keyboard Shortcuts"), shortcuts)
 
     def _show_about(self) -> None:
         """Show about dialog."""
         import gridfab
         version = getattr(gridfab, "__version__", "unknown")
         show_info(
-            self.root, "About GridFab",
-            f"GridFab v{version}\n\n"
-            "A pixel art editor where artwork\n"
-            "is stored as plain text.\n\n"
-            "grid.txt + palette.txt = art\n\n"
-            "Licensed under AGPLv3",
+            self.root, _("About GridFab"),
+            _("GridFab v{version}\n\n"
+              "A pixel art editor where artwork\n"
+              "is stored as plain text.\n\n"
+              "grid.txt + palette.txt = art\n\n"
+              "Licensed under AGPLv3").format(version=version),
         )
 
     def _rebuild_canvas(self, resize_viewport: bool = False) -> None:

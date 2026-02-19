@@ -1,0 +1,721 @@
+# English translations for GridFab.
+# Copyright (C) 2026 ORGANIZATION
+# This file is distributed under the same license as the GridFab project.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2026.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: GridFab 0.4.0\n"
+"Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
+"POT-Creation-Date: 2026-02-19 22:22+0000\n"
+"PO-Revision-Date: 2026-02-19 22:23+0000\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language: en\n"
+"Language-Team: en <LL@li.org>\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.18.0\n"
+
+#: src/gridfab/gui/app.py:480
+msgid "Playing"
+msgstr ""
+
+#: src/gridfab/gui/app.py:483
+#, python-brace-format
+msgid "Onion:{pct}%"
+msgstr ""
+
+#: src/gridfab/gui/app.py:485
+#, python-brace-format
+msgid "Frame {n}"
+msgstr ""
+
+#: src/gridfab/gui/app.py:487
+#, python-brace-format
+msgid "Selected: {n} frames"
+msgstr ""
+
+#: src/gridfab/gui/app.py:489
+#, python-brace-format
+msgid "Anim:{name}"
+msgstr ""
+
+#: src/gridfab/gui/app.py:491
+msgid "SBS"
+msgstr ""
+
+#: src/gridfab/gui/app.py:1096 src/gridfab/gui/app.py:1111
+#: src/gridfab/gui/frames/frame_strip.py:143
+msgid "(All Frames)"
+msgstr ""
+
+#: src/gridfab/gui/app.py:1307
+msgid "Cannot Delete"
+msgstr ""
+
+#: src/gridfab/gui/app.py:1307
+msgid "Cannot delete the only frame."
+msgstr ""
+
+#: src/gridfab/gui/app.py:1309
+msgid "Delete Frame"
+msgstr ""
+
+#: src/gridfab/gui/app.py:1309
+#, python-brace-format
+msgid "Delete frame {n}?"
+msgstr ""
+
+#: src/gridfab/gui/app.py:1487
+msgid "New Animation"
+msgstr ""
+
+#: src/gridfab/gui/app.py:1487
+msgid "Enter animation name (becomes folder name):"
+msgstr ""
+
+#: src/gridfab/gui/app.py:1492
+msgid "Invalid Name"
+msgstr ""
+
+#: src/gridfab/gui/app.py:1492
+msgid "Use only letters, numbers, hyphens, underscores."
+msgstr ""
+
+#: src/gridfab/gui/app.py:1500 src/gridfab/gui/app.py:1660
+msgid "Error"
+msgstr ""
+
+#: src/gridfab/gui/app.py:1505
+msgid "Animation Created"
+msgstr ""
+
+#: src/gridfab/gui/app.py:1506
+#, python-brace-format
+msgid ""
+"Animation '{name}' created.\n"
+"Use '+' to add frames."
+msgstr ""
+
+#: src/gridfab/gui/app.py:1515
+msgid "No Base Frames"
+msgstr ""
+
+#: src/gridfab/gui/app.py:1515
+msgid "No frames in the base sprite directory."
+msgstr ""
+
+#: src/gridfab/gui/app.py:1520
+msgid "Add Base Frame Reference"
+msgstr ""
+
+#: src/gridfab/gui/app.py:1521
+#, python-brace-format
+msgid ""
+"Available base frames: {frames}\n"
+"\n"
+"Enter frame number:"
+msgstr ""
+
+#: src/gridfab/gui/app.py:1528 src/gridfab/gui/app.py:1531
+#: src/gridfab/gui/app.py:1727 src/gridfab/gui/app.py:1732
+msgid "Invalid"
+msgstr ""
+
+#: src/gridfab/gui/app.py:1528
+msgid "Frame number must be an integer."
+msgstr ""
+
+#: src/gridfab/gui/app.py:1532
+#, python-brace-format
+msgid "Frame {n} not found in base (available: {frames})."
+msgstr ""
+
+#: src/gridfab/gui/app.py:1565 src/gridfab/gui/widgets/menu_bar.py:63
+msgid "Clear Grid"
+msgstr ""
+
+#: src/gridfab/gui/app.py:1565
+msgid "Reset all pixels to transparent?"
+msgstr ""
+
+#: src/gridfab/gui/app.py:1583 src/gridfab/gui/frames/palette_panel.py:77
+msgid "New"
+msgstr ""
+
+#: src/gridfab/gui/app.py:1584
+msgid ""
+"Create a new grid in the current folder?\n"
+"\n"
+"Yes = Resize current grid here\n"
+"No = Create a new sprite in another folder"
+msgstr ""
+
+#: src/gridfab/gui/app.py:1598 src/gridfab/gui/app.py:1614
+msgid "New Grid"
+msgstr ""
+
+#: src/gridfab/gui/app.py:1598 src/gridfab/gui/app.py:1639
+msgid "Enter size as WxH (e.g. 16x16, 32x32):"
+msgstr ""
+
+#: src/gridfab/gui/app.py:1603 src/gridfab/gui/app.py:1608
+#: src/gridfab/gui/app.py:1611 src/gridfab/gui/app.py:1644
+#: src/gridfab/gui/app.py:1649 src/gridfab/gui/app.py:1652
+msgid "Invalid Size"
+msgstr ""
+
+#: src/gridfab/gui/app.py:1603 src/gridfab/gui/app.py:1644
+msgid "Size must be WxH (e.g. 32x32)"
+msgstr ""
+
+#: src/gridfab/gui/app.py:1608 src/gridfab/gui/app.py:1649
+msgid "Width and height must be integers"
+msgstr ""
+
+#: src/gridfab/gui/app.py:1611 src/gridfab/gui/app.py:1652
+msgid "Width and height must be positive"
+msgstr ""
+
+#: src/gridfab/gui/app.py:1615
+#, python-brace-format
+msgid "Create new {w}x{h} grid? This will replace the current grid."
+msgstr ""
+
+#: src/gridfab/gui/app.py:1629
+msgid "Choose parent folder for new sprite"
+msgstr ""
+
+#: src/gridfab/gui/app.py:1635 src/gridfab/gui/app.py:1702
+msgid "Sprite Name"
+msgstr ""
+
+#: src/gridfab/gui/app.py:1635 src/gridfab/gui/app.py:1702
+msgid "Enter sprite name (becomes folder name):"
+msgstr ""
+
+#: src/gridfab/gui/app.py:1639
+msgid "Grid Size"
+msgstr ""
+
+#: src/gridfab/gui/app.py:1668
+msgid "Open sprite folder"
+msgstr ""
+
+#: src/gridfab/gui/app.py:1677
+msgid "Not a Sprite"
+msgstr ""
+
+#: src/gridfab/gui/app.py:1678
+#, python-brace-format
+msgid ""
+"No grid.txt or frame files found in {name}\n"
+"\n"
+"Select a folder containing grid.txt and palette.txt."
+msgstr ""
+
+#: src/gridfab/gui/app.py:1688
+msgid "Select image to import"
+msgstr ""
+
+#: src/gridfab/gui/app.py:1690
+msgid "Image files"
+msgstr ""
+
+#: src/gridfab/gui/app.py:1695
+msgid "All files"
+msgstr ""
+
+#: src/gridfab/gui/app.py:1707
+msgid "Tilesheet?"
+msgstr ""
+
+#: src/gridfab/gui/app.py:1708
+msgid ""
+"If this is a tilesheet, enter tile size as WxH.\n"
+"Leave blank for single image import."
+msgstr ""
+
+#: src/gridfab/gui/app.py:1720
+msgid "Tile Position"
+msgstr ""
+
+#: src/gridfab/gui/app.py:1721
+msgid "Enter tile coordinate as COL,ROW (0-indexed):"
+msgstr ""
+
+#: src/gridfab/gui/app.py:1727
+msgid "Must be COL,ROW (e.g. 3,2)"
+msgstr ""
+
+#: src/gridfab/gui/app.py:1732
+msgid "Coordinates must be integers"
+msgstr ""
+
+#: src/gridfab/gui/app.py:1742
+msgid "Import Complete"
+msgstr ""
+
+#: src/gridfab/gui/app.py:1742
+#, python-brace-format
+msgid "Imported to {name}"
+msgstr ""
+
+#: src/gridfab/gui/app.py:1744
+msgid "Import Error"
+msgstr ""
+
+#: src/gridfab/gui/app.py:1805
+msgid "Choose a color"
+msgstr ""
+
+#: src/gridfab/gui/app.py:1810
+msgid "Alias"
+msgstr ""
+
+#: src/gridfab/gui/app.py:1810
+msgid "Enter alias (1-2 characters):"
+msgstr ""
+
+#: src/gridfab/gui/app.py:1817
+msgid "Invalid Alias"
+msgstr ""
+
+#: src/gridfab/gui/app.py:1826
+msgid "Duplicate Alias"
+msgstr ""
+
+#: src/gridfab/gui/app.py:1827
+#, python-brace-format
+msgid ""
+"Alias '{alias}' conflicts with existing alias '{existing}' (case-"
+"insensitive duplicates not allowed)"
+msgstr ""
+
+#: src/gridfab/gui/app.py:1843
+#, python-brace-format
+msgid "Edit color: {alias}"
+msgstr ""
+
+#: src/gridfab/gui/app.py:1861 src/gridfab/gui/frames/palette_panel.py:195
+msgid "Remove Color"
+msgstr ""
+
+#: src/gridfab/gui/app.py:1862
+#, python-brace-format
+msgid ""
+"Remove '{alias}' from the palette?\n"
+"\n"
+"Cells using this color will show as magenta (unknown)."
+msgstr ""
+
+#: src/gridfab/gui/app.py:1878
+msgid "Unsaved Changes"
+msgstr ""
+
+#: src/gridfab/gui/app.py:1879
+msgid "You have unsaved changes. Save before closing?"
+msgstr ""
+
+#: src/gridfab/gui/app.py:1890
+msgid "B — Brush tool"
+msgstr ""
+
+#: src/gridfab/gui/app.py:1891
+msgid "I — Eyedropper tool"
+msgstr ""
+
+#: src/gridfab/gui/app.py:1892
+msgid "F — Fill tool"
+msgstr ""
+
+#: src/gridfab/gui/app.py:1893
+msgid "G — Toggle grid lines"
+msgstr ""
+
+#: src/gridfab/gui/app.py:1894
+msgid "H — Flip horizontal"
+msgstr ""
+
+#: src/gridfab/gui/app.py:1895
+msgid "V — Flip vertical"
+msgstr ""
+
+#: src/gridfab/gui/app.py:1896
+msgid "R — Render preview"
+msgstr ""
+
+#: src/gridfab/gui/app.py:1897
+msgid "E — Export PNGs"
+msgstr ""
+
+#: src/gridfab/gui/app.py:1898
+msgid "O — Toggle onion skin"
+msgstr ""
+
+#: src/gridfab/gui/app.py:1899
+msgid "M — Toggle side-by-side"
+msgstr ""
+
+#: src/gridfab/gui/app.py:1900
+msgid "[ / ] — Zoom out / in"
+msgstr ""
+
+#: src/gridfab/gui/app.py:1901
+msgid "< / > — Previous / next frame"
+msgstr ""
+
+#: src/gridfab/gui/app.py:1902
+msgid "Space — Play / stop animation"
+msgstr ""
+
+#: src/gridfab/gui/app.py:1903
+msgid "Ctrl+S — Save"
+msgstr ""
+
+#: src/gridfab/gui/app.py:1904
+msgid "Ctrl+O — Open"
+msgstr ""
+
+#: src/gridfab/gui/app.py:1905
+msgid "Ctrl+Z — Undo"
+msgstr ""
+
+#: src/gridfab/gui/app.py:1906
+msgid "Ctrl+Y — Redo"
+msgstr ""
+
+#: src/gridfab/gui/app.py:1907
+msgid "Ctrl+C — Copy frame"
+msgstr ""
+
+#: src/gridfab/gui/app.py:1908
+msgid "Ctrl+V — Paste frame"
+msgstr ""
+
+#: src/gridfab/gui/app.py:1909
+msgid "1-9 — Select palette color"
+msgstr ""
+
+#: src/gridfab/gui/app.py:1911 src/gridfab/gui/widgets/menu_bar.py:114
+msgid "Keyboard Shortcuts"
+msgstr ""
+
+#: src/gridfab/gui/app.py:1918 src/gridfab/gui/widgets/menu_bar.py:116
+msgid "About GridFab"
+msgstr ""
+
+#: src/gridfab/gui/app.py:1919
+#, python-brace-format
+msgid ""
+"GridFab v{version}\n"
+"\n"
+"A pixel art editor where artwork\n"
+"is stored as plain text.\n"
+"\n"
+"grid.txt + palette.txt = art\n"
+"\n"
+"Licensed under AGPLv3"
+msgstr ""
+
+#: src/gridfab/gui/pure.py:52
+msgid "Transparent"
+msgstr ""
+
+#: src/gridfab/gui/pure.py:62
+msgid "[Modified]"
+msgstr ""
+
+#: src/gridfab/gui/frames/frame_strip.py:71
+msgid "Dup"
+msgstr ""
+
+#: src/gridfab/gui/frames/frame_strip.py:72
+msgid "Del"
+msgstr ""
+
+#: src/gridfab/gui/frames/frame_strip.py:73
+msgid "Cp"
+msgstr ""
+
+#: src/gridfab/gui/frames/frame_strip.py:74
+msgid "Ps"
+msgstr ""
+
+#: src/gridfab/gui/frames/frame_strip.py:94
+msgid "Stop"
+msgstr ""
+
+#: src/gridfab/gui/frames/frame_strip.py:94
+msgid "Play"
+msgstr ""
+
+#: src/gridfab/gui/frames/frame_strip.py:106
+msgid "FPS:"
+msgstr ""
+
+#: src/gridfab/gui/frames/frame_strip.py:133
+msgid "+ Base"
+msgstr ""
+
+#: src/gridfab/gui/frames/palette_panel.py:49
+msgid "PALETTE"
+msgstr ""
+
+#: src/gridfab/gui/frames/palette_panel.py:64
+msgid "ACTIONS"
+msgstr ""
+
+#: src/gridfab/gui/frames/palette_panel.py:74
+msgid "Open"
+msgstr ""
+
+#: src/gridfab/gui/frames/palette_panel.py:74
+msgid "Open sprite folder (Ctrl+O)"
+msgstr ""
+
+#: src/gridfab/gui/frames/palette_panel.py:75
+#: src/gridfab/gui/widgets/menu_bar.py:40
+msgid "Refresh"
+msgstr ""
+
+#: src/gridfab/gui/frames/palette_panel.py:75
+msgid "Reload files from disk"
+msgstr ""
+
+#: src/gridfab/gui/frames/palette_panel.py:76
+msgid "Clear"
+msgstr ""
+
+#: src/gridfab/gui/frames/palette_panel.py:76
+msgid "Reset all pixels to transparent"
+msgstr ""
+
+#: src/gridfab/gui/frames/palette_panel.py:77
+msgid "Create a new sprite"
+msgstr ""
+
+#: src/gridfab/gui/frames/palette_panel.py:78
+msgid "Import"
+msgstr ""
+
+#: src/gridfab/gui/frames/palette_panel.py:78
+msgid "Import an image as a sprite"
+msgstr ""
+
+#: src/gridfab/gui/frames/palette_panel.py:79
+msgid "Animate"
+msgstr ""
+
+#: src/gridfab/gui/frames/palette_panel.py:79
+msgid "Add animation frames"
+msgstr ""
+
+#: src/gridfab/gui/frames/palette_panel.py:80
+msgid "+ Anim"
+msgstr ""
+
+#: src/gridfab/gui/frames/palette_panel.py:80
+msgid "Create animation subdirectory"
+msgstr ""
+
+#: src/gridfab/gui/frames/palette_panel.py:172
+msgid "Transparent (no actions)"
+msgstr ""
+
+#: src/gridfab/gui/frames/palette_panel.py:186
+#, python-brace-format
+msgid "Copy Hex ({hex_color})"
+msgstr ""
+
+#: src/gridfab/gui/frames/palette_panel.py:190
+msgid "Edit Color..."
+msgstr ""
+
+#: src/gridfab/gui/frames/toolbar.py:46
+msgid "Brush"
+msgstr ""
+
+#: src/gridfab/gui/frames/toolbar.py:47
+msgid "Eyedropper"
+msgstr ""
+
+#: src/gridfab/gui/frames/toolbar.py:48
+msgid "Fill"
+msgstr ""
+
+#: src/gridfab/gui/frames/toolbar.py:58
+#, python-brace-format
+msgid "{tool} ({shortcut})"
+msgstr ""
+
+#: src/gridfab/gui/frames/toolbar.py:71 src/gridfab/gui/widgets/menu_bar.py:36
+msgid "Save"
+msgstr ""
+
+#: src/gridfab/gui/frames/toolbar.py:71
+msgid "Save (Ctrl+S)"
+msgstr ""
+
+#: src/gridfab/gui/frames/toolbar.py:72 src/gridfab/gui/widgets/menu_bar.py:43
+msgid "Render"
+msgstr ""
+
+#: src/gridfab/gui/frames/toolbar.py:72
+msgid "Render (R)"
+msgstr ""
+
+#: src/gridfab/gui/frames/toolbar.py:73 src/gridfab/gui/widgets/menu_bar.py:45
+msgid "Export"
+msgstr ""
+
+#: src/gridfab/gui/frames/toolbar.py:73
+msgid "Export (E)"
+msgstr ""
+
+#: src/gridfab/gui/frames/toolbar.py:90
+msgid "Grid"
+msgstr ""
+
+#: src/gridfab/gui/frames/toolbar.py:97
+msgid "Grid Lines (G)"
+msgstr ""
+
+#: src/gridfab/gui/frames/toolbar.py:114
+msgid "Zoom Out ([)"
+msgstr ""
+
+#: src/gridfab/gui/frames/toolbar.py:130
+msgid "Zoom In (])"
+msgstr ""
+
+#: src/gridfab/gui/widgets/dialogs.py:91 src/gridfab/gui/widgets/dialogs.py:149
+#: src/gridfab/gui/widgets/dialogs.py:187
+msgid "OK"
+msgstr ""
+
+#: src/gridfab/gui/widgets/dialogs.py:97 src/gridfab/gui/widgets/dialogs.py:166
+#: src/gridfab/gui/widgets/dialogs.py:182
+msgid "Cancel"
+msgstr ""
+
+#: src/gridfab/gui/widgets/dialogs.py:155
+#: src/gridfab/gui/widgets/dialogs.py:171
+msgid "No"
+msgstr ""
+
+#: src/gridfab/gui/widgets/dialogs.py:160
+#: src/gridfab/gui/widgets/dialogs.py:176
+msgid "Yes"
+msgstr ""
+
+#: src/gridfab/gui/widgets/menu_bar.py:38
+msgid "Open..."
+msgstr ""
+
+#: src/gridfab/gui/widgets/menu_bar.py:48
+msgid "Import..."
+msgstr ""
+
+#: src/gridfab/gui/widgets/menu_bar.py:50
+msgid "New Sprite..."
+msgstr ""
+
+#: src/gridfab/gui/widgets/menu_bar.py:53
+msgid "Exit"
+msgstr ""
+
+#: src/gridfab/gui/widgets/menu_bar.py:54
+msgid "File"
+msgstr ""
+
+#: src/gridfab/gui/widgets/menu_bar.py:58
+msgid "Undo"
+msgstr ""
+
+#: src/gridfab/gui/widgets/menu_bar.py:60
+msgid "Redo"
+msgstr ""
+
+#: src/gridfab/gui/widgets/menu_bar.py:66
+msgid "Flip Horizontal"
+msgstr ""
+
+#: src/gridfab/gui/widgets/menu_bar.py:68
+msgid "Flip Vertical"
+msgstr ""
+
+#: src/gridfab/gui/widgets/menu_bar.py:70
+msgid "Edit"
+msgstr ""
+
+#: src/gridfab/gui/widgets/menu_bar.py:74
+msgid "Grid Lines"
+msgstr ""
+
+#: src/gridfab/gui/widgets/menu_bar.py:76
+msgid "Zoom In"
+msgstr ""
+
+#: src/gridfab/gui/widgets/menu_bar.py:78
+msgid "Zoom Out"
+msgstr ""
+
+#: src/gridfab/gui/widgets/menu_bar.py:81
+msgid "Side-by-Side"
+msgstr ""
+
+#: src/gridfab/gui/widgets/menu_bar.py:83
+msgid "Onion Skin"
+msgstr ""
+
+#: src/gridfab/gui/widgets/menu_bar.py:85
+msgid "View"
+msgstr ""
+
+#: src/gridfab/gui/widgets/menu_bar.py:89
+msgid "Add Frame"
+msgstr ""
+
+#: src/gridfab/gui/widgets/menu_bar.py:91
+msgid "Duplicate"
+msgstr ""
+
+#: src/gridfab/gui/widgets/menu_bar.py:93
+msgid "Delete"
+msgstr ""
+
+#: src/gridfab/gui/widgets/menu_bar.py:96
+msgid "Copy"
+msgstr ""
+
+#: src/gridfab/gui/widgets/menu_bar.py:98
+msgid "Paste"
+msgstr ""
+
+#: src/gridfab/gui/widgets/menu_bar.py:101
+msgid "Play / Stop"
+msgstr ""
+
+#: src/gridfab/gui/widgets/menu_bar.py:103
+msgid "Previous Frame"
+msgstr ""
+
+#: src/gridfab/gui/widgets/menu_bar.py:105
+msgid "Next Frame"
+msgstr ""
+
+#: src/gridfab/gui/widgets/menu_bar.py:108
+msgid "New Animation..."
+msgstr ""
+
+#: src/gridfab/gui/widgets/menu_bar.py:110
+msgid "Animation"
+msgstr ""
+
+#: src/gridfab/gui/widgets/menu_bar.py:118
+msgid "Help"
+msgstr ""
+

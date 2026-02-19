@@ -11,6 +11,7 @@ except ImportError:
     _Frame = tk.Frame
     _Button = tk.Button
 
+from gridfab.gui.i18n import _
 from gridfab.gui.tokens import (
     BG_ELEVATED, BORDER, ACCENT, TEXT_PRIMARY, TEXT_SECONDARY,
     HOVER_BUTTON, SELECTED_UNFOCUS, FRAME_STRIP_HEIGHT,
@@ -67,10 +68,10 @@ class FrameStrip(_Frame):
         # ── Control buttons ──────────────────────────────────────────
         for text, key, width in [
             ("+", "add_frame", 36),
-            ("Dup", "duplicate", 50),
-            ("Del", "delete", 50),
-            ("Cp", "copy", 36),
-            ("Ps", "paste", 36),
+            (_("Dup"), "duplicate", 50),
+            (_("Del"), "delete", 50),
+            (_("Cp"), "copy", 36),
+            (_("Ps"), "paste", 36),
             ("\u25C0", "move_left", 30),
             ("\u25B6", "move_right", 30),
         ]:
@@ -90,7 +91,7 @@ class FrameStrip(_Frame):
         self._widgets.append(sep)
 
         # ── Play/Stop ────────────────────────────────────────────────
-        play_text = "Stop" if playing else "Play"
+        play_text = _("Stop") if playing else _("Play")
         btn_play = _Button(
             self, text=play_text, width=60, height=26,
             font=FONT_BODY,
@@ -102,7 +103,7 @@ class FrameStrip(_Frame):
         self._widgets.append(btn_play)
 
         # ── FPS spinner ──────────────────────────────────────────────
-        fps_label = tk.Label(self, text="FPS:", bg=BG_ELEVATED, fg=TEXT_SECONDARY, font=FONT_SMALL)
+        fps_label = tk.Label(self, text=_("FPS:"), bg=BG_ELEVATED, fg=TEXT_SECONDARY, font=FONT_SMALL)
         fps_label.pack(side=tk.LEFT, padx=(4, 0))
         self._widgets.append(fps_label)
 
@@ -129,7 +130,7 @@ class FrameStrip(_Frame):
         # ── +Base ref button ─────────────────────────────────────────
         if is_anim_subdir:
             btn_base = _Button(
-                self, text="+Base", width=60, height=26,
+                self, text=_("+ Base"), width=60, height=26,
                 font=FONT_BODY,
                 fg_color="transparent", hover_color=HOVER_BUTTON,
                 text_color="#FFE0B2", corner_radius=4,
@@ -139,7 +140,7 @@ class FrameStrip(_Frame):
             self._widgets.append(btn_base)
 
         # ── Playback animation selector ──────────────────────────────
-        anim_var = tk.StringVar(value=play_anim_name or "(All Frames)")
+        anim_var = tk.StringVar(value=play_anim_name or _("(All Frames)"))
         anim_menu = tk.OptionMenu(
             self, anim_var, *anim_names,
             command=lambda v: self._on_anim(v),
