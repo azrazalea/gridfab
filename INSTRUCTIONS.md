@@ -44,19 +44,22 @@ A GridFab sprite is a directory containing these files:
 
 The artwork itself. One row per line, values separated by spaces. Each value is one of:
 
-- `.` — Transparent pixel
-- A **palette alias** — 1 or 2 characters defined in palette.txt (e.g. `R`, `SK`, `DG`)
-- An **inline hex color** — `#RRGGBB` format (e.g. `#CC3333`)
+- `..` — Transparent pixel (dot-padded to 2 chars)
+- A **palette alias** — 1 or 2 characters defined in palette.txt (e.g. `R.`, `SK`, `DG`), padded to 2 chars with `.`
+
+All values are padded to exactly 2 characters for visual alignment. Single-character aliases are padded with `.` (e.g. `R` → `R.`, `.` → `..`). Two-character aliases are unchanged (e.g. `SK`).
 
 Example 4x4 grid:
 ```
-. . R R
-. R SK SK
-R SK SK .
-R R . .
+.. .. R. R.
+.. R. SK SK
+R. SK SK ..
+R. R. .. ..
 ```
 
-All rows must have the same number of values. The grid dimensions are inferred from the file contents.
+All rows must have the same number of values. The grid dimensions are inferred from the file contents. Old unpadded files are read correctly for backward compatibility.
+
+**Note:** Inline `#RRGGBB` hex colors are no longer allowed in grid files. All colors must be defined in palette.txt with aliases. If you pass a hex color to a CLI command, it will automatically generate a palette alias for it.
 
 ### palette.txt
 
@@ -76,7 +79,7 @@ DG=#336633
 - No case-insensitive duplicates: you cannot have both `SK` and `sk`
 - Must be printable ASCII characters
 - Cannot start with `#` (that's for comments and hex colors)
-- `.` is reserved for transparent and cannot be redefined
+- Cannot contain `.` (reserved for transparent and grid padding)
 - Lines starting with `#` are comments
 
 ### gridfab.json
@@ -274,8 +277,23 @@ Each pixel in the grid becomes an NxN block at scale N.
 Display all colors defined in palette.txt.
 
 ```
-gridfab palette [directory]
+gridfab palette [show] [directory]
 ```
+
+### gridfab palette rename
+
+Rename a palette alias across palette.txt and all grid/frame files.
+
+```
+gridfab palette rename <old_alias> <new_alias> [directory]
+```
+
+Example:
+```
+gridfab palette rename R RD
+```
+
+The new alias must follow all alias rules (1-2 chars, no `.`, no `#`, no case-insensitive collisions).
 
 ### gridfab pixel
 
@@ -355,7 +373,7 @@ Example (fill a rectangle from row 5, col 5 to row 15, col 15 with blue):
 gridfab rect 5 5 15 15 B
 ```
 
-Both `fill` and `rect` accept palette aliases or inline `#RRGGBB` hex colors.
+All edit commands accept palette aliases. If you pass a `#RRGGBB` hex color, it will be automatically added to the palette with a generated alias.
 
 ### gridfab icon
 
@@ -722,8 +740,8 @@ For LLMs without the skill installed, copy and paste this prompt (or adapt it). 
 You are helping create pixel art using GridFab. The artwork is stored as plain text files that you can read and edit.
 
 **Files:**
-- `grid.txt` — The artwork. One row per line, space-separated. `.` = transparent. 1-2 char aliases (defined in palette.txt) or `#RRGGBB` for colors.
-- `palette.txt` — Color definitions. Format: `ALIAS=#RRGGBB`. Aliases must be 1-2 characters, printable ASCII, case-sensitive (no case-insensitive duplicates). `.` is reserved for transparent. Lines starting with `#` are comments.
+- `grid.txt` — The artwork. One row per line, space-separated. All values padded to 2 chars with `.` for alignment. `..` = transparent. 1-2 char aliases defined in palette.txt (e.g. `R.`, `SK`). No inline hex — all colors must have palette aliases.
+- `palette.txt` — Color definitions. Format: `ALIAS=#RRGGBB`. Aliases must be 1-2 characters, printable ASCII, case-sensitive (no case-insensitive duplicates). Cannot contain `.` (reserved). Lines starting with `#` are comments.
 - `gridfab.json` — Config with grid dimensions and export scales.
 
 **IMPORTANT: Always use the CLI commands to edit the grid. Do not edit grid.txt directly unless there is no CLI command that can accomplish the task.** The CLI handles validation, bounds checking, and consistent formatting. Direct file edits risk malformed files and data loss. palette.txt can be edited directly to add or modify color definitions.
@@ -761,6 +779,7 @@ You are helping create pixel art using GridFab. The artwork is stored as plain t
 - `gridfab export` — Export PNGs at configured scales
 - `gridfab icon` — Export icon.ico (requires square grid)
 - `gridfab palette` — Show current palette colors
+- `gridfab palette rename <old> <new>` — Rename alias across palette + grids
 - `gridfab import <image> [output_dir]` — Import image to grid.txt format (single image, tile, or tilesheet)
 - `gridfab gui [directory]` — Launch the GUI editor
 - `gridfab tag <tileset.png>` — Interactive tileset tagger with AI-assisted naming

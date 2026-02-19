@@ -68,7 +68,7 @@ gridfab-gui .                       # Launch GUI
 
 ## File Format Reference
 
-- **grid.txt**: N rows, M columns, space-separated. Values: `.`, palette alias, or `#RRGGBB`
+- **grid.txt**: N rows, M columns, space-separated. All values padded to 2 chars with `.` for alignment. Values: `..` (transparent), palette alias (e.g. `R.`, `SK`). No inline hex.
 - **palette.txt**: `ALIAS=#RRGGBB` per line. `#` lines are comments.
 - **gridfab.json**: Optional config with `grid.width`, `grid.height`, `export.scales`
 

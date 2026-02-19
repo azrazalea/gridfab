@@ -89,7 +89,7 @@ Check your platform and use the correct name.
 
 ## Files
 
-- **grid.txt** — The artwork. One row per line, space-separated. `.` = transparent, 1-2 char palette aliases, or `#RRGGBB` inline hex.
+- **grid.txt** — The artwork. One row per line, space-separated. All values padded to 2 chars with `.` for alignment. `..` = transparent, 1-2 char palette aliases (e.g. `R.`, `SK`). No inline hex — all colors must have palette aliases.
 - **palette.txt** — Color definitions: `ALIAS=#RRGGBB` per line. `#` lines are comments. Edit this file directly to add/modify colors. (The GUI also supports adding, editing, and removing colors via the palette sidebar.)
 - **gridfab.json** — Optional config with `grid.width`, `grid.height`, `export.scales`.
 
@@ -192,6 +192,7 @@ gridfab export potion
 | `gridfab export [dir]` | Export PNGs at configured scales |
 | `gridfab icon [dir]` | Export icon.ico and icon.icns (requires square grid) |
 | `gridfab palette [dir]` | Show current palette colors |
+| `gridfab palette rename <old> <new> [dir]` | Rename alias across palette + grids |
 | `gridfab show [dir]` | Display grid contents |
 | `gridfab import <image> [output] [opts]` | Import image to grid.txt format (single, tile, or tilesheet) |
 | `gridfab atlas <output> [sprites...] [opts]` | Pack sprites into spritesheet (atlas.png + index.json) |
@@ -201,7 +202,8 @@ gridfab export potion
 - 1-2 characters, case-sensitive
 - No case-insensitive duplicates (`SK` and `sk` cannot coexist)
 - Printable ASCII only, cannot start with `#`
-- `.` is reserved for transparent
+- Cannot contain `.` (reserved for transparent and grid padding)
+- If you pass `#RRGGBB` hex to a CLI command, an alias is auto-generated
 
 ## Permission Note
 

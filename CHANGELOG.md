@@ -7,6 +7,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 ## [Unreleased]
 
 ### Added
+- Dot-padded grid columns: all cell values in grid.txt are now padded to 2 characters with `.` for visual alignment (e.g. `R` → `R.`, `.` → `..`, `SK` → `SK`)
+- `palette rename <old> <new>` command: rename a palette alias across palette.txt and all grid/frame files
+- `palette show` subcommand: explicit way to display palette (bare `palette` still works)
+- Hex auto-alias: passing `#RRGGBB` to any CLI edit command auto-generates a palette alias
+- Hex migration on load: grid files containing inline `#RRGGBB` are automatically migrated to palette aliases when loaded with palette access
+- `generate_alias_sequence()` and `Palette.next_available_alias()` in palette.py for centralized alias allocation
 - `gui` CLI command: `gridfab gui [directory]` launches the GUI editor from the CLI
 - Animation system core data model: frame discovery (`frame_NNN.txt`), animation metadata (`animation.json`), active frame state (`.gridfab_state`), grid path resolution for frame-aware commands
 - `frame add` command: add animation frames (copy active, `--from N`, or `--blank`); first call on grid.txt-only dir converts to animated mode
@@ -43,6 +49,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - Tagger AI prompt now includes the tile's grid.txt + palette.txt text so the AI can reason about actual pixel data, not just the upscaled image
 - GUI multi-frame undo/redo: Ctrl+Z/Ctrl+Y reverts operations across all affected frames atomically
 - GUI side-by-side frame labels with selection highlighting: active frame (red), selected frames (blue), with colored indicator bars
+
+### Changed
+- Grid cell values no longer support inline `#RRGGBB` hex colors — all colors must have palette aliases
+- Palette aliases can no longer contain `.` (reserved for transparent and grid padding)
+- `palette` CLI is now a subcommand group (`palette show`, `palette rename`); bare `palette` defaults to show
+- `Palette.resolve()` no longer accepts inline hex — raises error for unknown aliases
+
+### Removed
+- Inline hex color support in grid.txt files (use palette aliases instead)
 
 ### Fixed
 - Tagger: preserve original sprite name before deduplication so downstream code uses the correct base name
