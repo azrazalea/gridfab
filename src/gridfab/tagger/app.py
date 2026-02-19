@@ -12,6 +12,7 @@ from gridfab.tagger.tags import TagManager
 from gridfab.tagger.navigator import TilesetNavigator
 from gridfab.tagger.ai import AIAssistant
 from gridfab.commands.import_cmd import image_to_grid_and_palette
+from gridfab.core.grid import _pad_cell
 
 
 def _unique_sprite_name(
@@ -729,7 +730,7 @@ class TaggerApp:
                     if (r, g, b) == self.bg_color[:3]:
                         data[x, y] = (0, 0, 0, 0)
         grid_data, palette = image_to_grid_and_palette(tile_img)
-        grid_lines = "\n".join(" ".join(r) for r in grid_data)
+        grid_lines = "\n".join(" ".join(_pad_cell(v) for v in r) for r in grid_data)
         palette_lines = "\n".join(f"{alias}={color}" for alias, color in sorted(palette.items()))
         return f"grid.txt:\n{grid_lines}\n\npalette.txt:\n{palette_lines}"
 

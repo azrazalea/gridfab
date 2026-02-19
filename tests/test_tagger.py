@@ -440,13 +440,13 @@ class TestTileAsText:
         grid_start = lines.index("grid.txt:") + 1
         palette_start = lines.index("palette.txt:")
         grid_lines = [l for l in lines[grid_start:palette_start] if l.strip()]
-        # First cell should be the red alias, rest should be '.'
+        # First cell should be the red alias, rest should be '..' (padded transparent)
         first_row = grid_lines[0].split()
-        assert first_row[0] != "."  # red pixel
-        assert all(c == "." for c in first_row[1:])  # rest is bg → transparent
-        # All other rows should be all '.'
+        assert first_row[0] != ".."  # red pixel
+        assert all(c == ".." for c in first_row[1:])  # rest is bg → transparent
+        # All other rows should be all '..'
         for row in grid_lines[1:]:
-            assert all(c == "." for c in row.split())
+            assert all(c == ".." for c in row.split())
 
 
 # ─── AI grid_text parameter ──────────────────────────────────────────────────
